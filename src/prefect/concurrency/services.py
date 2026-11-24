@@ -14,6 +14,7 @@ from typing_extensions import TypeAlias, Unpack
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
+from prefect.client.base import _parse_retry_after
 from prefect.client.orchestration import get_client
 from prefect.utilities.timeout import timeout_async
 
@@ -42,6 +43,19 @@ _ItemWithLease: TypeAlias = tuple[
     bool,
     Optional["ConcurrencyLeaseHolder"],
 ]
+
+# A 423 without a usable Retry-After still needs a short delay so a malformed
+# header cannot crash the acquisition service and strand its caller.
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
+
+
+def _retry_after_seconds(response: httpx.Response) -> float:
+    """Return a safe delay for a 423 response, falling back for unusable headers."""
+    header = response.headers.get("Retry-After")
+    if header is None:
+        return _DEFAULT_RETRY_AFTER_SECONDS
+    parsed = _parse_retry_after(header)
+    return _DEFAULT_RETRY_AFTER_SECONDS if parsed is None else parsed
 
 
 class ConcurrencySlotAcquisitionService(
@@ -79,7 +93,7 @@ class ConcurrencySlotAcquisitionService(
 
                     if max_retries is not None and max_retries <= 0:
                         raise exc
-                    retry_after = float(exc.response.headers["Retry-After"])
+                    retry_after = _retry_after_seconds(exc.response)
                     logger.debug(
                         f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
                     )
@@ -191,7 +205,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     if max_retries is not None and max_retries <= 0:
                         raise exc
 
-                    retry_after = float(exc.response.headers["Retry-After"])
+                    retry_after = _retry_after_seconds(exc.response)
                     logger.debug(
                         f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s)."
                     )

@@ -282,6 +282,54 @@ async def test_retries_failed_call_respects_retry_after_header(
         )
 
 
+@pytest.mark.parametrize(
+    ("headers", "expected_delay"),
+    [
+        ({"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, 0.0),
+        ({"Retry-After": "not-a-number"}, 1.0),
+        ({}, 1.0),
+    ],
+)
+async def test_retries_failed_call_with_unusable_retry_after_header(
+    mocked_client: Any, headers: dict[str, str], expected_delay: float
+) -> None:
+    """Test that HTTP-date, malformed, and missing headers do not crash retries."""
+    lease_id = uuid4()
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("post", "/v2/concurrency_limits/increment-with-lease"),
+            response=Response(423, headers=headers),
+        ),
+        Response(
+            200,
+            json={
+                "lease_id": str(lease_id),
+                "limits": [{"id": str(uuid4()), "name": "tag:test", "limit": 10}],
+            },
+        ),
+    ]
+    mocked_client.client.increment_concurrency_slots_with_lease.side_effect = responses
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["tag:test"])
+    )
+
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
+        future: Future[Response] = service.send(
+            (1, "concurrency", None, None, 60.0, False, None)
+        )
+        await service.drain()
+        returned_response = await asyncio.wrap_future(future)
+
+        assert returned_response == responses[1]
+        sleep.assert_called_once_with(expected_delay)
+        assert (
+            mocked_client.client.increment_concurrency_slots_with_lease.call_count == 2
+        )
+
+
 async def test_failed_call_status_code_not_retryable_returns_exception(
     mocked_client: Any,
 ) -> None:

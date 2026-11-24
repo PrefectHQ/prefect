@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest import mock
 from uuid import UUID
 
@@ -6,7 +7,10 @@ import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
-from prefect.concurrency.v1.services import ConcurrencySlotAcquisitionService
+from prefect.concurrency.v1.services import (
+    ConcurrencySlotAcquisitionService,
+    ConcurrencySlotAcquisitionServiceError,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -86,6 +90,59 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
             float(responses[0].response.headers["Retry-After"])
         )
         assert mocked_client.client.increment_v1_concurrency_slots.call_count == 2
+
+
+@pytest.mark.parametrize(
+    ("headers", "expected_delay"),
+    [
+        ({"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, 0.0),
+        ({"Retry-After": "not-a-number"}, 1.0),
+    ],
+)
+async def test_retries_failed_call_with_unusable_retry_after_header(
+    mocked_client: Any, headers: dict[str, str], expected_delay: float
+) -> None:
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("get", "/"),
+            response=Response(423, headers=headers),
+        ),
+        Response(200),
+    ]
+    mocked_client.client.increment_v1_concurrency_slots.side_effect = responses
+
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(["api", "database"]))
+
+    sleep = mock.AsyncMock()
+    with mock.patch(
+        "prefect.concurrency.v1.services.asyncio", wraps=asyncio, sleep=sleep
+    ):
+        future = service.send((task_run_id, None))
+        await service.drain()
+        returned_response = await asyncio.wrap_future(future)
+
+        assert returned_response == responses[1]
+        sleep.assert_called_once_with(expected_delay)
+        assert mocked_client.client.increment_v1_concurrency_slots.call_count == 2
+
+
+async def test_missing_retry_after_header_still_aborts(mocked_client: Any) -> None:
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
+    response = HTTPStatusError(
+        "Limit is locked",
+        request=Request("get", "/"),
+        response=Response(423),
+    )
+    mocked_client.client.increment_v1_concurrency_slots.side_effect = response
+
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(["api", "database"]))
+
+    future = service.send((task_run_id, None))
+    await service.drain()
+    with pytest.raises(ConcurrencySlotAcquisitionServiceError):
+        await asyncio.wrap_future(future)
 
 
 async def test_failed_call_status_code_not_retryable_returns_exception(mocked_client):

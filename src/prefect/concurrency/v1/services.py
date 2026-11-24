@@ -11,6 +11,7 @@ from typing_extensions import Unpack
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
+from prefect.client.base import _parse_retry_after
 from prefect.client.orchestration import get_client
 from prefect.utilities.timeout import timeout_async
 
@@ -20,6 +21,17 @@ if TYPE_CHECKING:
 
 class ConcurrencySlotAcquisitionServiceError(Exception):
     """Raised when an error occurs while acquiring concurrency slots."""
+
+
+# A 423 with an unusable Retry-After still needs a short delay so a malformed
+# header cannot crash the acquisition service and strand its caller.
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
+
+
+def _retry_after_seconds(value: str) -> float:
+    """Parse a present Retry-After header, falling back for unusable values."""
+    parsed = _parse_retry_after(value)
+    return _DEFAULT_RETRY_AFTER_SECONDS if parsed is None else parsed
 
 
 class ConcurrencySlotAcquisitionService(
@@ -52,8 +64,7 @@ class ConcurrencySlotAcquisitionService(
 
                     retry_after = exc.response.headers.get("Retry-After")
                     if retry_after:
-                        retry_after = float(retry_after)
-                        await asyncio.sleep(retry_after)
+                        await asyncio.sleep(_retry_after_seconds(retry_after))
                     else:
                         # We received a 423 but no Retry-After header. This
                         # should indicate that the server told us to abort
