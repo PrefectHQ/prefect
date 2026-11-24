@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -100,7 +101,7 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     ids=["http-date", "malformed", "non-finite", "missing"],
 )
 async def test_retries_failed_call_with_unusable_retry_after_header(
-    mocked_client, headers, expected_sleep
+    mocked_client: Any, headers: dict[str, str], expected_sleep: float
 ):
     responses = [
         HTTPStatusError(

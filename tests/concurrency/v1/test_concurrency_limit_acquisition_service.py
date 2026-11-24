@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest import mock
 from uuid import UUID
 
@@ -95,11 +96,12 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
         ("Wed, 21 Oct 2015 07:28:00 GMT", 0.0),
         ("not-a-number", _DEFAULT_RETRY_AFTER_SECONDS),
         ("inf", _DEFAULT_RETRY_AFTER_SECONDS),
+        ("", _DEFAULT_RETRY_AFTER_SECONDS),
     ],
-    ids=["http-date", "malformed", "non-finite"],
+    ids=["http-date", "malformed", "non-finite", "empty"],
 )
 async def test_retries_failed_call_with_unusable_retry_after_header(
-    mocked_client, retry_after, expected_sleep
+    mocked_client: Any, retry_after: str, expected_sleep: float
 ):
     task_run_id = UUID("00000000-0000-0000-0000-000000000000")
     responses = [

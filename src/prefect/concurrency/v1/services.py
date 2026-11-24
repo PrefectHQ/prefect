@@ -53,7 +53,7 @@ class ConcurrencySlotAcquisitionService(
                     if not exc.response.status_code == status.HTTP_423_LOCKED:
                         raise
 
-                    if exc.response.headers.get("Retry-After"):
+                    if "Retry-After" in exc.response.headers:
                         await asyncio.sleep(_get_retry_after_seconds(exc.response))
                     else:
                         # We received a 423 but no Retry-After header. This
