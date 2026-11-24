@@ -757,6 +757,37 @@ class TestIntervalScheduleDaylightSavingsTime:
 
         assert await s.get_dates(n=3, start=start) == expected
 
+    @pytest.mark.parametrize(
+        "interval, start",
+        [
+            # each step adds a microsecond, so the start lands just before an
+            # occurrence that the seek must keep
+            (
+                timedelta(days=1, microseconds=1),
+                datetime(2025, 1, 31, 7, 30, 0, 29, tzinfo=ZoneInfo("UTC")),
+            ),
+            (
+                timedelta(days=1, microseconds=1),
+                datetime(2025, 3, 12, 6, 30, 0, 70, tzinfo=ZoneInfo("UTC")),
+            ),
+            (
+                timedelta(days=2, seconds=1, microseconds=333_333),
+                datetime(2025, 11, 4, 7, 30, tzinfo=ZoneInfo("UTC")),
+            ),
+        ],
+    )
+    async def test_fractional_mixed_interval_refill_matches_anchored_series(
+        self, interval: timedelta, start: datetime
+    ):
+        anchor = datetime(2025, 1, 1, 2, 30, tzinfo=ZoneInfo("America/New_York"))
+        s = IntervalSchedule(
+            interval=interval, anchor_date=anchor, timezone="America/New_York"
+        )
+        series = await s.get_dates(n=1000, start=anchor)
+        expected = [d for d in series if d >= start][:3]
+
+        assert await s.get_dates(n=3, start=start) == expected
+
 
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
