@@ -6706,6 +6706,7 @@
                     "Work Pools"
                 ],
                 "summary": "Worker Heartbeat",
+                "description": "Record a heartbeat and optionally return the worker's ID.",
                 "operationId": "worker_heartbeat",
                 "parameters": [
                     {
@@ -6742,6 +6743,17 @@
                 "responses": {
                     "204": {
                         "description": "Successful Response"
+                    },
+                    "200": {
+                        "description": "The worker ID when requested.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            }
+                        }
                     },
                     "422": {
                         "description": "Validation Error",
@@ -15234,6 +15246,12 @@
                         ],
                         "title": "Heartbeat Interval Seconds",
                         "description": "The worker's heartbeat interval in seconds"
+                    },
+                    "return_id": {
+                        "type": "boolean",
+                        "title": "Return Id",
+                        "description": "Return the worker ID. Defaults to false.",
+                        "default": false
                     }
                 },
                 "type": "object",
@@ -19086,6 +19104,15 @@
                             "PREFECT_EXPERIMENTS_WARN",
                             "PREFECT_EXPERIMENTAL_WARN"
                         ]
+                    },
+                    "aggregate_nested_states": {
+                        "type": "boolean",
+                        "title": "Aggregate Nested States",
+                        "description": "Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_EXPERIMENTS_AGGREGATE_NESTED_STATES"
+                        ]
                     }
                 },
                 "type": "object",
@@ -22512,6 +22539,19 @@
                         ],
                         "title": "Task Run Id",
                         "description": "The task run ID associated with the log."
+                    },
+                    "worker_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Worker Id",
+                        "description": "The ID of the worker that wrote the log."
                     }
                 },
                 "type": "object",
@@ -22573,6 +22613,18 @@
                             }
                         ],
                         "title": "Task Run Id"
+                    },
+                    "worker_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Worker Id"
                     }
                 },
                 "additionalProperties": false,
@@ -26182,7 +26234,7 @@
                     "v2_enabled": {
                         "type": "boolean",
                         "title": "V2 Enabled",
-                        "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.",
+                        "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference. Deprecated: the V1 UI will be removed in Prefect 3.10, after which this setting will have no effect.",
                         "default": true,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_V2_ENABLED"

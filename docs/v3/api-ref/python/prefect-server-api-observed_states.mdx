@@ -13,7 +13,7 @@ Routes for discovering observed state types and names.
 ### `read_observed_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/observed_states.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_observed_states(db: Annotated[PrefectDBInterface, Depends(provide_database_interface)], query: Annotated[str | None, Query(max_length=100)] = None, order_by: ObservedStateSort = ObservedStateSort.LAST_SEEN_DESC, limit: Annotated[int, Query(ge=1, le=200)] = 200) -> list[ObservedState]
+read_observed_states(db: Annotated[PrefectDBInterface, Depends(aprovide_database_interface)], query: Annotated[str | None, Query(max_length=100)] = None, order_by: ObservedStateSort = ObservedStateSort.LAST_SEEN_DESC, limit: Annotated[int, Query(ge=1, le=200)] = 200) -> list[ObservedState]
 ```
 
 
