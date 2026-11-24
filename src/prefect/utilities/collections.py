@@ -2,6 +2,7 @@
 Utilities for extensions of and operations on Python collections.
 """
 
+import copy
 import io
 import itertools
 import types
@@ -17,7 +18,7 @@ from collections.abc import (
     Sequence,
     Set,
 )
-from dataclasses import fields, is_dataclass, replace
+from dataclasses import _FIELD_INITVAR, MISSING, InitVar, fields, is_dataclass, replace
 from enum import Enum, auto
 from typing import (
     TYPE_CHECKING,
@@ -244,6 +245,52 @@ class StopVisiting(BaseException):
     """
 
 
+def _is_required_init_var(field: Any) -> bool:
+    """True for `InitVar` fields that `replace()` would require as arguments.
+
+    `fields()` omits both `InitVar` and `ClassVar`, and `ClassVar` internals also
+    have `init=True` with missing defaults, so check the `InitVar` marker itself.
+    `InitVar`s declared with `init=False` are skipped by `replace()`.
+    """
+    if not field.init:
+        return False
+    if field.default is not MISSING or field.default_factory is not MISSING:
+        return False
+    # `_field_type` survives postponed annotations; isinstance covers evaluated types.
+    return field._field_type is _FIELD_INITVAR or isinstance(field.type, InitVar)
+
+
+def _copy_dataclass_with_changes(expr: Any, changes: dict[str, Any]) -> Any:
+    """Copy a dataclass with `copy.copy()` and set the changed fields on the copy.
+
+    Used for dataclasses with a required `InitVar`, which `replace()` cannot
+    rebuild. The class owns how it is copied; the copy must be a separate
+    instance of the same type, and is checked before anything is written.
+    """
+    cls = type(expr)
+    try:
+        result = copy.copy(expr)
+    except Exception as exc:
+        raise ValueError(
+            f"Could not copy {cls.__qualname__} instance to update its fields: {exc}"
+        ) from exc
+    if result is expr or type(result) is not cls:
+        raise ValueError(
+            f"Could not update fields of {cls.__qualname__}: copy.copy() must return"
+            f" a separate instance of the same type, got"
+            f" {'the same instance' if result is expr else type(result).__qualname__}."
+        )
+    for name, value in changes.items():
+        try:
+            # `object.__setattr__` also works on frozen dataclasses
+            object.__setattr__(result, name, value)
+        except Exception as exc:
+            raise ValueError(
+                f"Could not set field {name!r} on a copy of {cls.__qualname__}: {exc}"
+            ) from exc
+    return result
+
+
 @overload
 def visit_collection(
     expr: Any,
@@ -336,6 +383,13 @@ def visit_collection(
     - When a dataclass is copied, fields declared with `init=False` keep their
       visited values. They are not recomputed by `__init__` or `__post_init__`
       from the new field values; this is intentional.
+    - A dataclass with a required `InitVar` cannot be rebuilt with `replace()`,
+      because the `InitVar` value is not stored on the instance. Such dataclasses
+      are copied with `copy.copy()`, following the class's normal copying
+      behavior, and only the changed fields are set on the copy, so those fields
+      must be independently writable. State that the class's copying omits is
+      not restored. A `ValueError` is raised if copying or setting a field
+      fails, or if the copy is not a separate instance of the same type.
 
     Supported types:
     - List (including iterators)
@@ -537,7 +591,18 @@ def visit_collection(
             modified = any(
                 getattr(expr, f.name) is not v for f, v in zip(expr_fields, values)
             )
-            if modified:
+            if modified and any(
+                _is_required_init_var(f) for f in expr.__dataclass_fields__.values()
+            ):
+                result = _copy_dataclass_with_changes(
+                    expr,
+                    {
+                        f.name: v
+                        for f, v in zip(expr_fields, values)
+                        if getattr(expr, f.name) is not v
+                    },
+                )
+            elif modified:
                 result = replace(
                     expr,
                     **{f.name: v for f, v in zip(expr_fields, values) if f.init},
