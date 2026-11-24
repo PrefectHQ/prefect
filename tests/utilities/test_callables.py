@@ -205,11 +205,41 @@ class TestFunctionToSchema:
                     "enum": ["RED", "GREEN", "BLUE"],
                     "title": "Color",
                     "type": "string",
+                    "x-enum-varnames": ["RED", "GREEN", "BLUE"],
                 }
             },
         }
 
         assert schema.model_dump_for_openapi() == expected_schema
+
+    def test_function_with_enum_argument_includes_member_names(self):
+        class Color(Enum):
+            RED = 1
+            GREEN = 2
+
+        class Size(str, Enum):
+            SMALL = "s"
+            LARGE = "l"
+
+        def f(color: Color, size: Size = Size.SMALL):
+            pass
+
+        schema = callables.parameter_schema(f)
+
+        assert schema.definitions == {
+            "Color": {
+                "enum": [1, 2],
+                "title": "Color",
+                "type": "integer",
+                "x-enum-varnames": ["RED", "GREEN"],
+            },
+            "Size": {
+                "enum": ["s", "l"],
+                "title": "Size",
+                "type": "string",
+                "x-enum-varnames": ["SMALL", "LARGE"],
+            },
+        }
 
     def test_function_with_generic_arguments(self):
         def f(
@@ -410,6 +440,7 @@ class TestFunctionToSchema:
             "title": "Color",
             "type": "string",
             "description": "An enumeration.",
+            "x-enum-varnames": ["RED", "GREEN", "BLUE"],
         }
 
         # these overrides represent changes in how pydantic generates schemas in v2
@@ -674,6 +705,7 @@ class TestMethodToSchema:
                         "enum": ["RED", "GREEN", "BLUE"],
                         "title": "Color",
                         "type": "string",
+                        "x-enum-varnames": ["RED", "GREEN", "BLUE"],
                     }
                 },
             }
@@ -1598,6 +1630,7 @@ class TestEntrypointToSchema:
                     "enum": ["RED", "GREEN", "BLUE"],
                     "title": "Color",
                     "type": "string",
+                    "x-enum-varnames": ["RED", "GREEN", "BLUE"],
                 }
             },
         }
@@ -1813,6 +1846,7 @@ class TestEntrypointToSchema:
             "title": "Color",
             "type": "string",
             "description": "An enumeration.",
+            "x-enum-varnames": ["RED", "GREEN", "BLUE"],
         }
 
         # these overrides represent changes in how pydantic generates schemas in v2
