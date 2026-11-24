@@ -23,6 +23,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from functools import wraps
@@ -58,6 +59,10 @@ from prefect.logging import get_logger
 from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.database import (
+    aprovide_database_interface,
+    provide_database_interface,
+)
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
@@ -491,6 +496,67 @@ async def prefect_object_not_found_exception_handler(
 API_APP_CACHE: dict[tuple[str, str | None], FastAPI] = {}
 
 
+# API routes depend on async variants of these dependencies so FastAPI resolves
+# them on the event loop. Overrides registered for an original dependency still
+# apply to the routes.
+_ORIGINAL_DEPENDENCIES: dict[Callable[..., Any], Callable[..., Any]] = {
+    aprovide_database_interface: provide_database_interface,
+    api.dependencies.aprovide_request_api_version: (
+        api.dependencies.provide_request_api_version
+    ),
+    api.dependencies.aget_created_by: api.dependencies.get_created_by,
+    api.dependencies.aget_updated_by: api.dependencies.get_updated_by,
+    api.dependencies.ais_ephemeral_request: api.dependencies.is_ephemeral_request,
+    api.dependencies.aget_prefect_client_version: (
+        api.dependencies.get_prefect_client_version
+    ),
+    api.dependencies.adocket: api.dependencies.docket,
+    api.events.averified_page_token: api.events.verified_page_token,
+    api.workers.provide_worker_lookups: api.workers.WorkerLookups,
+}
+
+
+class _DependencyOverrides(Mapping[Callable[..., Any], Callable[..., Any]]):
+    """
+    An app's dependency overrides, where an override registered for a route's
+    dependency takes precedence over one registered for its original dependency.
+    """
+
+    def __init__(self, overrides: Mapping[Callable[..., Any], Callable[..., Any]]):
+        self._overrides = overrides
+
+    def __getitem__(self, dependency: Callable[..., Any]) -> Callable[..., Any]:
+        try:
+            return self._overrides[dependency]
+        except KeyError:
+            if dependency not in _ORIGINAL_DEPENDENCIES:
+                raise
+            return self._overrides[_ORIGINAL_DEPENDENCIES[dependency]]
+
+    def __iter__(self) -> Iterator[Callable[..., Any]]:
+        return iter(self._overrides)
+
+    def __len__(self) -> int:
+        return len(self._overrides)
+
+
+class _DependencyOverridesProvider:
+    """Provides an app's dependency overrides to the routes it includes."""
+
+    def __init__(self, app: FastAPI):
+        self._app = app
+
+    @property
+    def dependency_overrides(
+        self,
+    ) -> Mapping[Callable[..., Any], Callable[..., Any]]:
+        overrides = self._app.dependency_overrides
+        if not overrides:
+            # FastAPI skips override lookups for an empty mapping.
+            return overrides
+        return _DependencyOverrides(overrides)
+
+
 def create_api_app(
     dependencies: list[Any] | None = None,
     health_check_path: str = "/health",
@@ -530,6 +596,7 @@ def create_api_app(
             **fast_api_app_kwargs,
         },
     )
+    api_app.router.dependency_overrides_provider = _DependencyOverridesProvider(api_app)
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore

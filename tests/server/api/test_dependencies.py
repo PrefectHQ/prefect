@@ -1,12 +1,14 @@
 import inspect
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator, Iterator
 from typing import Any, Optional
+from uuid import uuid4
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute, APIWebSocketRoute
 from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from prefect.server.api.dependencies import (
     aget_prefect_client_version,
@@ -19,7 +21,11 @@ from prefect.server.api.dependencies import (
 )
 from prefect.server.api.events import verified_page_token
 from prefect.server.api.server import API_ROUTERS
-from prefect.server.database import aprovide_database_interface
+from prefect.server.api.workers import WorkerLookups
+from prefect.server.database import (
+    aprovide_database_interface,
+    provide_database_interface,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -118,3 +124,167 @@ def test_api_route_dependencies_resolve_on_the_event_loop():
         if not _resolves_on_event_loop(call)
     )
     assert sync_dependencies == []
+
+
+class _UnavailableDatabase:
+    async def is_db_connectable(self) -> bool:
+        return False
+
+
+class _OverrideSelected(Exception):
+    pass
+
+
+@pytest.fixture
+def api_app(app: FastAPI) -> Iterator[FastAPI]:
+    api_app: FastAPI = app.api_app
+    original_overrides = dict(api_app.dependency_overrides)
+    yield api_app
+    api_app.dependency_overrides.clear()
+    api_app.dependency_overrides.update(original_overrides)
+
+
+@pytest.fixture
+def override_raises_status(api_app: FastAPI) -> Callable[[Any], None]:
+    def register(dependency: Any) -> None:
+        def override() -> None:
+            raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT)
+
+        api_app.dependency_overrides[dependency] = override
+
+    return register
+
+
+async def test_ready_uses_database_override_for_original_provider(
+    api_app: FastAPI, client: AsyncClient
+):
+    def unavailable_database() -> _UnavailableDatabase:
+        return _UnavailableDatabase()
+
+    api_app.dependency_overrides[provide_database_interface] = unavailable_database
+
+    response = await client.get("/ready")
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert response.json() == {"message": "Database is not available"}
+
+
+async def test_ready_uses_database_override_for_async_provider(
+    api_app: FastAPI, client: AsyncClient
+):
+    async def unavailable_database() -> _UnavailableDatabase:
+        return _UnavailableDatabase()
+
+    api_app.dependency_overrides[aprovide_database_interface] = unavailable_database
+
+    response = await client.get("/ready")
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+async def test_override_for_async_provider_takes_precedence_over_original(
+    api_app: FastAPI, client: AsyncClient
+):
+    def original_override() -> None:
+        raise _OverrideSelected()
+
+    async def async_override() -> _UnavailableDatabase:
+        return _UnavailableDatabase()
+
+    api_app.dependency_overrides[provide_database_interface] = original_override
+    api_app.dependency_overrides[aprovide_database_interface] = async_override
+
+    response = await client.get("/ready")
+
+    assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+
+
+@pytest.mark.parametrize(
+    "original,method,path",
+    [
+        (provide_database_interface, "GET", "/ready"),
+        (provide_request_api_version, "DELETE", f"/block_schemas/{uuid4()}"),
+        (get_created_by, "POST", "/flow_runs/"),
+        (get_updated_by, "POST", "/deployments/"),
+        (is_ephemeral_request, "POST", "/events"),
+        (get_prefect_client_version, "GET", "/work_pools/my-pool"),
+        (docket, "POST", "/work_pools/my-pool/get_scheduled_flow_runs"),
+        (verified_page_token, "GET", "/events/filter/next?page-token=abc"),
+        (WorkerLookups, "GET", "/work_pools/my-pool"),
+    ],
+)
+async def test_routes_use_overrides_registered_for_original_dependencies(
+    override_raises_status: Callable[[Any], None],
+    client: AsyncClient,
+    original: Callable[..., Any],
+    method: str,
+    path: str,
+):
+    override_raises_status(original)
+
+    response = await client.request(method, path)
+
+    assert response.status_code == status.HTTP_418_IM_A_TEAPOT
+
+
+async def test_original_header_dependency_override_declares_its_own_parameters(
+    api_app: FastAPI, client: AsyncClient, work_pool: Any
+):
+    async def client_version_from_custom_header(
+        x_custom_client_version: str = Header(),
+    ) -> str:
+        return x_custom_client_version
+
+    api_app.dependency_overrides[get_prefect_client_version] = (
+        client_version_from_custom_header
+    )
+
+    response = await client.get(
+        f"/work_pools/{work_pool.name}",
+        headers={"x-custom-client-version": "3.3.7"},
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert (
+        "default_result_storage_block_id"
+        not in response.json()["storage_configuration"]
+    )
+
+    response = await client.get(f"/work_pools/{work_pool.name}")
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+    assert response.json()["exception_detail"][0]["loc"] == [
+        "header",
+        "x-custom-client-version",
+    ]
+
+
+async def test_original_class_dependency_override_resolves_nested_generator(
+    api_app: FastAPI, client: AsyncClient, work_pool: Any
+):
+    events: list[str] = []
+
+    def request_marker(request: Request) -> object:
+        events.append("marker")
+        return object()
+
+    def worker_lookups(
+        first_marker: object = Depends(request_marker),
+        second_marker: object = Depends(request_marker),
+    ) -> Generator[WorkerLookups, None, None]:
+        assert first_marker is second_marker
+        events.append("enter")
+        try:
+            yield WorkerLookups()
+        finally:
+            events.append("exit")
+
+    api_app.dependency_overrides[WorkerLookups] = worker_lookups
+
+    response = await client.get(f"/work_pools/{work_pool.name}")
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["id"] == str(work_pool.id)
+    assert events == ["marker", "enter", "exit"]
+
+    events.clear()
+    response = await client.get("/work_pools/does-not-exist")
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert events == ["marker", "enter", "exit"]
