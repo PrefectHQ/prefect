@@ -27,7 +27,9 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 					id: header,
 					header: () => header,
 					cell: ({ row }) => {
-						const value = String(row.original[header] ?? "");
+						const value = Object.hasOwn(row.original, header)
+							? String(row.original[header] ?? "")
+							: "";
 						return (
 							<span className="truncate block" title={value}>
 								{value}

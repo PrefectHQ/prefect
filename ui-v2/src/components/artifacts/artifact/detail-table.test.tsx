@@ -7,6 +7,29 @@ const sampleData =
 	'[{"customer_id": "12345", "name": "John Smith", "churn_probability": 0.85}, {"customer_id": "56789", "name": "Jane Jones", "churn_probability": 0.65}]';
 
 describe("ArtifactDetailTable", () => {
+	it.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
+		"renders only own values for the %s column",
+		(header) => {
+			const { getAllByRole } = render(
+				<DetailTable
+					tableData={JSON.stringify([
+						{},
+						{ [header]: "Own value" },
+						{ [header]: null },
+					])}
+				/>,
+			);
+
+			expect(
+				getAllByRole("columnheader").map((cell) => cell.textContent),
+			).toEqual([header]);
+			const rows = getAllByRole("row");
+			expect(within(rows[1]).getByRole("cell").textContent).toBe("");
+			expect(within(rows[2]).getByRole("cell")).toHaveTextContent("Own value");
+			expect(within(rows[3]).getByRole("cell").textContent).toBe("");
+		},
+	);
+
 	it.each([{ name: "Alice" }, {}])(
 		"renders columns from later rows when the first row is %j",
 		(firstRow) => {
