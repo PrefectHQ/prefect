@@ -41,7 +41,7 @@ from prefect.client.schemas.worker_channel import (
 )
 from prefect.logging import get_logger
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
     emit_work_queue_status_event,
@@ -200,6 +200,16 @@ class WorkerLookups:
             create_queue_if_not_found=create_queue_if_not_found,
         )
         return queue.id
+
+
+async def provide_worker_lookups() -> WorkerLookups:
+    """
+    Provide `WorkerLookups` to an API route.
+
+    FastAPI runs a class dependency in a worker thread on every request, so
+    routes depend on this function to create it on the event loop.
+    """
+    return WorkerLookups()
 
 
 class WorkerChannelSetupError(Exception):
@@ -486,9 +496,9 @@ async def _build_worker_ready_frame(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -542,10 +552,10 @@ async def create_work_pool(
 @router.get("/{name}")
 async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -583,9 +593,9 @@ async def read_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> List[schemas.responses.WorkPoolResponse]:
     """
@@ -623,7 +633,7 @@ async def read_work_pools(
 @router.post("/count")
 async def count_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
     Count work pools
@@ -638,8 +648,8 @@ async def count_work_pools(
 async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Update a work pool
@@ -683,8 +693,8 @@ async def update_work_pool(
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool
@@ -724,8 +734,8 @@ async def read_work_pool_concurrency_status(
     page: int = Body(1, ge=1),
     limit: int = dependencies.LimitBody(),
     flow_run_limit: int = Body(10, ge=0, le=200, description="Max flow runs per queue"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkPoolConcurrencyStatus:
     """
     Read concurrency status for a work pool, including per-queue breakdown
@@ -846,8 +856,8 @@ async def get_scheduled_flow_runs(
         None, description="The minimum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkerFlowRunResponse]:
     """
     Load scheduled runs for a worker
@@ -948,8 +958,8 @@ async def get_scheduled_flow_runs(
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work pool queue. If a work pool queue with the same
@@ -994,8 +1004,8 @@ async def read_work_queue(
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Read a work pool queue
@@ -1030,8 +1040,8 @@ async def read_work_queues(
     work_queues: schemas.filters.WorkQueueFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """
     Read all work pool queues
@@ -1076,8 +1086,8 @@ async def update_work_queue(
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Update a work pool queue
@@ -1111,8 +1121,8 @@ async def delete_work_queue(
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool queue
@@ -1147,7 +1157,7 @@ async def delete_work_queue(
 async def worker_channel_connect(
     websocket: WebSocket,
     work_pool_name: str = Path(..., description="The work pool name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     websocket = await subscriptions.accept_prefect_socket(
         websocket,
@@ -1285,8 +1295,8 @@ async def worker_heartbeat(
         description="Return the worker ID. Defaults to false.",
         embed=True,
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Response:
     """Record a heartbeat and optionally return the worker's ID."""
     async with db.session_context(
@@ -1321,8 +1331,8 @@ async def read_workers(
     workers: Optional[schemas.filters.WorkerFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkerResponse]:
     """
     Read all worker processes
@@ -1348,8 +1358,8 @@ async def delete_worker(
     worker_name: str = Path(
         ..., description="The work pool's worker name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool's worker

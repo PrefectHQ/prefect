@@ -8653,7 +8653,7 @@ export interface components {
          */
         "IntervalSchedule-Output": {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
@@ -10843,7 +10843,7 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.
+             * @description Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference. Deprecated: the V1 UI will be removed in Prefect 3.10, after which this setting will have no effect.
              * @default true
              */
             v2_enabled: boolean;
