@@ -108,7 +108,7 @@ async def _run_single_deploy(
         if not is_interactive():
             raise ValueError(
                 "An entrypoint must be provided:\n\n"
-                " \t[yellow]prefect deploy path/to/file.py:flow_function\n\n"
+                " \tprefect deploy path/to/file.py:flow_function\n\n"
                 "You can also provide an entrypoint in a prefect.yaml file."
             )
         deploy_config["entrypoint"] = await prompt_entrypoint(console)

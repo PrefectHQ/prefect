@@ -164,8 +164,9 @@ if __name__ == "__main__":
 The specified image must be available in your deployment's execution environment for accessible flow code.
 
 Prefect generates a Dockerfile for you that builds an image based off of one of Prefect's published images.
-The generated Dockerfile copies the current directory into the Docker image and installs any dependencies listed
-in a `requirements.txt` file.
+The generated Dockerfile copies the build context into the Docker image and installs any dependencies listed
+in a `requirements.txt` file in that directory. The build context defaults to the current directory; to use a
+different directory, pass `context` to `DockerImage` (for example, `DockerImage(name="my_image", context="path/to/project")`).
 
 <Note>
 The generated Dockerfile installs dependencies from `requirements.txt`, but not dependencies declared only in

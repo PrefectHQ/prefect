@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import copy
+import json
 import logging
 import sys
 import uuid
@@ -486,6 +487,7 @@ async def test_worker_sends_heartbeat_messages(
             work_pool_name="test-work-pool"
         )
         assert len(workers) == 1
+        assert worker.backend_id == workers[0].id
         first_heartbeat = workers[0].last_heartbeat_time
         assert first_heartbeat is not None
 
@@ -519,6 +521,61 @@ async def test_worker_sends_heartbeat_gets_id(
         await worker.sync_with_backend()
 
         assert worker.backend_id == test_worker_id
+
+
+async def test_worker_heartbeats_against_server_without_worker_ids(
+    respx_mock: respx.MockRouter,
+    worker_channel_endpoint_unavailable: None,
+    work_pool: WorkPool,
+):
+    respx_mock.get(f"api/work_pools/{work_pool.name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    heartbeat = respx_mock.post(
+        f"api/work_pools/{work_pool.name}/workers/heartbeat",
+    ).respond(204)
+
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        assert worker.backend_id is None
+        assert heartbeat.called
+        assert json.loads(heartbeat.calls.last.request.content)["return_id"] is True
+
+
+async def test_worker_only_probes_once_if_server_rejects_worker_id(
+    respx_mock: respx.MockRouter,
+    worker_channel_endpoint_unavailable: None,
+    work_pool: WorkPool,
+    caplog: pytest.LogCaptureFixture,
+):
+    respx_mock.get(f"api/work_pools/{work_pool.name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    heartbeat = respx_mock.post(
+        f"api/work_pools/{work_pool.name}/workers/heartbeat",
+    )
+    heartbeat.mock(
+        side_effect=lambda request: httpx.Response(
+            422
+            if "return_id" in json.loads(request.content)
+            else status.HTTP_204_NO_CONTENT
+        )
+    )
+
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+        await worker.sync_with_backend()
+        await worker.sync_with_backend()
+
+        assert worker.backend_id is None
+
+    requests_with_id = [
+        "return_id" in json.loads(call.request.content) for call in heartbeat.calls
+    ]
+    assert requests_with_id == [True, False, False, False]
+    assert (
+        caplog.messages.count(
+            "Failed to retrieve worker ID from the Prefect API server."
+        )
+        == 1
+    )
 
 
 async def test_worker_sends_heartbeat_only_gets_id_once(
@@ -795,6 +852,157 @@ async def test_worker_handles_double_release_gracefully(
     updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
     assert updated_flow_run.state is not None
     assert updated_flow_run.state.is_crashed()
+
+
+def _http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    request = httpx.Request("GET", "http://test/api/deployments/123")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError(
+        f"HTTP {status_code}", request=request, response=response
+    )
+
+
+def _bad_gateway_error() -> httpx.HTTPStatusError:
+    return _http_status_error(status.HTTP_502_BAD_GATEWAY)
+
+
+async def test_worker_survives_error_reading_deployment_before_submission(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    run_mock = AsyncMock()
+
+    # A non-404 error must not escape `_submit_run` and tear down the worker's
+    # task group; exiting the context re-raises anything that escaped.
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.run = run_mock
+        worker.client.read_deployment = AsyncMock(side_effect=_bad_gateway_error())
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [flow_run.id]
+
+    run_mock.assert_not_called()
+    assert worker.limiter.borrowed_tokens == 0
+    assert flow_run.id not in worker._submitting_flow_run_ids
+
+    # The run is left scheduled so a later poll can pick it up again
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_scheduled()
+
+
+async def test_worker_resubmits_run_after_error_reading_deployment(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        read_deployment = worker.client.read_deployment
+        worker.client.read_deployment = AsyncMock(side_effect=_bad_gateway_error())
+
+        await worker.get_and_submit_flow_runs()
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert flow_run.id not in worker._submitting_flow_run_ids
+
+        worker.client.read_deployment = read_deployment
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [flow_run.id]
+
+    worker._propose_pending_state.assert_awaited_once()
+
+
+async def test_worker_releases_limit_slot_when_deployment_was_deleted(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    orphaned_flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=2)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._propose_pending_state = AsyncMock(return_value=False)
+        read_deployment = worker.client.read_deployment
+        worker.client.read_deployment = AsyncMock(
+            side_effect=ObjectNotFound(
+                http_exc=_http_status_error(status.HTTP_404_NOT_FOUND)
+            )
+        )
+
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [orphaned_flow_run.id]
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert orphaned_flow_run.id not in worker._submitting_flow_run_ids
+
+        assert worker.limiter.borrowed_tokens == 0
+
+        # With `limit=1`, a leaked slot would block every later run
+        worker.client.read_deployment = read_deployment
+        next_flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+        )
+        submitted_flow_runs = await worker.get_and_submit_flow_runs()
+        assert [run.id for run in submitted_flow_runs] == [next_flow_run.id]
+
+    updated_flow_run = await prefect_client.read_flow_run(orphaned_flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_cancelled()
+
+
+async def test_worker_survives_error_cancelling_run_of_deleted_deployment(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker.client.read_deployment = AsyncMock(
+            side_effect=ObjectNotFound(
+                http_exc=_http_status_error(status.HTTP_404_NOT_FOUND)
+            )
+        )
+        set_flow_run_state = worker.client.set_flow_run_state
+        worker.client.set_flow_run_state = AsyncMock(side_effect=_bad_gateway_error())
+
+        await worker.get_and_submit_flow_runs()
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert flow_run.id not in worker._submitting_flow_run_ids
+
+        assert worker.limiter.borrowed_tokens == 0
+
+        # Cancelling failed, so the run stays scheduled for the next poll
+        updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_flow_run.state is not None
+        assert updated_flow_run.state.is_scheduled()
+
+        # The next poll cancels it once the API recovers
+        worker.client.set_flow_run_state = set_flow_run_state
+        await worker.get_and_submit_flow_runs()
+
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.is_cancelled()
 
 
 async def test_worker_skips_duplicate_submission_of_run_holding_limit_slot(
@@ -2169,26 +2377,6 @@ class TestPrepareForFlowRun:
     def deployment(self, flow):
         return DeploymentResponse(name="my-deployment-name", flow_id=flow.id)
 
-    def test_prepare_for_flow_run_without_deployment_and_flow(
-        self, job_config, flow_run
-    ):
-        job_config.prepare_for_flow_run(flow_run)
-
-        assert job_config.env == {
-            **get_current_settings().to_environment_variables(exclude_unset=True),
-            "MY_VAR": "foo",
-            "PREFECT__FLOW_RUN_ID": str(flow_run.id),
-            "PREFECT__FLOW_ID": str(flow_run.flow_id),
-        }
-        assert job_config.labels == {
-            "my-label": "foo",
-            "prefect.io/flow-run-id": str(flow_run.id),
-            "prefect.io/flow-run-name": flow_run.name,
-            "prefect.io/version": prefect.__version__,
-        }
-        assert job_config.name == "my-job-name"
-        assert job_config.command == "prefect flow-run execute"
-
     def test_prepare_for_flow_run(self, job_config, flow_run):
         job_config.prepare_for_flow_run(flow_run)
 
@@ -2249,9 +2437,13 @@ async def test_get_flow_run_logger_without_worker_id_set(
     worker_deployment_wq1,
     work_pool,
     worker_channel_endpoint_unavailable: None,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id
+    )
+    monkeypatch.setattr(
+        PrefectClient, "send_worker_heartbeat", AsyncMock(return_value=None)
     )
 
     async with WorkerTestImpl(
@@ -2924,11 +3116,11 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=False,
             heartbeat_interval_seconds=1,
         ) as worker:
-            assert worker.backend_id is None
             assert worker.work_pool.id == work_pool.id
 
             workers = await prefect_client.read_workers_for_work_pool(work_pool_name)
             assert len(workers) == 1
+            assert worker.backend_id == workers[0].id
             assert workers[0].name == worker_name
             assert workers[0].heartbeat_interval_seconds == 1
             initial_heartbeat_time = workers[0].last_heartbeat_time
@@ -2942,14 +3134,12 @@ class TestWorkerChannelClient:
                     assert server_worker.last_heartbeat_time is not None
                     assert server_worker.last_heartbeat_time > initial_heartbeat_time
 
-    async def test_oss_worker_channel_does_not_set_worker_id_env_var(
+    async def test_oss_worker_channel_sets_worker_id_env_var(
         self,
         hosted_api_server: str,
         prefect_client: PrefectClient,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """OSS server returns worker_id=None in the ready frame, so
-        PREFECT__WORKER_ID should never be set from the channel path."""
         monkeypatch.delenv("PREFECT__WORKER_ID", raising=False)
         assert PREFECT_API_URL.value() == hosted_api_server
 
@@ -2968,40 +3158,10 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=False,
             heartbeat_interval_seconds=1,
         ) as worker:
-            assert worker.backend_id is None
-            assert worker.work_pool is not None
-            assert worker.work_pool.name == work_pool_name
+            assert worker.backend_id is not None
             import os
 
-            assert os.environ.get("PREFECT__WORKER_ID") is None
-
-    async def test_oss_worker_channel_still_healthy_without_worker_id(
-        self,
-        hosted_api_server: str,
-        prefect_client: PrefectClient,
-    ):
-        """OSS channel setup becomes healthy and applies initial snapshot
-        even though worker_id is None in the ready frame."""
-        assert PREFECT_API_URL.value() == hosted_api_server
-
-        work_pool_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
-        work_pool = await prefect_client.create_work_pool(
-            WorkPoolCreate(
-                name=work_pool_name,
-                type=WorkerTestImpl.type,
-                base_job_template=WorkerTestImpl.get_default_base_job_template(),
-            )
-        )
-
-        async with WorkerTestImpl(
-            name=f"worker-{uuid.uuid4().hex}",
-            work_pool_name=work_pool_name,
-            create_pool_if_not_found=False,
-            heartbeat_interval_seconds=1,
-        ) as worker:
-            assert worker.backend_id is None
-            assert worker.work_pool.id == work_pool.id
-            assert worker.work_pool.is_paused is False
+            assert os.environ["PREFECT__WORKER_ID"] == str(worker.backend_id)
 
     def test_builds_websocket_url_from_prefect_api_url(self):
         assert (
@@ -3265,7 +3425,7 @@ class TestWorkerChannelClient:
         assert connect_context.exited
 
     async def test_protocol_does_not_record_worker_id_when_none(self):
-        """When the server returns worker_id=None (OSS behavior), the protocol
+        """When an older server returns worker_id=None, the protocol
         handler should not invoke the on_worker_id callback."""
         consumer_id = uuid7()
         on_worker_id = Mock()
@@ -3501,52 +3661,6 @@ class TestWorkerChannelClient:
         assert connect_context_by_ref["connect_context"].exited
         client.read_work_pool.assert_not_awaited()
         client.send_worker_heartbeat.assert_not_awaited()
-
-    async def test_sync_skips_rest_when_websocket_is_healthy(self):
-        worker_id = uuid.uuid4()
-        snapshot = Mock()
-        client = worker_channel_test_client()
-        client.read_work_pool = AsyncMock()
-        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
-
-        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
-            channel = channel_by_ref["channel"]
-            websocket = FakeWorkerChannelWebSocket(
-                [
-                    {"type": "auth_success"},
-                    worker_channel_ready_frame(
-                        channel.consumer_id, worker_id=worker_id
-                    ),
-                ]
-            )
-            return FakeWorkerChannelConnect(websocket)
-
-        channel = WorkPoolWorkerChannel(
-            client=client,
-            api_url="http://localhost:4200/api",
-            work_pool_is_available=lambda: True,
-            work_pool_name="test-work-pool",
-            worker_name="test-worker",
-            worker_type="test",
-            heartbeat_interval_seconds=30,
-            work_queue_names=[],
-            create_pool_if_not_found=True,
-            default_base_job_template={},
-            worker_metadata=no_worker_channel_metadata,
-            logger=logging.getLogger("test-worker-channel"),
-            on_work_pool_snapshot=snapshot,
-            connect_factory=connect_factory,
-        )
-        channel_by_ref["channel"] = channel
-
-        async with anyio.create_task_group() as task_group:
-            await channel.sync(task_group)
-            task_group.cancel_scope.cancel()
-
-        client.read_work_pool.assert_not_awaited()
-        client.send_worker_heartbeat.assert_not_awaited()
-        snapshot.assert_called_once()
-        assert channel.rest_fallback_enabled is False
 
     async def test_sync_times_out_setup_for_rest_fallback(self):
         client = worker_channel_test_client()
@@ -3922,7 +4036,7 @@ class TestWorkerChannelClient:
             work_pool_name="test-work-pool",
             worker_name="test-worker",
             heartbeat_interval_seconds=30,
-            get_worker_id=False,
+            get_worker_id=True,
         )
         assert channel.worker_id == worker_id
 
@@ -5695,6 +5809,59 @@ class TestWorkerCancellationHandling:
                 # Should return early without marking as cancelled since worker
                 # doesn't support killing infrastructure
                 mock_mark.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "failing_call, infrastructure_killed",
+        [
+            ("read_flow_run", False),
+            # Resolving the job configuration reads the deployment
+            ("read_deployment", False),
+            ("set_flow_run_state", True),
+        ],
+    )
+    async def test_worker_survives_api_error_while_cancelling_run(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+        deployment: DeploymentResponse,
+        caplog: pytest.LogCaptureFixture,
+        failing_call: str,
+        infrastructure_killed: bool,
+    ):
+        """
+        `_cancel_run` runs in the worker's task group, so an error escaping it
+        would stop the worker and every run it supervises.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="test-pid")
+
+        async with WorkerTestImpl(
+            work_pool_name=work_pool.name,
+            name="test-worker",
+        ) as worker:
+            with (
+                mock.patch.object(
+                    worker.client,
+                    failing_call,
+                    new_callable=AsyncMock,
+                    side_effect=_bad_gateway_error(),
+                ) as failing_mock,
+                mock.patch.object(
+                    worker, "kill_infrastructure", new_callable=AsyncMock
+                ) as mock_kill,
+                caplog.at_level(logging.ERROR),
+            ):
+                await worker._cancel_run(flow_run.id)
+
+                failing_mock.assert_awaited_once()
+                assert mock_kill.await_count == int(infrastructure_killed)
+                assert f"Failed to cancel flow run {flow_run.id}" in caplog.text
+
+        updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert updated_flow_run.state is not None
+        assert not updated_flow_run.state.is_cancelled()
 
     async def test_teardown_cancellation_handling_cleans_up(
         self, monkeypatch: pytest.MonkeyPatch

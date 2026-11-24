@@ -1,5 +1,6 @@
 ---
 title: How to add logging to a workflow
+description: Emit custom logs with get_run_logger, capture print statements, and send logs from subprocesses and threads to Prefect.
 sidebarTitle: Add logging
 keywords: ["logging", "log", "print", "debug", "log_prints", "get_run_logger", "subprocess", "multiprocessing", "with_context", "thread", "ThreadPoolExecutor", "copy_context"]
 ---
@@ -49,6 +50,32 @@ To log from a state change hook and have logs appear in the Prefect UI, use
 To use a normal Python logger anywhere with your same configuration, use `get_logger()` from `prefect.logging`.
 The logger retrieved with `get_logger()` will **not** send log records to the Prefect API.
 </Warning>
+
+### Log from code that also runs outside Prefect
+
+Use `prefect.runtime.get_logger()` in a function you call both from a flow or task
+and from a standalone script. Call it inside the function, not at module scope,
+so it can select a logger for the current run.
+
+```python
+import logging
+
+from prefect import flow, runtime
+
+
+def process_order(order_id: str):
+    runtime.get_logger().info("Processing order %s", order_id)
+
+
+@flow
+def process_orders():
+    process_order("A100")  # A run log, visible in the Prefect UI by default.
+
+
+logging.basicConfig(level=logging.INFO)
+process_order("B200")  # A local log, not sent to the Prefect API by default.
+process_orders()
+```
 
 ### Log with print statements
 

@@ -72,6 +72,20 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.STANDARD
 
 
+def _substitute_placeholders(template: str, replacements: dict[str, str]) -> str:
+    """
+    Replaces placeholders in `template` with their values from `replacements`,
+    leaving placeholders without a replacement intact.
+
+    Substitution happens in a single pass over the original template so that
+    inserted values are never themselves treated as placeholders.
+    """
+    return PLACEHOLDER_CAPTURE_REGEX.sub(
+        lambda match: replacements.get(match.group(1), match.group(1)),
+        template,
+    )
+
+
 def find_placeholders(template: T) -> set[Placeholder]:
     """
     Finds all placeholders in a template.
@@ -222,12 +236,7 @@ def apply_values(
                 else:
                     replacements[full_match] = str(value)
 
-            # Substitute in a single pass over the original template so that
-            # inserted values are never themselves treated as placeholders.
-            return PLACEHOLDER_CAPTURE_REGEX.sub(
-                lambda match: replacements.get(match.group(1), match.group(1)),
-                template,
-            )
+            return _substitute_placeholders(template, replacements)
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
@@ -467,7 +476,7 @@ async def resolve_block_document_references(
             else:
                 # Inline substitution: replace each block placeholder with its resolved value.
                 # Any non-block placeholders are left intact for later resolution.
-                result = tmpl
+                replacements: dict[str, str] = {}
                 for placeholder in placeholders:
                     if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
                         continue
@@ -479,9 +488,9 @@ async def resolve_block_document_references(
                             " which cannot be used for inline string substitution."
                             " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
                         )
-                    result = result.replace(placeholder.full_match, str(value))
+                    replacements[placeholder.full_match] = str(value)
 
-                return cast(T, result)
+                return cast(T, _substitute_placeholders(tmpl, replacements))
 
         return tmpl
 
@@ -545,14 +554,14 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                 else:
                     return cast(T, value)
             else:
+                replacements: dict[str, str] = {}
                 for full_match, name, placeholder_type in placeholders:
                     if placeholder_type is PlaceholderType.VARIABLE:
                         value = await _read_variable(name)
-                        if value is _MISSING:
-                            tmpl = tmpl.replace(full_match, "")
-                        else:
-                            tmpl = tmpl.replace(full_match, str(value))
-                return tmpl
+                        replacements[full_match] = (
+                            "" if value is _MISSING else str(value)
+                        )
+                return cast(T, _substitute_placeholders(tmpl, replacements))
         elif isinstance(tmpl, dict):
             return {key: await _resolve(value) for key, value in tmpl.items()}
         elif isinstance(tmpl, list):

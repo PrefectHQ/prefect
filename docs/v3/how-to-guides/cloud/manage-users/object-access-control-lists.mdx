@@ -1,31 +1,194 @@
 ---
 title: How to manage Access Control Lists (ACLs)
 sidebarTitle: Access Control Lists (ACLs)
-description: Restrict block and deployment access to individual actors within a workspace. 
-keywords: ["ACL", "access control", "permissions", "block access", "deployment access"]
+description: Control which users, service accounts, and teams can view, run, and manage individual blocks, deployments, and work pools in a workspace.
+keywords: ["permissions", "rbac", "workspace role", "restrict access", "team isolation"]
 ---
 
-Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers object-level access control lists (ACLs) to restrict access to 
-specific users and service accounts within a workspace. ACLs are supported for blocks, deployments, and work pools.
+Prefect Cloud's [Enterprise plan](https://www.prefect.io/pricing) offers object-level access control lists (ACLs).
+A [workspace role](/v3/how-to-guides/cloud/manage-users/manage-roles) gives someone the same permissions on every object in a workspace.
+An ACL lets you choose who can view, run, and manage one block, deployment, or work pool.
 
-Organization Admins and Workspace Owners can configure access control lists by navigating to an object and clicking **manage access**.
-When an ACL is added, all users and service accounts with access to an object through their workspace role will lose access if not 
-explicitly added to the ACL.
+## Access levels
 
-<Note>
-**ACLs and visibility**
+You add users, service accounts, and [teams](/v3/how-to-guides/cloud/manage-users/manage-teams) to an ACL at one of three levels.
+Each level includes the levels below it.
 
-Objects not governed by access control lists such as flow runs, flows, and artifacts are visible to a user within a 
-workspace even if an associated block or deployment has been restricted for that user.
-</Note>
+| Level  | Deployments | Work pools | Blocks |
+| ------ | ----------- | ---------- | ------ |
+| View   | See the deployment. | See the work pool and its work queues. | See the block, including its secret values. |
+| Run    | Run the deployment. | Run the deployments in the work pool. | Not available. |
+| Manage | Edit, pause, and delete the deployment. | Edit and delete the work pool and its work queues. | Edit and delete the block. |
 
-See the [Prefect Cloud plans](https://www.prefect.io/pricing) to learn more about options for supporting object-level access control.
+## Who can access an object
 
-## ACL delegation for work pools and deployments
+**An object without an ACL** is open to everyone in the workspace, up to what their workspace role allows.
+This is the default for every new object.
 
-Deployments can delegate their permission checks to work pools. This delegation works as follows:
+**An object with an ACL** is open only to the users, service accounts, and teams on the ACL.
+Everyone else loses access to it, whatever their role, and no longer sees it in the workspace.
+The person who created the object is treated like anyone else: add them to the ACL if they need access.
 
-1. If a work pool has ACLs configured, those ACLs apply to all deployments that use the work pool.
-2. If a work pool does not have ACLs, the ACLs of the individual deployments apply instead.
+Three more rules apply:
 
-This delegation system allows for more efficient management of permissions, especially when multiple deployments use the same work pool.
+- **An ACL can give someone more access than their role.** A user with the Viewer role who has Run access on a deployment's ACL can run that deployment, and only that deployment. Their role must still let them view that type of object, so give everyone at least the Viewer role.
+- **Everyone is an entry you can add to an ACL.** Add Everyone at View to keep an object visible to all users whose role can view it, while you limit who can run or manage it.
+- **Administrators always have full access.** See the next section.
+
+### Who ACLs do not restrict
+
+The following people can view, run, and manage every block, deployment, and work pool in a workspace, whatever its ACL says:
+
+- Account Owners and Admins.
+- Workspace Owners.
+- Anyone with a [custom role](/v3/how-to-guides/cloud/manage-users/manage-roles#custom-workspace-roles) that includes the **Manage access control lists for objects that support them** permission.
+
+<Warning>
+That permission cannot be limited to some objects.
+If you add it to a custom role so that a team can edit ACLs, the team also gets full access to every other team's blocks, deployments, and work pools.
+</Warning>
+
+### What ACLs do not hide
+
+ACLs do not apply to flows, flow runs, task runs, logs, events, or artifacts.
+Someone who cannot see a restricted deployment or work pool can still see its flow runs and their logs if their role allows it.
+If the run history of a team's work is sensitive, put that work in a separate workspace.
+
+## Set an ACL
+
+Workspace Owners and account Owners and Admins can change any ACL.
+With a custom role, you need the **Manage access control lists for objects that support them** permission and the permission to delete that type of object.
+Manage access on an object's ACL does not let you change the ACL.
+
+1. Open the block, deployment, or work pool.
+2. Open the actions menu and select **Manage Access**.
+3. Select **Add Users, Service Accounts, & Teams**, choose who to add, and choose an access level.
+
+As soon as you add the first entry, the object is restricted to the entries on the ACL.
+Add everyone who needs access, including the service accounts that your workers and CI use.
+
+To remove an ACL, remove all of its entries. The object returns to the default.
+
+If you remove a user from the workspace, their entry stays on the ACL as "Removed member" until you remove it. The entry gives them no access.
+
+## Work pools and their deployments
+
+An ACL on a work pool also applies to every deployment in that work pool.
+While a work pool has an ACL, the ACLs of its deployments are ignored, and each deployment's **Access Control** page reads "This deployment's access is managed by its work pool."
+A deployment's ACL cannot give someone access that the work pool's ACL does not.
+
+For example, the work pool `gpu` has only Team A on its ACL.
+A deployment in `gpu` has Team B on its ACL.
+Team B cannot see or run the deployment.
+
+This protects the work pool's infrastructure. If a deployment's ACL could override the work pool's, anyone able to edit a deployment's ACL could run work on a work pool that was restricted to keep them out.
+
+On a work pool's ACL, add at Manage everyone who edits or redeploys the deployments in it, including the service account that CI uses.
+If no one has Manage access, only the administrators listed in [Who ACLs do not restrict](#who-acls-do-not-restrict) can update those deployments.
+
+To give different teams different access to deployments that share a work pool, leave the work pool without an ACL and set an ACL on each deployment.
+To separate teams completely, give each team its own work pool.
+
+## Common patterns
+
+### Isolate two teams that share a workspace
+
+1. Create a team for each group, and give each team a workspace role that can create and run deployments.
+2. Create one work pool for each team.
+3. On each work pool, add the owning team at Manage. Add the service account that the team's workers and CI use at Manage as well.
+
+Each team sees and runs only its own work pool and deployments.
+Flow runs and logs from both teams stay visible to everyone whose role can view flow runs.
+
+### Let someone run one deployment
+
+1. Give the user the Viewer role in the workspace.
+2. On the deployment, add the user at Run.
+3. Add the team that maintains the deployment at Manage.
+4. Add Everyone at View if the rest of the workspace should still see the deployment.
+
+The user can run that deployment and no others.
+This pattern needs a work pool without an ACL.
+Run access on a work pool's ACL covers every deployment in that work pool, so it cannot limit someone to one deployment.
+
+### Restrict a block that holds credentials
+
+1. On the block, add the team that maintains it at Manage.
+2. Add each service account that your workers and flow runs use at View, so that they can load the block.
+
+No one else sees the block in the UI or the API.
+Anyone you add at View can read the block's secret values, even if their role does not include **View secret block data**.
+
+### Make CI the only way to deploy
+
+ACLs control access to existing objects. To control who can create deployments, use roles:
+
+1. Create a custom workspace role for your users that leaves out **Create and edit deployments**. Keep **Run deployments** if they should trigger runs.
+2. Give the service account that CI uses a role that includes **Create and edit deployments**.
+3. On deployment and work pool ACLs, add those users at Run or View. Manage access lets someone edit a deployment even when their role does not.
+
+## Troubleshooting
+
+### Someone no longer sees a deployment or work pool
+
+If their role did not change, check the ACL of the deployment and of its work pool. A work pool's ACL hides its deployments from everyone who is not on it.
+
+If the **Access Control** page shows no entries and the object is still hidden, the ACL was probably set to empty through the API or Terraform. See [Manage ACLs with the API or Terraform](#manage-acls-with-the-api-or-terraform).
+
+### Someone sees objects that an ACL should hide
+
+Check whether they are an account Owner or Admin, a workspace Owner, or have a custom role with the permission to manage ACLs. Check the roles of their teams as well.
+
+### Someone on a deployment's ACL cannot run the deployment
+
+The deployment's work pool has its own ACL. Add them to the work pool's ACL.
+
+### The API returns 404 for an object that exists
+
+The API key's user or service account cannot view the object. A `403` means it can view the object but needs Run or Manage access.
+
+## Manage ACLs with the API or Terraform
+
+Each object type has a route to read and replace its ACL, under `/api/accounts/{account_id}/workspaces/{workspace_id}`:
+
+| Object | Route |
+| ------ | ----- |
+| Deployment | `GET` or `PUT /deployments/{id}/access` |
+| Work pool | `GET` or `PUT /work_pools/{name}/access` |
+| Block | `GET` or `PUT /block_documents/{id}/access` |
+
+`PUT` replaces the whole ACL, so send every list on each request:
+
+```bash
+curl -X PUT "https://api.prefect.cloud/api/accounts/$ACCOUNT_ID/workspaces/$WORKSPACE_ID/deployments/$DEPLOYMENT_ID/access" \
+  -H "Authorization: Bearer $PREFECT_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "access_control": {
+      "manage_actor_ids": [],
+      "run_actor_ids": ["<service-account-actor-id>"],
+      "view_actor_ids": ["*"],
+      "manage_team_ids": ["<team-id>"],
+      "run_team_ids": [],
+      "view_team_ids": []
+    }
+  }'
+```
+
+- Identify users and service accounts by their actor ID, which is different from their user ID or service account ID. In Terraform, this is the `actor_id` attribute, for example `prefect_service_account.ci.actor_id`.
+- `"*"` means Everyone.
+- Blocks have no Run level, so leave out `run_actor_ids` and `run_team_ids`.
+
+The [Prefect Terraform provider](https://registry.terraform.io/providers/PrefectHQ/prefect/latest/docs) has the `prefect_deployment_access`, `prefect_work_pool_access`, and `prefect_block_access` resources.
+
+<Warning>
+In the API and Terraform, an ACL with every list empty is different from no ACL. It hides the object from everyone except the people listed in [Who ACLs do not restrict](#who-acls-do-not-restrict).
+To remove an ACL through the API, set the actor list for every level to `["*"]`.
+To remove an ACL in Terraform, remove the access resource. Leaving its lists empty does not remove the ACL.
+</Warning>
+
+## Further reading
+
+- [Manage account roles](/v3/how-to-guides/cloud/manage-users/manage-roles)
+- [Manage teams](/v3/how-to-guides/cloud/manage-users/manage-teams)
+- [Manage service accounts](/v3/how-to-guides/cloud/manage-users/service-accounts)

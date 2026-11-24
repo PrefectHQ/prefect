@@ -505,6 +505,33 @@ class TestInspect:
         assert work_pool.type in res.output
         assert str(work_pool.id) in res.output
 
+    @pytest.mark.parametrize(
+        "description",
+        [
+            "[bold]literal[/bold]",
+            ":smile:",
+            "literal [/unexpected]",
+            "x" * 1000,
+        ],
+    )
+    async def test_inspect_json_output_preserves_literal_description(
+        self, prefect_client: PrefectClient, description: str
+    ):
+        work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(
+                name=f"literal-{uuid.uuid4()}",
+                type="process",
+                description=description,
+            )
+        )
+
+        res = await run_sync_in_worker_thread(
+            invoke_and_assert,
+            ["work-pool", "inspect", work_pool.name, "--output", "json"],
+        )
+
+        assert json.loads(res.stdout)["description"] == description
+
     async def test_inspect_with_json_output(self, prefect_client, work_pool):
         """Test work-pool inspect command with JSON output flag."""
         import json

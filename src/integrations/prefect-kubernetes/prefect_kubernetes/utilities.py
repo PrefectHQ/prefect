@@ -4,9 +4,11 @@ import socket
 import sys
 from typing import Optional, TypeVar
 
+import aiohttp
 from aiohttp import ClientResponse
 from aiohttp.client_reqrep import ClientRequest
 from aiohttp.connector import Connection
+from kubernetes_asyncio.client.exceptions import ApiException
 from slugify import slugify
 
 # Note: `dict(str, str)` is the Kubernetes API convention for
@@ -159,3 +161,11 @@ def _slugify_label_value(value: str, max_length: int = 63) -> str:
     # Kubernetes to throw the validation error
 
     return slug
+
+
+def _is_transient_kubernetes_error(exc: BaseException) -> bool:
+    """Whether a Kubernetes API call failed in a way that a retry may fix."""
+    if isinstance(exc, ApiException):
+        status = exc.status or 0
+        return status in (408, 429) or (500 <= status < 600 and status != 501)
+    return isinstance(exc, (aiohttp.ClientError, TimeoutError, ConnectionError))

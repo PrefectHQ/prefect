@@ -12,7 +12,7 @@ export interface paths {
             cookie?: never;
         };
         /** Health Check */
-        get: operations["health_check_health_get"];
+        get: operations["health_check"];
         put?: never;
         post?: never;
         delete?: never;
@@ -29,7 +29,7 @@ export interface paths {
             cookie?: never;
         };
         /** Server Version */
-        get: operations["server_version_version_get"];
+        get: operations["server_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -54,7 +54,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
-        post: operations["create_flow_flows__post"];
+        post: operations["create_flow"];
         delete?: never;
         options?: never;
         head?: never;
@@ -72,21 +72,21 @@ export interface paths {
          * Read Flow
          * @description Get a flow by id.
          */
-        get: operations["read_flow_flows__id__get"];
+        get: operations["read_flow"];
         put?: never;
         post?: never;
         /**
          * Delete Flow
          * @description Delete a flow by id.
          */
-        delete: operations["delete_flow_flows__id__delete"];
+        delete: operations["delete_flow"];
         options?: never;
         head?: never;
         /**
          * Update Flow
          * @description Updates a flow.
          */
-        patch: operations["update_flow_flows__id__patch"];
+        patch: operations["update_flow"];
         trace?: never;
     };
     "/flows/count": {
@@ -102,7 +102,7 @@ export interface paths {
          * Count Flows
          * @description Count flows.
          */
-        post: operations["count_flows_flows_count_post"];
+        post: operations["count_flows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -120,7 +120,7 @@ export interface paths {
          * Read Flow By Name
          * @description Get a flow by name.
          */
-        get: operations["read_flow_by_name_flows_name__name__get"];
+        get: operations["read_flow_by_name"];
         put?: never;
         post?: never;
         delete?: never;
@@ -142,7 +142,7 @@ export interface paths {
          * Read Flows
          * @description Query for flows.
          */
-        post: operations["read_flows_flows_filter_post"];
+        post: operations["read_flows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -166,7 +166,7 @@ export interface paths {
          *
          *     Returns the IDs of flows that were deleted.
          */
-        post: operations["bulk_delete_flows_flows_bulk_delete_post"];
+        post: operations["bulk_delete_flows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -186,7 +186,7 @@ export interface paths {
          * Paginate Flows
          * @description Pagination query for flows.
          */
-        post: operations["paginate_flows_flows_paginate_post"];
+        post: operations["paginate_flows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -211,7 +211,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/flows.
          */
-        post: operations["create_flow_run_flow_runs__post"];
+        post: operations["create_flow_run"];
         delete?: never;
         options?: never;
         head?: never;
@@ -229,21 +229,21 @@ export interface paths {
          * Read Flow Run
          * @description Get a flow run by id.
          */
-        get: operations["read_flow_run_flow_runs__id__get"];
+        get: operations["read_flow_run"];
         put?: never;
         post?: never;
         /**
          * Delete Flow Run
          * @description Delete a flow run by id.
          */
-        delete: operations["delete_flow_run_flow_runs__id__delete"];
+        delete: operations["delete_flow_run"];
         options?: never;
         head?: never;
         /**
          * Update Flow Run
          * @description Updates a flow run.
          */
-        patch: operations["update_flow_run_flow_runs__id__patch"];
+        patch: operations["update_flow_run"];
         trace?: never;
     };
     "/flow_runs/count": {
@@ -259,7 +259,7 @@ export interface paths {
          * Count Flow Runs
          * @description Query for flow runs.
          */
-        post: operations["count_flow_runs_flow_runs_count_post"];
+        post: operations["count_flow_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -279,7 +279,7 @@ export interface paths {
          * Average Flow Run Lateness
          * @description Query for average flow-run lateness in seconds.
          */
-        post: operations["average_flow_run_lateness_flow_runs_lateness_post"];
+        post: operations["average_flow_run_lateness"];
         delete?: never;
         options?: never;
         head?: never;
@@ -299,7 +299,7 @@ export interface paths {
          * Flow Run History
          * @description Query for flow run history data across a given range and interval.
          */
-        post: operations["flow_run_history_flow_runs_history_post"];
+        post: operations["flow_run_history"];
         delete?: never;
         options?: never;
         head?: never;
@@ -317,7 +317,7 @@ export interface paths {
          * Read Flow Run Graph V1
          * @description Get a task run dependency map for a given flow run.
          */
-        get: operations["read_flow_run_graph_v1_flow_runs__id__graph_get"];
+        get: operations["read_flow_run_graph_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -337,7 +337,7 @@ export interface paths {
          * Read Flow Run Graph V2
          * @description Get a graph of the tasks and subflow runs for the given flow run
          */
-        get: operations["read_flow_run_graph_v2_flow_runs__id__graph_v2_get"];
+        get: operations["read_flow_run_graph_v2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -359,7 +359,7 @@ export interface paths {
          * Resume Flow Run
          * @description Resume a paused flow run.
          */
-        post: operations["resume_flow_run_flow_runs__id__resume_post"];
+        post: operations["resume_flow_run"];
         delete?: never;
         options?: never;
         head?: never;
@@ -379,7 +379,7 @@ export interface paths {
          * Read Flow Runs
          * @description Query for flow runs.
          */
-        post: operations["read_flow_runs_flow_runs_filter_post"];
+        post: operations["read_flow_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -401,7 +401,7 @@ export interface paths {
          *
          *     Returns the IDs of flow runs that were deleted.
          */
-        post: operations["bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+        post: operations["bulk_delete_flow_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -423,7 +423,7 @@ export interface paths {
          *
          *     Returns the orchestration results for each flow run.
          */
-        post: operations["bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
+        post: operations["bulk_set_flow_run_state"];
         delete?: never;
         options?: never;
         head?: never;
@@ -443,7 +443,7 @@ export interface paths {
          * Set Flow Run State
          * @description Set a flow run state, invoking any orchestration rules.
          */
-        post: operations["set_flow_run_state_flow_runs__id__set_state_post"];
+        post: operations["set_flow_run_state"];
         delete?: never;
         options?: never;
         head?: never;
@@ -463,7 +463,7 @@ export interface paths {
          * Create Flow Run Input
          * @description Create a key/value input for a flow run.
          */
-        post: operations["create_flow_run_input_flow_runs__id__input_post"];
+        post: operations["create_flow_run_input"];
         delete?: never;
         options?: never;
         head?: never;
@@ -483,7 +483,7 @@ export interface paths {
          * Filter Flow Run Input
          * @description Filter flow run inputs by key prefix
          */
-        post: operations["filter_flow_run_input_flow_runs__id__input_filter_post"];
+        post: operations["filter_flow_run_input"];
         delete?: never;
         options?: never;
         head?: never;
@@ -501,14 +501,14 @@ export interface paths {
          * Read Flow Run Input
          * @description Create a value from a flow run input
          */
-        get: operations["read_flow_run_input_flow_runs__id__input__key__get"];
+        get: operations["read_flow_run_input"];
         put?: never;
         post?: never;
         /**
          * Delete Flow Run Input
          * @description Delete a flow run input
          */
-        delete: operations["delete_flow_run_input_flow_runs__id__input__key__delete"];
+        delete: operations["delete_flow_run_input"];
         options?: never;
         head?: never;
         patch?: never;
@@ -527,7 +527,7 @@ export interface paths {
          * Paginate Flow Runs
          * @description Pagination query for flow runs.
          */
-        post: operations["paginate_flow_runs_flow_runs_paginate_post"];
+        post: operations["paginate_flow_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -545,7 +545,7 @@ export interface paths {
          * Download Logs
          * @description Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.
          */
-        get: operations["download_logs_flow_runs__id__logs_download_get"];
+        get: operations["download_logs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -571,7 +571,7 @@ export interface paths {
          * Update Flow Run Labels
          * @description Update the labels of a flow run.
          */
-        patch: operations["update_flow_run_labels_flow_runs__id__labels_patch"];
+        patch: operations["update_flow_run_labels"];
         trace?: never;
     };
     "/task_runs/": {
@@ -593,7 +593,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
-        post: operations["create_task_run_task_runs__post"];
+        post: operations["create_task_run"];
         delete?: never;
         options?: never;
         head?: never;
@@ -611,21 +611,21 @@ export interface paths {
          * Read Task Run
          * @description Get a task run by id.
          */
-        get: operations["read_task_run_task_runs__id__get"];
+        get: operations["read_task_run"];
         put?: never;
         post?: never;
         /**
          * Delete Task Run
          * @description Delete a task run by id.
          */
-        delete: operations["delete_task_run_task_runs__id__delete"];
+        delete: operations["delete_task_run"];
         options?: never;
         head?: never;
         /**
          * Update Task Run
          * @description Updates a task run.
          */
-        patch: operations["update_task_run_task_runs__id__patch"];
+        patch: operations["update_task_run"];
         trace?: never;
     };
     "/task_runs/count": {
@@ -641,7 +641,7 @@ export interface paths {
          * Count Task Runs
          * @description Count task runs.
          */
-        post: operations["count_task_runs_task_runs_count_post"];
+        post: operations["count_task_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -661,7 +661,7 @@ export interface paths {
          * Task Run History
          * @description Query for task run history data across a given range and interval.
          */
-        post: operations["task_run_history_task_runs_history_post"];
+        post: operations["task_run_history"];
         delete?: never;
         options?: never;
         head?: never;
@@ -681,7 +681,7 @@ export interface paths {
          * Read Task Runs
          * @description Query for task runs.
          */
-        post: operations["read_task_runs_task_runs_filter_post"];
+        post: operations["read_task_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -701,7 +701,7 @@ export interface paths {
          * Paginate Task Runs
          * @description Pagination query for task runs.
          */
-        post: operations["paginate_task_runs_task_runs_paginate_post"];
+        post: operations["paginate_task_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -721,7 +721,7 @@ export interface paths {
          * Set Task Run State
          * @description Set a task run state, invoking any orchestration rules.
          */
-        post: operations["set_task_run_state_task_runs__id__set_state_post"];
+        post: operations["set_task_run_state"];
         delete?: never;
         options?: never;
         head?: never;
@@ -741,7 +741,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.
          */
-        get: operations["read_flow_run_state_flow_run_states__id__get"];
+        get: operations["read_flow_run_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -761,7 +761,7 @@ export interface paths {
          * Read Flow Run States
          * @description Get states associated with a flow run.
          */
-        get: operations["read_flow_run_states_flow_run_states__get"];
+        get: operations["read_flow_run_states"];
         put?: never;
         post?: never;
         delete?: never;
@@ -783,7 +783,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/tasks.
          */
-        get: operations["read_task_run_state_task_run_states__id__get"];
+        get: operations["read_task_run_state"];
         put?: never;
         post?: never;
         delete?: never;
@@ -803,7 +803,7 @@ export interface paths {
          * Read Task Run States
          * @description Get states associated with a task run.
          */
-        get: operations["read_task_run_states_task_run_states__get"];
+        get: operations["read_task_run_states"];
         put?: never;
         post?: never;
         delete?: never;
@@ -826,7 +826,7 @@ export interface paths {
          *     Search by case-insensitive name or type prefix. Timestamps describe retained
          *     history; deleting runs can change them or remove a state from the results.
          */
-        get: operations["read_observed_states_observed_states_get"];
+        get: operations["read_observed_states"];
         put?: never;
         post?: never;
         delete?: never;
@@ -854,7 +854,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/deployments.
          */
-        post: operations["create_deployment_deployments__post"];
+        post: operations["create_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -872,18 +872,18 @@ export interface paths {
          * Read Deployment
          * @description Get a deployment by id.
          */
-        get: operations["read_deployment_deployments__id__get"];
+        get: operations["read_deployment"];
         put?: never;
         post?: never;
         /**
          * Delete Deployment
          * @description Delete a deployment by id.
          */
-        delete: operations["delete_deployment_deployments__id__delete"];
+        delete: operations["delete_deployment"];
         options?: never;
         head?: never;
         /** Update Deployment */
-        patch: operations["update_deployment_deployments__id__patch"];
+        patch: operations["update_deployment"];
         trace?: never;
     };
     "/deployments/name/{flow_name}/{deployment_name}": {
@@ -897,7 +897,7 @@ export interface paths {
          * Read Deployment By Name
          * @description Get a deployment using the name of the flow and the deployment.
          */
-        get: operations["read_deployment_by_name_deployments_name__flow_name___deployment_name__get"];
+        get: operations["read_deployment_by_name"];
         put?: never;
         post?: never;
         delete?: never;
@@ -919,7 +919,7 @@ export interface paths {
          * Read Deployments
          * @description Query for deployments.
          */
-        post: operations["read_deployments_deployments_filter_post"];
+        post: operations["read_deployments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -939,7 +939,7 @@ export interface paths {
          * Paginate Deployments
          * @description Pagination query for flow runs.
          */
-        post: operations["paginate_deployments_deployments_paginate_post"];
+        post: operations["paginate_deployments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -959,7 +959,7 @@ export interface paths {
          * Get Scheduled Flow Runs For Deployments
          * @description Get scheduled runs for a set of deployments. Used by a runner to poll for work.
          */
-        post: operations["get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post"];
+        post: operations["get_scheduled_flow_runs_for_deployments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -979,7 +979,7 @@ export interface paths {
          * Count Deployments
          * @description Count deployments.
          */
-        post: operations["count_deployments_deployments_count_post"];
+        post: operations["count_deployments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1001,7 +1001,7 @@ export interface paths {
          *
          *     Returns the IDs of deployments that were deleted.
          */
-        post: operations["bulk_delete_deployments_deployments_bulk_delete_post"];
+        post: operations["bulk_delete_deployments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1031,7 +1031,7 @@ export interface paths {
          *         - At least `min_runs` runs will be generated
          *         - Runs will be generated until at least `start_time + min_time` is reached
          */
-        post: operations["schedule_deployment_deployments__id__schedule_post"];
+        post: operations["schedule_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1051,7 +1051,7 @@ export interface paths {
          * Resume Deployment
          * @description Set a deployment schedule to active. Runs will be scheduled immediately.
          */
-        post: operations["resume_deployment_deployments__id__resume_deployment_post"];
+        post: operations["resume_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1072,7 +1072,7 @@ export interface paths {
          * @description Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
          *     state will be deleted.
          */
-        post: operations["pause_deployment_deployments__id__pause_deployment_post"];
+        post: operations["pause_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1097,7 +1097,7 @@ export interface paths {
          *
          *     If no state is provided, the flow run will be created in a SCHEDULED state.
          */
-        post: operations["create_flow_run_from_deployment_deployments__id__create_flow_run_post"];
+        post: operations["create_flow_run_from_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1122,7 +1122,7 @@ export interface paths {
          *
          *     If no state is provided, the flow runs will be created in a SCHEDULED state.
          */
-        post: operations["bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post"];
+        post: operations["bulk_create_flow_runs_from_deployment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1147,7 +1147,7 @@ export interface paths {
          *     may be deprecated in the future because there is not a strict relationship
          *     between work queues and deployments.
          */
-        get: operations["work_queue_check_for_deployment_deployments__id__work_queue_check_get"];
+        get: operations["work_queue_check_for_deployment"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1164,10 +1164,10 @@ export interface paths {
             cookie?: never;
         };
         /** Read Deployment Schedules */
-        get: operations["read_deployment_schedules_deployments__id__schedules_get"];
+        get: operations["read_deployment_schedules"];
         put?: never;
         /** Create Deployment Schedules */
-        post: operations["create_deployment_schedules_deployments__id__schedules_post"];
+        post: operations["create_deployment_schedules"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1185,11 +1185,11 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete Deployment Schedule */
-        delete: operations["delete_deployment_schedule_deployments__id__schedules__schedule_id__delete"];
+        delete: operations["delete_deployment_schedule"];
         options?: never;
         head?: never;
         /** Update Deployment Schedule */
-        patch: operations["update_deployment_schedule_deployments__id__schedules__schedule_id__patch"];
+        patch: operations["update_deployment_schedule"];
         trace?: never;
     };
     "/saved_searches/": {
@@ -1207,7 +1207,7 @@ export interface paths {
          *     If a saved search with the same name already exists, the saved search's fields are
          *     replaced.
          */
-        put: operations["create_saved_search_saved_searches__put"];
+        put: operations["create_saved_search"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1226,14 +1226,14 @@ export interface paths {
          * Read Saved Search
          * @description Get a saved search by id.
          */
-        get: operations["read_saved_search_saved_searches__id__get"];
+        get: operations["read_saved_search"];
         put?: never;
         post?: never;
         /**
          * Delete Saved Search
          * @description Delete a saved search by id.
          */
-        delete: operations["delete_saved_search_saved_searches__id__delete"];
+        delete: operations["delete_saved_search"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1252,7 +1252,7 @@ export interface paths {
          * Read Saved Searches
          * @description Query for saved searches.
          */
-        post: operations["read_saved_searches_saved_searches_filter_post"];
+        post: operations["read_saved_searches"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1274,7 +1274,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/add-logging.
          */
-        post: operations["create_logs_logs__post"];
+        post: operations["create_logs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1294,7 +1294,7 @@ export interface paths {
          * Read Logs
          * @description Query for logs.
          */
-        post: operations["read_logs_logs_filter_post"];
+        post: operations["read_logs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1316,7 +1316,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/tag-based-concurrency-limits.
          */
-        post: operations["create_concurrency_limit_concurrency_limits__post"];
+        post: operations["create_concurrency_limit"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1337,11 +1337,11 @@ export interface paths {
          *     The `active slots` field contains a list of TaskRun IDs currently using a
          *     concurrency slot for the specified tag.
          */
-        get: operations["read_concurrency_limit_concurrency_limits__id__get"];
+        get: operations["read_concurrency_limit"];
         put?: never;
         post?: never;
         /** Delete Concurrency Limit */
-        delete: operations["delete_concurrency_limit_concurrency_limits__id__delete"];
+        delete: operations["delete_concurrency_limit"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1361,11 +1361,11 @@ export interface paths {
          *     The `active slots` field contains a list of TaskRun IDs currently using a
          *     concurrency slot for the specified tag.
          */
-        get: operations["read_concurrency_limit_by_tag_concurrency_limits_tag__tag__get"];
+        get: operations["read_concurrency_limit_by_tag"];
         put?: never;
         post?: never;
         /** Delete Concurrency Limit By Tag */
-        delete: operations["delete_concurrency_limit_by_tag_concurrency_limits_tag__tag__delete"];
+        delete: operations["delete_concurrency_limit_by_tag"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1387,7 +1387,7 @@ export interface paths {
          *     For each concurrency limit the `active slots` field contains a list of TaskRun IDs
          *     currently using a concurrency slot for the specified tag.
          */
-        post: operations["read_concurrency_limits_concurrency_limits_filter_post"];
+        post: operations["read_concurrency_limits"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1404,7 +1404,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Reset Concurrency Limit By Tag */
-        post: operations["reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"];
+        post: operations["reset_concurrency_limit_by_tag"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1427,7 +1427,7 @@ export interface paths {
          *     During migration, this handles both V1 and V2 limits to support mixed states.
          *     Post-migration, it only uses V2 with lease-based concurrency.
          */
-        post: operations["increment_concurrency_limits_v1_concurrency_limits_increment_post"];
+        post: operations["increment_concurrency_limits_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1450,7 +1450,7 @@ export interface paths {
          *     Finds and revokes the lease for V2 limits or decrements V1 active slots.
          *     Returns the list of limits that were decremented.
          */
-        post: operations["decrement_concurrency_limits_v1_concurrency_limits_decrement_post"];
+        post: operations["decrement_concurrency_limits_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1472,7 +1472,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.
          */
-        post: operations["create_concurrency_limit_v2_v2_concurrency_limits__post"];
+        post: operations["create_concurrency_limit_v2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1487,15 +1487,15 @@ export interface paths {
             cookie?: never;
         };
         /** Read Concurrency Limit V2 */
-        get: operations["read_concurrency_limit_v2_v2_concurrency_limits__id_or_name__get"];
+        get: operations["read_concurrency_limit_v2"];
         put?: never;
         post?: never;
         /** Delete Concurrency Limit V2 */
-        delete: operations["delete_concurrency_limit_v2_v2_concurrency_limits__id_or_name__delete"];
+        delete: operations["delete_concurrency_limit_v2"];
         options?: never;
         head?: never;
         /** Update Concurrency Limit V2 */
-        patch: operations["update_concurrency_limit_v2_v2_concurrency_limits__id_or_name__patch"];
+        patch: operations["update_concurrency_limit_v2"];
         trace?: never;
     };
     "/v2/concurrency_limits/filter": {
@@ -1508,7 +1508,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read All Concurrency Limits V2 */
-        post: operations["read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+        post: operations["read_all_concurrency_limits_v2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1525,7 +1525,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Bulk Increment Active Slots */
-        post: operations["bulk_increment_active_slots_v2_concurrency_limits_increment_post"];
+        post: operations["bulk_increment_active_slots"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1542,7 +1542,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Bulk Increment Active Slots With Lease */
-        post: operations["bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"];
+        post: operations["bulk_increment_active_slots_with_lease"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1559,7 +1559,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Bulk Decrement Active Slots */
-        post: operations["bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"];
+        post: operations["bulk_decrement_active_slots"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1576,7 +1576,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Bulk Decrement Active Slots With Lease */
-        post: operations["bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"];
+        post: operations["bulk_decrement_active_slots_with_lease"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1593,7 +1593,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Renew Concurrency Lease */
-        post: operations["renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
+        post: operations["renew_concurrency_lease"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1615,7 +1615,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
-        post: operations["create_block_type_block_types__post"];
+        post: operations["create_block_type"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1633,18 +1633,18 @@ export interface paths {
          * Read Block Type By Id
          * @description Get a block type by ID.
          */
-        get: operations["read_block_type_by_id_block_types__id__get"];
+        get: operations["read_block_type_by_id"];
         put?: never;
         post?: never;
         /** Delete Block Type */
-        delete: operations["delete_block_type_block_types__id__delete"];
+        delete: operations["delete_block_type"];
         options?: never;
         head?: never;
         /**
          * Update Block Type
          * @description Update a block type.
          */
-        patch: operations["update_block_type_block_types__id__patch"];
+        patch: operations["update_block_type"];
         trace?: never;
     };
     "/block_types/slug/{slug}": {
@@ -1658,7 +1658,7 @@ export interface paths {
          * Read Block Type By Slug
          * @description Get a block type by name.
          */
-        get: operations["read_block_type_by_slug_block_types_slug__slug__get"];
+        get: operations["read_block_type_by_slug"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1680,7 +1680,7 @@ export interface paths {
          * Read Block Types
          * @description Gets all block types. Optionally limit return with limit and offset.
          */
-        post: operations["read_block_types_block_types_filter_post"];
+        post: operations["read_block_types"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1695,7 +1695,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read Block Documents For Block Type */
-        get: operations["read_block_documents_for_block_type_block_types_slug__slug__block_documents_get"];
+        get: operations["read_block_documents_for_block_type"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1712,7 +1712,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read Block Document By Name For Block Type */
-        get: operations["read_block_document_by_name_for_block_type_block_types_slug__slug__block_documents_name__block_document_name__get"];
+        get: operations["read_block_document_by_name_for_block_type"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1731,7 +1731,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Install System Block Types */
-        post: operations["install_system_block_types_block_types_install_system_block_types_post"];
+        post: operations["install_system_block_types"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1753,7 +1753,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
-        post: operations["create_block_document_block_documents__post"];
+        post: operations["create_block_document"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1773,7 +1773,7 @@ export interface paths {
          * Read Block Documents
          * @description Query for block documents.
          */
-        post: operations["read_block_documents_block_documents_filter_post"];
+        post: operations["read_block_documents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1793,7 +1793,7 @@ export interface paths {
          * Count Block Documents
          * @description Count block documents.
          */
-        post: operations["count_block_documents_block_documents_count_post"];
+        post: operations["count_block_documents"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1808,15 +1808,15 @@ export interface paths {
             cookie?: never;
         };
         /** Read Block Document By Id */
-        get: operations["read_block_document_by_id_block_documents__id__get"];
+        get: operations["read_block_document_by_id"];
         put?: never;
         post?: never;
         /** Delete Block Document */
-        delete: operations["delete_block_document_block_documents__id__delete"];
+        delete: operations["delete_block_document"];
         options?: never;
         head?: never;
         /** Update Block Document Data */
-        patch: operations["update_block_document_data_block_documents__id__patch"];
+        patch: operations["update_block_document_data"];
         trace?: never;
     };
     "/work_pools/": {
@@ -1835,7 +1835,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools.
          */
-        post: operations["create_work_pool_work_pools__post"];
+        post: operations["create_work_pool"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1853,21 +1853,21 @@ export interface paths {
          * Read Work Pool
          * @description Read a work pool by name
          */
-        get: operations["read_work_pool_work_pools__name__get"];
+        get: operations["read_work_pool"];
         put?: never;
         post?: never;
         /**
          * Delete Work Pool
          * @description Delete a work pool
          */
-        delete: operations["delete_work_pool_work_pools__name__delete"];
+        delete: operations["delete_work_pool"];
         options?: never;
         head?: never;
         /**
          * Update Work Pool
          * @description Update a work pool
          */
-        patch: operations["update_work_pool_work_pools__name__patch"];
+        patch: operations["update_work_pool"];
         trace?: never;
     };
     "/work_pools/filter": {
@@ -1883,7 +1883,7 @@ export interface paths {
          * Read Work Pools
          * @description Read multiple work pools
          */
-        post: operations["read_work_pools_work_pools_filter_post"];
+        post: operations["read_work_pools"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1903,7 +1903,7 @@ export interface paths {
          * Count Work Pools
          * @description Count work pools
          */
-        post: operations["count_work_pools_work_pools_count_post"];
+        post: operations["count_work_pools"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1925,7 +1925,7 @@ export interface paths {
          *     with flow run summaries. Queues are paginated; flow runs per queue are
          *     capped by flow_run_limit.
          */
-        post: operations["read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+        post: operations["read_work_pool_concurrency_status"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1945,7 +1945,7 @@ export interface paths {
          * Get Scheduled Flow Runs
          * @description Load scheduled runs for a worker
          */
-        post: operations["get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"];
+        post: operations["get_scheduled_flow_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1968,7 +1968,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
-        post: operations["create_work_queue_work_pools__work_pool_name__queues_post"];
+        post: operations["create_work_pool_queue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1986,21 +1986,21 @@ export interface paths {
          * Read Work Queue
          * @description Read a work pool queue
          */
-        get: operations["read_work_queue_work_pools__work_pool_name__queues__name__get"];
+        get: operations["read_work_pool_queue"];
         put?: never;
         post?: never;
         /**
          * Delete Work Queue
          * @description Delete a work pool queue
          */
-        delete: operations["delete_work_queue_work_pools__work_pool_name__queues__name__delete"];
+        delete: operations["delete_work_pool_queue"];
         options?: never;
         head?: never;
         /**
          * Update Work Queue
          * @description Update a work pool queue
          */
-        patch: operations["update_work_queue_work_pools__work_pool_name__queues__name__patch"];
+        patch: operations["update_work_pool_queue"];
         trace?: never;
     };
     "/work_pools/{work_pool_name}/queues/filter": {
@@ -2016,7 +2016,7 @@ export interface paths {
          * Read Work Queues
          * @description Read all work pool queues
          */
-        post: operations["read_work_queues_work_pools__work_pool_name__queues_filter_post"];
+        post: operations["read_work_pool_queues"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2032,8 +2032,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Worker Heartbeat */
-        post: operations["worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post"];
+        /**
+         * Worker Heartbeat
+         * @description Record a heartbeat and optionally return the worker's ID.
+         */
+        post: operations["worker_heartbeat"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2053,7 +2056,7 @@ export interface paths {
          * Read Workers
          * @description Read all worker processes
          */
-        post: operations["read_workers_work_pools__work_pool_name__workers_filter_post"];
+        post: operations["read_workers"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2074,7 +2077,7 @@ export interface paths {
          * Delete Worker
          * @description Delete a work pool's worker
          */
-        delete: operations["delete_worker_work_pools__work_pool_name__workers__name__delete"];
+        delete: operations["delete_worker"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2095,7 +2098,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/run-background-tasks.
          */
-        post: operations["read_task_workers_task_workers_filter_post"];
+        post: operations["read_task_workers"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2120,7 +2123,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
          */
-        post: operations["create_work_queue_work_queues__post"];
+        post: operations["create_work_queue"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2138,21 +2141,21 @@ export interface paths {
          * Read Work Queue
          * @description Get a work queue by id.
          */
-        get: operations["read_work_queue_work_queues__id__get"];
+        get: operations["read_work_queue"];
         put?: never;
         post?: never;
         /**
          * Delete Work Queue
          * @description Delete a work queue by id.
          */
-        delete: operations["delete_work_queue_work_queues__id__delete"];
+        delete: operations["delete_work_queue"];
         options?: never;
         head?: never;
         /**
          * Update Work Queue
          * @description Updates an existing work queue.
          */
-        patch: operations["update_work_queue_work_queues__id__patch"];
+        patch: operations["update_work_queue"];
         trace?: never;
     };
     "/work_queues/name/{name}": {
@@ -2166,7 +2169,7 @@ export interface paths {
          * Read Work Queue By Name
          * @description Get a work queue by id.
          */
-        get: operations["read_work_queue_by_name_work_queues_name__name__get"];
+        get: operations["read_work_queue_by_name"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2188,7 +2191,7 @@ export interface paths {
          * Read Work Queue Runs
          * @description Get flow runs from the work queue.
          */
-        post: operations["read_work_queue_runs_work_queues__id__get_runs_post"];
+        post: operations["read_work_queue_runs"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2208,7 +2211,7 @@ export interface paths {
          * Read Work Queues
          * @description Query for work queues.
          */
-        post: operations["read_work_queues_work_queues_filter_post"];
+        post: operations["read_work_queues"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2229,7 +2232,7 @@ export interface paths {
          * @description Read concurrency status for a work queue, including paginated flow run
          *     summaries. active_slots always reflects the total count.
          */
-        post: operations["read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
+        post: operations["read_work_queue_concurrency_status"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2247,7 +2250,7 @@ export interface paths {
          * Read Work Queue Status
          * @description Get the status of a work queue.
          */
-        get: operations["read_work_queue_status_work_queues__id__status_get"];
+        get: operations["read_work_queue_status"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2271,7 +2274,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/artifacts.
          */
-        post: operations["create_artifact_artifacts__post"];
+        post: operations["create_artifact"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2289,21 +2292,21 @@ export interface paths {
          * Read Artifact
          * @description Retrieve an artifact from the database.
          */
-        get: operations["read_artifact_artifacts__id__get"];
+        get: operations["read_artifact"];
         put?: never;
         post?: never;
         /**
          * Delete Artifact
          * @description Delete an artifact from the database.
          */
-        delete: operations["delete_artifact_artifacts__id__delete"];
+        delete: operations["delete_artifact"];
         options?: never;
         head?: never;
         /**
          * Update Artifact
          * @description Update an artifact in the database.
          */
-        patch: operations["update_artifact_artifacts__id__patch"];
+        patch: operations["update_artifact"];
         trace?: never;
     };
     "/artifacts/{key}/latest": {
@@ -2317,7 +2320,7 @@ export interface paths {
          * Read Latest Artifact
          * @description Retrieve the latest artifact from the artifact table.
          */
-        get: operations["read_latest_artifact_artifacts__key__latest_get"];
+        get: operations["read_latest_artifact"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2339,7 +2342,7 @@ export interface paths {
          * Read Artifacts
          * @description Retrieve artifacts from the database.
          */
-        post: operations["read_artifacts_artifacts_filter_post"];
+        post: operations["read_artifacts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2359,7 +2362,7 @@ export interface paths {
          * Read Latest Artifacts
          * @description Retrieve artifacts from the database.
          */
-        post: operations["read_latest_artifacts_artifacts_latest_filter_post"];
+        post: operations["read_latest_artifacts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2379,7 +2382,7 @@ export interface paths {
          * Count Artifacts
          * @description Count artifacts from the database.
          */
-        post: operations["count_artifacts_artifacts_count_post"];
+        post: operations["count_artifacts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2399,7 +2402,7 @@ export interface paths {
          * Count Latest Artifacts
          * @description Count artifacts from the database.
          */
-        post: operations["count_latest_artifacts_artifacts_latest_count_post"];
+        post: operations["count_latest_artifacts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2421,7 +2424,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
-        post: operations["create_block_schema_block_schemas__post"];
+        post: operations["create_block_schema"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2439,14 +2442,14 @@ export interface paths {
          * Read Block Schema By Id
          * @description Get a block schema by id.
          */
-        get: operations["read_block_schema_by_id_block_schemas__id__get"];
+        get: operations["read_block_schema_by_id"];
         put?: never;
         post?: never;
         /**
          * Delete Block Schema
          * @description Delete a block schema by id.
          */
-        delete: operations["delete_block_schema_block_schemas__id__delete"];
+        delete: operations["delete_block_schema"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2465,7 +2468,7 @@ export interface paths {
          * Read Block Schemas
          * @description Read all block schemas, optionally filtered by type
          */
-        post: operations["read_block_schemas_block_schemas_filter_post"];
+        post: operations["read_block_schemas"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2480,7 +2483,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read Block Schema By Checksum */
-        get: operations["read_block_schema_by_checksum_block_schemas_checksum__checksum__get"];
+        get: operations["read_block_schema_by_checksum"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2502,7 +2505,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/blocks.
          */
-        get: operations["read_available_block_capabilities_block_capabilities__get"];
+        get: operations["read_available_block_capabilities"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2522,7 +2525,7 @@ export interface paths {
          * Read View Content
          * @description Reads the content of a view from the prefect-collection-registry.
          */
-        get: operations["read_view_content_collections_views__view__get"];
+        get: operations["read_view_content"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2546,7 +2549,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/variables.
          */
-        post: operations["create_variable_variables__post"];
+        post: operations["create_variable"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2561,15 +2564,15 @@ export interface paths {
             cookie?: never;
         };
         /** Read Variable */
-        get: operations["read_variable_variables__id__get"];
+        get: operations["read_variable"];
         put?: never;
         post?: never;
         /** Delete Variable */
-        delete: operations["delete_variable_variables__id__delete"];
+        delete: operations["delete_variable"];
         options?: never;
         head?: never;
         /** Update Variable */
-        patch: operations["update_variable_variables__id__patch"];
+        patch: operations["update_variable"];
         trace?: never;
     };
     "/variables/name/{name}": {
@@ -2580,15 +2583,15 @@ export interface paths {
             cookie?: never;
         };
         /** Read Variable By Name */
-        get: operations["read_variable_by_name_variables_name__name__get"];
+        get: operations["read_variable_by_name"];
         put?: never;
         post?: never;
         /** Delete Variable By Name */
-        delete: operations["delete_variable_by_name_variables_name__name__delete"];
+        delete: operations["delete_variable_by_name"];
         options?: never;
         head?: never;
         /** Update Variable By Name */
-        patch: operations["update_variable_by_name_variables_name__name__patch"];
+        patch: operations["update_variable_by_name"];
         trace?: never;
     };
     "/variables/filter": {
@@ -2601,7 +2604,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read Variables */
-        post: operations["read_variables_variables_filter_post"];
+        post: operations["read_variables"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2618,7 +2621,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Count Variables */
-        post: operations["count_variables_variables_count_post"];
+        post: operations["count_variables"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2636,7 +2639,7 @@ export interface paths {
          * Create Csrf Token
          * @description Create or update a CSRF token for a client
          */
-        get: operations["create_csrf_token_csrf_token_get"];
+        get: operations["create_csrf_token"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2660,7 +2663,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/events.
          */
-        post: operations["create_events_events_post"];
+        post: operations["create_events"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2682,7 +2685,7 @@ export interface paths {
          *     the first page of results, and the URL to request the next page (if there are more
          *     results).
          */
-        post: operations["read_events_events_filter_post"];
+        post: operations["read_events"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2701,7 +2704,7 @@ export interface paths {
          * @description Returns the next page of Events for a previous query against the given Account, and
          *     the URL to request the next page (if there are more results).
          */
-        get: operations["read_account_events_page_events_filter_next_get"];
+        get: operations["read_account_events_page"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2725,7 +2728,7 @@ export interface paths {
          *     that can be counted include the day the event occurred, the type of event, or
          *     the IDs of the resources associated with the event.
          */
-        post: operations["count_account_events_events_count_by__countable__post"];
+        post: operations["count_account_events"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2747,7 +2750,7 @@ export interface paths {
          *
          *     For more information, see https://www.prefect.io/docs/v3/concepts/automations.
          */
-        post: operations["create_automation_automations__post"];
+        post: operations["create_automation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2762,16 +2765,16 @@ export interface paths {
             cookie?: never;
         };
         /** Read Automation */
-        get: operations["read_automation_automations__id__get"];
+        get: operations["read_automation"];
         /** Update Automation */
-        put: operations["update_automation_automations__id__put"];
+        put: operations["update_automation"];
         post?: never;
         /** Delete Automation */
-        delete: operations["delete_automation_automations__id__delete"];
+        delete: operations["delete_automation"];
         options?: never;
         head?: never;
         /** Patch Automation */
-        patch: operations["patch_automation_automations__id__patch"];
+        patch: operations["patch_automation"];
         trace?: never;
     };
     "/automations/filter": {
@@ -2784,7 +2787,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read Automations */
-        post: operations["read_automations_automations_filter_post"];
+        post: operations["read_automations"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2801,7 +2804,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Count Automations */
-        post: operations["count_automations_automations_count_post"];
+        post: operations["count_automations"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2816,7 +2819,7 @@ export interface paths {
             cookie?: never;
         };
         /** Read Automations Related To Resource */
-        get: operations["read_automations_related_to_resource_automations_related_to__resource_id__get"];
+        get: operations["read_automations_related_to_resource"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2836,7 +2839,7 @@ export interface paths {
         put?: never;
         post?: never;
         /** Delete Automations Owned By Resource */
-        delete: operations["delete_automations_owned_by_resource_automations_owned_by__resource_id__delete"];
+        delete: operations["delete_automations_owned_by_resource"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2852,7 +2855,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Validate Template */
-        post: operations["validate_template_templates_validate_post"];
+        post: operations["validate_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2869,7 +2872,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Validate Template */
-        post: operations["validate_template_automations_templates_validate_post"];
+        post: operations["validate_automation_template"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2889,7 +2892,7 @@ export interface paths {
          * Count Deployments By Flow
          * @description Get deployment counts by flow id.
          */
-        post: operations["count_deployments_by_flow_ui_flows_count_deployments_post"];
+        post: operations["count_deployments_by_flow"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2909,7 +2912,7 @@ export interface paths {
          * Next Runs By Flow
          * @description Get the next flow run by flow id.
          */
-        post: operations["next_runs_by_flow_ui_flows_next_runs_post"];
+        post: operations["next_runs_by_flow"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2926,7 +2929,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read Flow Run History */
-        post: operations["read_flow_run_history_ui_flow_runs_history_post"];
+        post: operations["read_flow_run_history"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2946,7 +2949,7 @@ export interface paths {
          * Count Task Runs By Flow Run
          * @description Get task run counts by flow run id.
          */
-        post: operations["count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post"];
+        post: operations["count_task_runs_by_flow_run"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2963,7 +2966,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Validate Obj */
-        post: operations["validate_obj_ui_schemas_validate_post"];
+        post: operations["validate_obj"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2980,7 +2983,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read Dashboard Task Run Counts */
-        post: operations["read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post"];
+        post: operations["read_dashboard_task_run_counts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2997,7 +3000,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Read Task Run Counts By State */
-        post: operations["read_task_run_counts_by_state_ui_task_runs_count_post"];
+        post: operations["read_task_run_counts_by_state"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3015,7 +3018,7 @@ export interface paths {
          * Read Task Run With Flow Run Name
          * @description Get a task run by id.
          */
-        get: operations["read_task_run_with_flow_run_name_ui_task_runs__id__get"];
+        get: operations["read_task_run_with_flow_run_name"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3037,7 +3040,7 @@ export interface paths {
          *
          *     Secret setting values will be obfuscated.
          */
-        get: operations["read_settings_admin_settings_get"];
+        get: operations["read_settings"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3057,7 +3060,7 @@ export interface paths {
          * Read Version
          * @description Returns the Prefect version number
          */
-        get: operations["read_version_admin_version_get"];
+        get: operations["read_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3077,18 +3080,18 @@ export interface paths {
          * Read Server Default Result Storage
          * @description Get the configured server default result storage block.
          */
-        get: operations["read_server_default_result_storage_admin_storage_get"];
+        get: operations["read_server_default_result_storage"];
         /**
          * Update Server Default Result Storage
          * @description Set the server default result storage block.
          */
-        put: operations["update_server_default_result_storage_admin_storage_put"];
+        put: operations["update_server_default_result_storage"];
         post?: never;
         /**
          * Clear Server Default Result Storage
          * @description Clear the configured server default result storage block.
          */
-        delete: operations["clear_server_default_result_storage_admin_storage_delete"];
+        delete: operations["clear_server_default_result_storage"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3105,7 +3108,7 @@ export interface paths {
          * Hello
          * @description Say hello!
          */
-        get: operations["hello_hello_get"];
+        get: operations["hello"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3122,7 +3125,7 @@ export interface paths {
             cookie?: never;
         };
         /** Perform Readiness Check */
-        get: operations["perform_readiness_check_ready_get"];
+        get: operations["perform_readiness_check"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4290,8 +4293,8 @@ export interface components {
             /** Code Example */
             code_example?: string | null;
         };
-        /** Body_average_flow_run_lateness_flow_runs_lateness_post */
-        Body_average_flow_run_lateness_flow_runs_lateness_post: {
+        /** Body_average_flow_run_lateness */
+        Body_average_flow_run_lateness: {
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
@@ -4299,8 +4302,8 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
-        /** Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post */
-        Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post: {
+        /** Body_bulk_decrement_active_slots */
+        Body_bulk_decrement_active_slots: {
             /** Slots */
             slots: number;
             /** Names */
@@ -4313,8 +4316,8 @@ export interface components {
              */
             create_if_missing?: boolean;
         };
-        /** Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post */
-        Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post: {
+        /** Body_bulk_decrement_active_slots_with_lease */
+        Body_bulk_decrement_active_slots_with_lease: {
             /**
              * Lease Id
              * Format: uuid
@@ -4322,8 +4325,8 @@ export interface components {
              */
             lease_id: string;
         };
-        /** Body_bulk_delete_deployments_deployments_bulk_delete_post */
-        Body_bulk_delete_deployments_deployments_bulk_delete_post: {
+        /** Body_bulk_delete_deployments */
+        Body_bulk_delete_deployments: {
             /** @description Filter criteria for deployments to delete */
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
@@ -4333,8 +4336,8 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post */
-        Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+        /** Body_bulk_delete_flow_runs */
+        Body_bulk_delete_flow_runs: {
             /** @description Filter criteria for flow runs to delete */
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             /**
@@ -4344,8 +4347,8 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_bulk_delete_flows_flows_bulk_delete_post */
-        Body_bulk_delete_flows_flows_bulk_delete_post: {
+        /** Body_bulk_delete_flows */
+        Body_bulk_delete_flows: {
             /** @description Filter criteria for flows to delete */
             flows?: components["schemas"]["FlowFilter"] | null;
             /**
@@ -4355,8 +4358,8 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post */
-        Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
+        /** Body_bulk_increment_active_slots */
+        Body_bulk_increment_active_slots: {
             /** Slots */
             slots: number;
             /** Names */
@@ -4373,8 +4376,8 @@ export interface components {
              */
             create_if_missing?: boolean | null;
         };
-        /** Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post */
-        Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post: {
+        /** Body_bulk_increment_active_slots_with_lease */
+        Body_bulk_increment_active_slots_with_lease: {
             /** Slots */
             slots: number;
             /** Names */
@@ -4394,8 +4397,8 @@ export interface components {
             /** @description The holder of the lease with type (flow_run, task_run, or deployment) and id. */
             holder?: components["schemas"]["ConcurrencyLeaseHolder"] | null;
         };
-        /** Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post */
-        Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+        /** Body_bulk_set_flow_run_state */
+        Body_bulk_set_flow_run_state: {
             /** @description Filter criteria for flow runs to update */
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             /** @description The state to set */
@@ -4413,8 +4416,8 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_count_account_events_events_count_by__countable__post */
-        Body_count_account_events_events_count_by__countable__post: {
+        /** Body_count_account_events */
+        Body_count_account_events: {
             filter: components["schemas"]["EventFilter"];
             /** @default day */
             time_unit: components["schemas"]["TimeUnit"];
@@ -4424,31 +4427,40 @@ export interface components {
              */
             time_interval: number;
         };
-        /** Body_count_artifacts_artifacts_count_post */
-        Body_count_artifacts_artifacts_count_post: {
+        /** Body_count_artifacts */
+        Body_count_artifacts: {
             artifacts?: components["schemas"]["ArtifactFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             flows?: components["schemas"]["FlowFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
-        /** Body_count_automations_automations_count_post */
-        Body_count_automations_automations_count_post: {
+        /** Body_count_automations */
+        Body_count_automations: {
             automations?: components["schemas"]["AutomationFilter"] | null;
         };
-        /** Body_count_block_documents_block_documents_count_post */
-        Body_count_block_documents_block_documents_count_post: {
+        /** Body_count_block_documents */
+        Body_count_block_documents: {
             block_documents?: components["schemas"]["BlockDocumentFilter"] | null;
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
         };
-        /** Body_count_deployments_by_flow_ui_flows_count_deployments_post */
-        Body_count_deployments_by_flow_ui_flows_count_deployments_post: {
+        /** Body_count_deployments */
+        Body_count_deployments: {
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
+        };
+        /** Body_count_deployments_by_flow */
+        Body_count_deployments_by_flow: {
             /** Flow Ids */
             flow_ids: string[];
         };
-        /** Body_count_deployments_deployments_count_post */
-        Body_count_deployments_deployments_count_post: {
+        /** Body_count_flow_runs */
+        Body_count_flow_runs: {
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
@@ -4456,53 +4468,44 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
-        /** Body_count_flow_runs_flow_runs_count_post */
-        Body_count_flow_runs_flow_runs_count_post: {
-            flows?: components["schemas"]["FlowFilter"] | null;
-            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
-            task_runs?: components["schemas"]["TaskRunFilter"] | null;
-            deployments?: components["schemas"]["DeploymentFilter"] | null;
-            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
-            work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
-        };
-        /** Body_count_flows_flows_count_post */
-        Body_count_flows_flows_count_post: {
+        /** Body_count_flows */
+        Body_count_flows: {
             flows?: components["schemas"]["FlowFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
             work_pools?: components["schemas"]["WorkPoolFilter"];
         };
-        /** Body_count_latest_artifacts_artifacts_latest_count_post */
-        Body_count_latest_artifacts_artifacts_latest_count_post: {
+        /** Body_count_latest_artifacts */
+        Body_count_latest_artifacts: {
             artifacts?: components["schemas"]["ArtifactCollectionFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             flows?: components["schemas"]["FlowFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
-        /** Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post */
-        Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post: {
-            /** Flow Run Ids */
-            flow_run_ids: string[];
-        };
-        /** Body_count_task_runs_task_runs_count_post */
-        Body_count_task_runs_task_runs_count_post: {
+        /** Body_count_task_runs */
+        Body_count_task_runs: {
             flows?: components["schemas"]["FlowFilter"];
             flow_runs?: components["schemas"]["FlowRunFilter"];
             task_runs?: components["schemas"]["TaskRunFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
-        /** Body_count_variables_variables_count_post */
-        Body_count_variables_variables_count_post: {
+        /** Body_count_task_runs_by_flow_run */
+        Body_count_task_runs_by_flow_run: {
+            /** Flow Run Ids */
+            flow_run_ids: string[];
+        };
+        /** Body_count_variables */
+        Body_count_variables: {
             variables?: components["schemas"]["VariableFilter"] | null;
         };
-        /** Body_count_work_pools_work_pools_count_post */
-        Body_count_work_pools_work_pools_count_post: {
+        /** Body_count_work_pools */
+        Body_count_work_pools: {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
-        /** Body_create_flow_run_input_flow_runs__id__input_post */
-        Body_create_flow_run_input_flow_runs__id__input_post: {
+        /** Body_create_flow_run_input */
+        Body_create_flow_run_input: {
             /**
              * Key
              * @description The input key
@@ -4519,8 +4522,8 @@ export interface components {
              */
             sender?: string | null;
         };
-        /** Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post */
-        Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post: {
+        /** Body_decrement_concurrency_limits_v1 */
+        Body_decrement_concurrency_limits_v1: {
             /**
              * Names
              * @description The tags to release a slot for
@@ -4533,8 +4536,8 @@ export interface components {
              */
             task_run_id: string;
         };
-        /** Body_filter_flow_run_input_flow_runs__id__input_filter_post */
-        Body_filter_flow_run_input_flow_runs__id__input_filter_post: {
+        /** Body_filter_flow_run_input */
+        Body_filter_flow_run_input: {
             /**
              * Prefix
              * @description The input key prefix
@@ -4553,8 +4556,8 @@ export interface components {
              */
             exclude_keys: string[];
         };
-        /** Body_flow_run_history_flow_runs_history_post */
-        Body_flow_run_history_flow_runs_history_post: {
+        /** Body_flow_run_history */
+        Body_flow_run_history: {
             /**
              * History Start
              * Format: date-time
@@ -4580,27 +4583,8 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
-        /** Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post */
-        Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post: {
-            /**
-             * Deployment Ids
-             * @description The deployment IDs to get scheduled runs for
-             */
-            deployment_ids: string[];
-            /**
-             * Scheduled Before
-             * Format: date-time
-             * @description The maximum time to look for scheduled flow runs
-             */
-            scheduled_before?: string;
-            /**
-             * Limit
-             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
-             */
-            limit?: number;
-        };
-        /** Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post */
-        Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post: {
+        /** Body_get_scheduled_flow_runs */
+        Body_get_scheduled_flow_runs: {
             /**
              * Work Queue Names
              * @description The names of work pool queues
@@ -4624,8 +4608,27 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_increment_concurrency_limits_v1_concurrency_limits_increment_post */
-        Body_increment_concurrency_limits_v1_concurrency_limits_increment_post: {
+        /** Body_get_scheduled_flow_runs_for_deployments */
+        Body_get_scheduled_flow_runs_for_deployments: {
+            /**
+             * Deployment Ids
+             * @description The deployment IDs to get scheduled runs for
+             */
+            deployment_ids: string[];
+            /**
+             * Scheduled Before
+             * Format: date-time
+             * @description The maximum time to look for scheduled flow runs
+             */
+            scheduled_before?: string;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_increment_concurrency_limits_v1 */
+        Body_increment_concurrency_limits_v1: {
             /**
              * Names
              * @description The tags to acquire a slot for
@@ -4638,13 +4641,13 @@ export interface components {
              */
             task_run_id: string;
         };
-        /** Body_next_runs_by_flow_ui_flows_next_runs_post */
-        Body_next_runs_by_flow_ui_flows_next_runs_post: {
+        /** Body_next_runs_by_flow */
+        Body_next_runs_by_flow: {
             /** Flow Ids */
             flow_ids: string[];
         };
-        /** Body_paginate_deployments_deployments_paginate_post */
-        Body_paginate_deployments_deployments_paginate_post: {
+        /** Body_paginate_deployments */
+        Body_paginate_deployments: {
             /**
              * Page
              * @default 1
@@ -4664,8 +4667,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_paginate_flow_runs_flow_runs_paginate_post */
-        Body_paginate_flow_runs_flow_runs_paginate_post: {
+        /** Body_paginate_flow_runs */
+        Body_paginate_flow_runs: {
             /** @default ID_DESC */
             sort: components["schemas"]["FlowRunSort"];
             /**
@@ -4685,8 +4688,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_paginate_flows_flows_paginate_post */
-        Body_paginate_flows_flows_paginate_post: {
+        /** Body_paginate_flows */
+        Body_paginate_flows: {
             /**
              * Page
              * @default 1
@@ -4705,8 +4708,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_paginate_task_runs_task_runs_paginate_post */
-        Body_paginate_task_runs_task_runs_paginate_post: {
+        /** Body_paginate_task_runs */
+        Body_paginate_task_runs: {
             /** @default ID_DESC */
             sort: components["schemas"]["TaskRunSort"];
             /**
@@ -4724,8 +4727,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post */
-        Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post: {
+        /** Body_read_all_concurrency_limits_v2 */
+        Body_read_all_concurrency_limits_v2: {
             /**
              * Offset
              * @default 0
@@ -4737,8 +4740,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_artifacts_artifacts_filter_post */
-        Body_read_artifacts_artifacts_filter_post: {
+        /** Body_read_artifacts */
+        Body_read_artifacts: {
             /** @default ID_DESC */
             sort: components["schemas"]["ArtifactSort"];
             /**
@@ -4757,8 +4760,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_automations_automations_filter_post */
-        Body_read_automations_automations_filter_post: {
+        /** Body_read_automations */
+        Body_read_automations: {
             /** @default NAME_ASC */
             sort: components["schemas"]["AutomationSort"];
             /**
@@ -4773,8 +4776,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_block_documents_block_documents_filter_post */
-        Body_read_block_documents_block_documents_filter_post: {
+        /** Body_read_block_documents */
+        Body_read_block_documents: {
             block_documents?: components["schemas"]["BlockDocumentFilter"] | null;
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
@@ -4797,8 +4800,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_block_schemas_block_schemas_filter_post */
-        Body_read_block_schemas_block_schemas_filter_post: {
+        /** Body_read_block_schemas */
+        Body_read_block_schemas: {
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
             /**
              * Offset
@@ -4811,8 +4814,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_block_types_block_types_filter_post */
-        Body_read_block_types_block_types_filter_post: {
+        /** Body_read_block_types */
+        Body_read_block_types: {
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
             /**
@@ -4826,8 +4829,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_concurrency_limits_concurrency_limits_filter_post */
-        Body_read_concurrency_limits_concurrency_limits_filter_post: {
+        /** Body_read_concurrency_limits */
+        Body_read_concurrency_limits: {
             /**
              * Offset
              * @default 0
@@ -4839,8 +4842,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post */
-        Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post: {
+        /** Body_read_dashboard_task_run_counts */
+        Body_read_dashboard_task_run_counts: {
             task_runs: components["schemas"]["TaskRunFilter"];
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
@@ -4848,8 +4851,8 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
-        /** Body_read_deployments_deployments_filter_post */
-        Body_read_deployments_deployments_filter_post: {
+        /** Body_read_deployments */
+        Body_read_deployments: {
             /**
              * Offset
              * @default 0
@@ -4869,8 +4872,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_events_events_filter_post */
-        Body_read_events_events_filter_post: {
+        /** Body_read_events */
+        Body_read_events: {
             /** @description Additional optional filter criteria to narrow down the set of Events */
             filter?: components["schemas"]["EventFilter"] | null;
             /**
@@ -4880,8 +4883,8 @@ export interface components {
              */
             limit: number;
         };
-        /** Body_read_flow_run_history_ui_flow_runs_history_post */
-        Body_read_flow_run_history_ui_flow_runs_history_post: {
+        /** Body_read_flow_run_history */
+        Body_read_flow_run_history: {
             /** @default EXPECTED_START_TIME_DESC */
             sort: components["schemas"]["FlowRunSort"];
             /**
@@ -4900,8 +4903,8 @@ export interface components {
             deployments?: components["schemas"]["DeploymentFilter"];
             work_pools?: components["schemas"]["WorkPoolFilter"];
         };
-        /** Body_read_flow_runs_flow_runs_filter_post */
-        Body_read_flow_runs_flow_runs_filter_post: {
+        /** Body_read_flow_runs */
+        Body_read_flow_runs: {
             /** @default ID_DESC */
             sort: components["schemas"]["FlowRunSort"];
             /**
@@ -4921,8 +4924,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_flows_flows_filter_post */
-        Body_read_flows_flows_filter_post: {
+        /** Body_read_flows */
+        Body_read_flows: {
             /**
              * Offset
              * @default 0
@@ -4941,8 +4944,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_latest_artifacts_artifacts_latest_filter_post */
-        Body_read_latest_artifacts_artifacts_latest_filter_post: {
+        /** Body_read_latest_artifacts */
+        Body_read_latest_artifacts: {
             /** @default ID_DESC */
             sort: components["schemas"]["ArtifactCollectionSort"];
             /**
@@ -4961,8 +4964,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_logs_logs_filter_post */
-        Body_read_logs_logs_filter_post: {
+        /** Body_read_logs */
+        Body_read_logs: {
             /**
              * Offset
              * @default 0
@@ -4977,8 +4980,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_saved_searches_saved_searches_filter_post */
-        Body_read_saved_searches_saved_searches_filter_post: {
+        /** Body_read_saved_searches */
+        Body_read_saved_searches: {
             /**
              * Offset
              * @default 0
@@ -4990,15 +4993,15 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_task_run_counts_by_state_ui_task_runs_count_post */
-        Body_read_task_run_counts_by_state_ui_task_runs_count_post: {
+        /** Body_read_task_run_counts_by_state */
+        Body_read_task_run_counts_by_state: {
             flows?: components["schemas"]["FlowFilter"] | null;
             flow_runs?: components["schemas"]["FlowRunFilter"] | null;
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
         };
-        /** Body_read_task_runs_task_runs_filter_post */
-        Body_read_task_runs_task_runs_filter_post: {
+        /** Body_read_task_runs */
+        Body_read_task_runs: {
             /** @default ID_DESC */
             sort: components["schemas"]["TaskRunSort"];
             /**
@@ -5016,13 +5019,13 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_task_workers_task_workers_filter_post */
-        Body_read_task_workers_task_workers_filter_post: {
+        /** Body_read_task_workers */
+        Body_read_task_workers: {
             /** @description The task worker filter */
             task_worker_filter?: components["schemas"]["TaskWorkerFilter"] | null;
         };
-        /** Body_read_variables_variables_filter_post */
-        Body_read_variables_variables_filter_post: {
+        /** Body_read_variables */
+        Body_read_variables: {
             /**
              * Offset
              * @default 0
@@ -5037,8 +5040,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post */
-        Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+        /** Body_read_work_pool_concurrency_status */
+        Body_read_work_pool_concurrency_status: {
             /**
              * Page
              * @default 1
@@ -5056,49 +5059,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_work_pools_work_pools_filter_post */
-        Body_read_work_pools_work_pools_filter_post: {
-            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
-            /**
-             * Offset
-             * @default 0
-             */
-            offset: number;
-            /**
-             * Limit
-             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
-             */
-            limit?: number;
-        };
-        /** Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post */
-        Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
-            /**
-             * Page
-             * @default 1
-             */
-            page: number;
-            /**
-             * Limit
-             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
-             */
-            limit?: number;
-        };
-        /** Body_read_work_queue_runs_work_queues__id__get_runs_post */
-        Body_read_work_queue_runs_work_queues__id__get_runs_post: {
-            /**
-             * Scheduled Before
-             * Format: date-time
-             * @description Only flow runs scheduled to start before this time will be returned.
-             */
-            scheduled_before?: string;
-            /**
-             * Limit
-             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
-             */
-            limit?: number;
-        };
-        /** Body_read_work_queues_work_pools__work_pool_name__queues_filter_post */
-        Body_read_work_queues_work_pools__work_pool_name__queues_filter_post: {
+        /** Body_read_work_pool_queues */
+        Body_read_work_pool_queues: {
             work_queues?: components["schemas"]["WorkQueueFilter"];
             /**
              * Offset
@@ -5111,8 +5073,49 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_work_queues_work_queues_filter_post */
-        Body_read_work_queues_work_queues_filter_post: {
+        /** Body_read_work_pools */
+        Body_read_work_pools: {
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_read_work_queue_concurrency_status */
+        Body_read_work_queue_concurrency_status: {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_read_work_queue_runs */
+        Body_read_work_queue_runs: {
+            /**
+             * Scheduled Before
+             * Format: date-time
+             * @description Only flow runs scheduled to start before this time will be returned.
+             */
+            scheduled_before?: string;
+            /**
+             * Limit
+             * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
+             */
+            limit?: number;
+        };
+        /** Body_read_work_queues */
+        Body_read_work_queues: {
             /**
              * Offset
              * @default 0
@@ -5125,8 +5128,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_read_workers_work_pools__work_pool_name__workers_filter_post */
-        Body_read_workers_work_pools__work_pool_name__workers_filter_post: {
+        /** Body_read_workers */
+        Body_read_workers: {
             workers?: components["schemas"]["WorkerFilter"] | null;
             /**
              * Offset
@@ -5139,8 +5142,8 @@ export interface components {
              */
             limit?: number;
         };
-        /** Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post */
-        Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+        /** Body_renew_concurrency_lease */
+        Body_renew_concurrency_lease: {
             /**
              * Lease Duration
              * @description The duration of the lease in seconds.
@@ -5148,23 +5151,23 @@ export interface components {
              */
             lease_duration: number;
         };
-        /** Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post */
-        Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post: {
+        /** Body_reset_concurrency_limit_by_tag */
+        Body_reset_concurrency_limit_by_tag: {
             /**
              * Slot Override
              * @description Manual override for active concurrency limit slots.
              */
             slot_override?: string[] | null;
         };
-        /** Body_resume_flow_run_flow_runs__id__resume_post */
-        Body_resume_flow_run_flow_runs__id__resume_post: {
+        /** Body_resume_flow_run */
+        Body_resume_flow_run: {
             /** Run Input */
             run_input?: {
                 [key: string]: unknown;
             } | null;
         };
-        /** Body_schedule_deployment_deployments__id__schedule_post */
-        Body_schedule_deployment_deployments__id__schedule_post: {
+        /** Body_schedule_deployment */
+        Body_schedule_deployment: {
             /**
              * Start Time
              * Format: date-time
@@ -5194,8 +5197,8 @@ export interface components {
              */
             max_runs?: number;
         };
-        /** Body_set_flow_run_state_flow_runs__id__set_state_post */
-        Body_set_flow_run_state_flow_runs__id__set_state_post: {
+        /** Body_set_flow_run_state */
+        Body_set_flow_run_state: {
             /** @description The intended state. */
             state: components["schemas"]["StateCreate"];
             /**
@@ -5205,8 +5208,8 @@ export interface components {
              */
             force: boolean;
         };
-        /** Body_set_task_run_state_task_runs__id__set_state_post */
-        Body_set_task_run_state_task_runs__id__set_state_post: {
+        /** Body_set_task_run_state */
+        Body_set_task_run_state: {
             /** @description The intended state. */
             state: components["schemas"]["StateCreate"];
             /**
@@ -5216,8 +5219,8 @@ export interface components {
              */
             force: boolean;
         };
-        /** Body_task_run_history_task_runs_history_post */
-        Body_task_run_history_task_runs_history_post: {
+        /** Body_task_run_history */
+        Body_task_run_history: {
             /**
              * History Start
              * Format: date-time
@@ -5241,8 +5244,8 @@ export interface components {
             task_runs?: components["schemas"]["TaskRunFilter"];
             deployments?: components["schemas"]["DeploymentFilter"];
         };
-        /** Body_validate_obj_ui_schemas_validate_post */
-        Body_validate_obj_ui_schemas_validate_post: {
+        /** Body_validate_obj */
+        Body_validate_obj: {
             /** Schema */
             schema: {
                 [key: string]: unknown;
@@ -5252,8 +5255,8 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post */
-        Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
+        /** Body_worker_heartbeat */
+        Body_worker_heartbeat: {
             /**
              * Name
              * @description The worker process name
@@ -5264,6 +5267,11 @@ export interface components {
              * @description The worker's heartbeat interval in seconds
              */
             heartbeat_interval_seconds?: number | null;
+            /**
+             * Return Id
+             * @description Return the worker ID. Defaults to false.
+             */
+            return_id?: boolean;
         };
         /**
          * CLISettings
@@ -7114,6 +7122,12 @@ export interface components {
              * @default true
              */
             warn: boolean;
+            /**
+             * Aggregate Nested States
+             * @description Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.
+             * @default false
+             */
+            aggregate_nested_states: boolean;
         };
         /**
          * Flow
@@ -8639,7 +8653,7 @@ export interface components {
          */
         "IntervalSchedule-Output": {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
@@ -8697,6 +8711,11 @@ export interface components {
              * @description The task run ID associated with the log.
              */
             task_run_id?: string | null;
+            /**
+             * Worker Id
+             * @description The ID of the worker that wrote the log.
+             */
+            worker_id?: string | null;
         };
         /**
          * LogCreate
@@ -8728,6 +8747,8 @@ export interface components {
             flow_run_id?: string | null;
             /** Task Run Id */
             task_run_id?: string | null;
+            /** Worker Id */
+            worker_id?: string | null;
         };
         /**
          * LogFilter
@@ -10827,7 +10848,7 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.
+             * @description Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference. Deprecated: the V1 UI will be removed in Prefect 3.10, after which this setting will have no effect.
              * @default true
              */
             v2_enabled: boolean;
@@ -13092,7 +13113,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health_check_health_get: {
+    health_check: {
         parameters: {
             query?: never;
             header?: never;
@@ -13112,7 +13133,7 @@ export interface operations {
             };
         };
     };
-    server_version_version_get: {
+    server_version: {
         parameters: {
             query?: never;
             header?: never;
@@ -13132,7 +13153,7 @@ export interface operations {
             };
         };
     };
-    create_flow_flows__post: {
+    create_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -13167,7 +13188,7 @@ export interface operations {
             };
         };
     };
-    read_flow_flows__id__get: {
+    read_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -13201,7 +13222,7 @@ export interface operations {
             };
         };
     };
-    delete_flow_flows__id__delete: {
+    delete_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -13233,7 +13254,7 @@ export interface operations {
             };
         };
     };
-    update_flow_flows__id__patch: {
+    update_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -13269,7 +13290,7 @@ export interface operations {
             };
         };
     };
-    count_flows_flows_count_post: {
+    count_flows: {
         parameters: {
             query?: never;
             header?: {
@@ -13280,7 +13301,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_flows_flows_count_post"];
+                "application/json": components["schemas"]["Body_count_flows"];
             };
         };
         responses: {
@@ -13304,7 +13325,7 @@ export interface operations {
             };
         };
     };
-    read_flow_by_name_flows_name__name__get: {
+    read_flow_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -13338,7 +13359,7 @@ export interface operations {
             };
         };
     };
-    read_flows_flows_filter_post: {
+    read_flows: {
         parameters: {
             query?: never;
             header?: {
@@ -13349,7 +13370,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_flows_flows_filter_post"];
+                "application/json": components["schemas"]["Body_read_flows"];
             };
         };
         responses: {
@@ -13373,7 +13394,7 @@ export interface operations {
             };
         };
     };
-    bulk_delete_flows_flows_bulk_delete_post: {
+    bulk_delete_flows: {
         parameters: {
             query?: never;
             header?: {
@@ -13384,7 +13405,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_delete_flows_flows_bulk_delete_post"];
+                "application/json": components["schemas"]["Body_bulk_delete_flows"];
             };
         };
         responses: {
@@ -13408,7 +13429,7 @@ export interface operations {
             };
         };
     };
-    paginate_flows_flows_paginate_post: {
+    paginate_flows: {
         parameters: {
             query?: never;
             header?: {
@@ -13419,7 +13440,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_paginate_flows_flows_paginate_post"];
+                "application/json": components["schemas"]["Body_paginate_flows"];
             };
         };
         responses: {
@@ -13443,7 +13464,7 @@ export interface operations {
             };
         };
     };
-    create_flow_run_flow_runs__post: {
+    create_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -13478,7 +13499,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_flow_runs__id__get: {
+    read_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -13512,7 +13533,7 @@ export interface operations {
             };
         };
     };
-    delete_flow_run_flow_runs__id__delete: {
+    delete_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -13544,7 +13565,7 @@ export interface operations {
             };
         };
     };
-    update_flow_run_flow_runs__id__patch: {
+    update_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -13580,7 +13601,7 @@ export interface operations {
             };
         };
     };
-    count_flow_runs_flow_runs_count_post: {
+    count_flow_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -13591,7 +13612,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_flow_runs_flow_runs_count_post"];
+                "application/json": components["schemas"]["Body_count_flow_runs"];
             };
         };
         responses: {
@@ -13615,7 +13636,7 @@ export interface operations {
             };
         };
     };
-    average_flow_run_lateness_flow_runs_lateness_post: {
+    average_flow_run_lateness: {
         parameters: {
             query?: never;
             header?: {
@@ -13626,7 +13647,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_average_flow_run_lateness_flow_runs_lateness_post"];
+                "application/json": components["schemas"]["Body_average_flow_run_lateness"];
             };
         };
         responses: {
@@ -13650,7 +13671,7 @@ export interface operations {
             };
         };
     };
-    flow_run_history_flow_runs_history_post: {
+    flow_run_history: {
         parameters: {
             query?: never;
             header?: {
@@ -13661,7 +13682,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_flow_run_history_flow_runs_history_post"];
+                "application/json": components["schemas"]["Body_flow_run_history"];
             };
         };
         responses: {
@@ -13685,7 +13706,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_graph_v1_flow_runs__id__graph_get: {
+    read_flow_run_graph_v1: {
         parameters: {
             query?: never;
             header?: {
@@ -13719,7 +13740,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_graph_v2_flow_runs__id__graph_v2_get: {
+    read_flow_run_graph_v2: {
         parameters: {
             query?: {
                 /** @description Only include runs that start or end after this time. */
@@ -13756,7 +13777,7 @@ export interface operations {
             };
         };
     };
-    resume_flow_run_flow_runs__id__resume_post: {
+    resume_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -13770,7 +13791,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_resume_flow_run_flow_runs__id__resume_post"];
+                "application/json": components["schemas"]["Body_resume_flow_run"];
             };
         };
         responses: {
@@ -13794,7 +13815,7 @@ export interface operations {
             };
         };
     };
-    read_flow_runs_flow_runs_filter_post: {
+    read_flow_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -13805,7 +13826,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_flow_runs_flow_runs_filter_post"];
+                "application/json": components["schemas"]["Body_read_flow_runs"];
             };
         };
         responses: {
@@ -13829,7 +13850,7 @@ export interface operations {
             };
         };
     };
-    bulk_delete_flow_runs_flow_runs_bulk_delete_post: {
+    bulk_delete_flow_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -13840,7 +13861,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"];
+                "application/json": components["schemas"]["Body_bulk_delete_flow_runs"];
             };
         };
         responses: {
@@ -13864,7 +13885,7 @@ export interface operations {
             };
         };
     };
-    bulk_set_flow_run_state_flow_runs_bulk_set_state_post: {
+    bulk_set_flow_run_state: {
         parameters: {
             query?: never;
             header?: {
@@ -13875,7 +13896,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"];
+                "application/json": components["schemas"]["Body_bulk_set_flow_run_state"];
             };
         };
         responses: {
@@ -13899,7 +13920,7 @@ export interface operations {
             };
         };
     };
-    set_flow_run_state_flow_runs__id__set_state_post: {
+    set_flow_run_state: {
         parameters: {
             query?: never;
             header?: {
@@ -13913,7 +13934,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_set_flow_run_state_flow_runs__id__set_state_post"];
+                "application/json": components["schemas"]["Body_set_flow_run_state"];
             };
         };
         responses: {
@@ -13937,7 +13958,7 @@ export interface operations {
             };
         };
     };
-    create_flow_run_input_flow_runs__id__input_post: {
+    create_flow_run_input: {
         parameters: {
             query?: never;
             header?: {
@@ -13951,7 +13972,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_create_flow_run_input_flow_runs__id__input_post"];
+                "application/json": components["schemas"]["Body_create_flow_run_input"];
             };
         };
         responses: {
@@ -13975,7 +13996,7 @@ export interface operations {
             };
         };
     };
-    filter_flow_run_input_flow_runs__id__input_filter_post: {
+    filter_flow_run_input: {
         parameters: {
             query?: never;
             header?: {
@@ -13989,7 +14010,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_filter_flow_run_input_flow_runs__id__input_filter_post"];
+                "application/json": components["schemas"]["Body_filter_flow_run_input"];
             };
         };
         responses: {
@@ -14013,7 +14034,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_input_flow_runs__id__input__key__get: {
+    read_flow_run_input: {
         parameters: {
             query?: never;
             header?: {
@@ -14049,7 +14070,7 @@ export interface operations {
             };
         };
     };
-    delete_flow_run_input_flow_runs__id__input__key__delete: {
+    delete_flow_run_input: {
         parameters: {
             query?: never;
             header?: {
@@ -14083,7 +14104,7 @@ export interface operations {
             };
         };
     };
-    paginate_flow_runs_flow_runs_paginate_post: {
+    paginate_flow_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -14094,7 +14115,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_paginate_flow_runs_flow_runs_paginate_post"];
+                "application/json": components["schemas"]["Body_paginate_flow_runs"];
             };
         };
         responses: {
@@ -14118,7 +14139,7 @@ export interface operations {
             };
         };
     };
-    download_logs_flow_runs__id__logs_download_get: {
+    download_logs: {
         parameters: {
             query?: never;
             header?: {
@@ -14152,7 +14173,7 @@ export interface operations {
             };
         };
     };
-    update_flow_run_labels_flow_runs__id__labels_patch: {
+    update_flow_run_labels: {
         parameters: {
             query?: never;
             header?: {
@@ -14190,7 +14211,7 @@ export interface operations {
             };
         };
     };
-    create_task_run_task_runs__post: {
+    create_task_run: {
         parameters: {
             query?: never;
             header?: {
@@ -14225,7 +14246,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_task_runs__id__get: {
+    read_task_run: {
         parameters: {
             query?: never;
             header?: {
@@ -14259,7 +14280,7 @@ export interface operations {
             };
         };
     };
-    delete_task_run_task_runs__id__delete: {
+    delete_task_run: {
         parameters: {
             query?: never;
             header?: {
@@ -14291,7 +14312,7 @@ export interface operations {
             };
         };
     };
-    update_task_run_task_runs__id__patch: {
+    update_task_run: {
         parameters: {
             query?: never;
             header?: {
@@ -14327,7 +14348,7 @@ export interface operations {
             };
         };
     };
-    count_task_runs_task_runs_count_post: {
+    count_task_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -14338,7 +14359,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+                "application/json": components["schemas"]["Body_count_task_runs"];
             };
         };
         responses: {
@@ -14362,7 +14383,7 @@ export interface operations {
             };
         };
     };
-    task_run_history_task_runs_history_post: {
+    task_run_history: {
         parameters: {
             query?: never;
             header?: {
@@ -14373,7 +14394,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_task_run_history_task_runs_history_post"];
+                "application/json": components["schemas"]["Body_task_run_history"];
             };
         };
         responses: {
@@ -14397,7 +14418,7 @@ export interface operations {
             };
         };
     };
-    read_task_runs_task_runs_filter_post: {
+    read_task_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -14408,7 +14429,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
+                "application/json": components["schemas"]["Body_read_task_runs"];
             };
         };
         responses: {
@@ -14432,7 +14453,7 @@ export interface operations {
             };
         };
     };
-    paginate_task_runs_task_runs_paginate_post: {
+    paginate_task_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -14443,7 +14464,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+                "application/json": components["schemas"]["Body_paginate_task_runs"];
             };
         };
         responses: {
@@ -14467,7 +14488,7 @@ export interface operations {
             };
         };
     };
-    set_task_run_state_task_runs__id__set_state_post: {
+    set_task_run_state: {
         parameters: {
             query?: never;
             header?: {
@@ -14481,7 +14502,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
+                "application/json": components["schemas"]["Body_set_task_run_state"];
             };
         };
         responses: {
@@ -14505,7 +14526,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_state_flow_run_states__id__get: {
+    read_flow_run_state: {
         parameters: {
             query?: never;
             header?: {
@@ -14539,7 +14560,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_states_flow_run_states__get: {
+    read_flow_run_states: {
         parameters: {
             query: {
                 flow_run_id: string;
@@ -14572,7 +14593,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_state_task_run_states__id__get: {
+    read_task_run_state: {
         parameters: {
             query?: never;
             header?: {
@@ -14606,7 +14627,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_states_task_run_states__get: {
+    read_task_run_states: {
         parameters: {
             query: {
                 task_run_id: string;
@@ -14639,7 +14660,7 @@ export interface operations {
             };
         };
     };
-    read_observed_states_observed_states_get: {
+    read_observed_states: {
         parameters: {
             query?: {
                 query?: string | null;
@@ -14674,7 +14695,7 @@ export interface operations {
             };
         };
     };
-    create_deployment_deployments__post: {
+    create_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -14709,7 +14730,7 @@ export interface operations {
             };
         };
     };
-    read_deployment_deployments__id__get: {
+    read_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -14743,7 +14764,7 @@ export interface operations {
             };
         };
     };
-    delete_deployment_deployments__id__delete: {
+    delete_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -14775,7 +14796,7 @@ export interface operations {
             };
         };
     };
-    update_deployment_deployments__id__patch: {
+    update_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -14800,6 +14821,27 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The deployment parameters could not be hydrated. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The deployment or concurrency limit was not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The job variables are not valid for the work pool, or parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -14811,7 +14853,7 @@ export interface operations {
             };
         };
     };
-    read_deployment_by_name_deployments_name__flow_name___deployment_name__get: {
+    read_deployment_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -14847,7 +14889,7 @@ export interface operations {
             };
         };
     };
-    read_deployments_deployments_filter_post: {
+    read_deployments: {
         parameters: {
             query?: never;
             header?: {
@@ -14858,7 +14900,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_deployments_deployments_filter_post"];
+                "application/json": components["schemas"]["Body_read_deployments"];
             };
         };
         responses: {
@@ -14882,7 +14924,7 @@ export interface operations {
             };
         };
     };
-    paginate_deployments_deployments_paginate_post: {
+    paginate_deployments: {
         parameters: {
             query?: never;
             header?: {
@@ -14893,7 +14935,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_paginate_deployments_deployments_paginate_post"];
+                "application/json": components["schemas"]["Body_paginate_deployments"];
             };
         };
         responses: {
@@ -14917,7 +14959,7 @@ export interface operations {
             };
         };
     };
-    get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post: {
+    get_scheduled_flow_runs_for_deployments: {
         parameters: {
             query?: never;
             header?: {
@@ -14928,7 +14970,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post"];
+                "application/json": components["schemas"]["Body_get_scheduled_flow_runs_for_deployments"];
             };
         };
         responses: {
@@ -14952,7 +14994,7 @@ export interface operations {
             };
         };
     };
-    count_deployments_deployments_count_post: {
+    count_deployments: {
         parameters: {
             query?: never;
             header?: {
@@ -14963,7 +15005,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_deployments_deployments_count_post"];
+                "application/json": components["schemas"]["Body_count_deployments"];
             };
         };
         responses: {
@@ -14987,7 +15029,7 @@ export interface operations {
             };
         };
     };
-    bulk_delete_deployments_deployments_bulk_delete_post: {
+    bulk_delete_deployments: {
         parameters: {
             query?: never;
             header?: {
@@ -14998,7 +15040,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_delete_deployments_deployments_bulk_delete_post"];
+                "application/json": components["schemas"]["Body_bulk_delete_deployments"];
             };
         };
         responses: {
@@ -15022,7 +15064,7 @@ export interface operations {
             };
         };
     };
-    schedule_deployment_deployments__id__schedule_post: {
+    schedule_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15036,7 +15078,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_schedule_deployment_deployments__id__schedule_post"];
+                "application/json": components["schemas"]["Body_schedule_deployment"];
             };
         };
         responses: {
@@ -15060,7 +15102,7 @@ export interface operations {
             };
         };
     };
-    resume_deployment_deployments__id__resume_deployment_post: {
+    resume_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15094,7 +15136,7 @@ export interface operations {
             };
         };
     };
-    pause_deployment_deployments__id__pause_deployment_post: {
+    pause_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15128,7 +15170,7 @@ export interface operations {
             };
         };
     };
-    create_flow_run_from_deployment_deployments__id__create_flow_run_post: {
+    create_flow_run_from_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15146,7 +15188,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description An existing flow run with the same idempotency key was returned. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -15154,6 +15196,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FlowRunResponse"];
                 };
+            };
+            /** @description A new flow run was created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlowRunResponse"];
+                };
+            };
+            /** @description The flow run parameters could not be hydrated, or a work queue was given for a deployment that has no work pool. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The deployment was not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -15166,7 +15238,7 @@ export interface operations {
             };
         };
     };
-    bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post: {
+    bulk_create_flow_runs_from_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15204,7 +15276,7 @@ export interface operations {
             };
         };
     };
-    work_queue_check_for_deployment_deployments__id__work_queue_check_get: {
+    work_queue_check_for_deployment: {
         parameters: {
             query?: never;
             header?: {
@@ -15238,7 +15310,7 @@ export interface operations {
             };
         };
     };
-    read_deployment_schedules_deployments__id__schedules_get: {
+    read_deployment_schedules: {
         parameters: {
             query?: never;
             header?: {
@@ -15272,7 +15344,7 @@ export interface operations {
             };
         };
     };
-    create_deployment_schedules_deployments__id__schedules_post: {
+    create_deployment_schedules: {
         parameters: {
             query?: never;
             header?: {
@@ -15310,7 +15382,7 @@ export interface operations {
             };
         };
     };
-    delete_deployment_schedule_deployments__id__schedules__schedule_id__delete: {
+    delete_deployment_schedule: {
         parameters: {
             query?: never;
             header?: {
@@ -15344,7 +15416,7 @@ export interface operations {
             };
         };
     };
-    update_deployment_schedule_deployments__id__schedules__schedule_id__patch: {
+    update_deployment_schedule: {
         parameters: {
             query?: never;
             header?: {
@@ -15382,7 +15454,7 @@ export interface operations {
             };
         };
     };
-    create_saved_search_saved_searches__put: {
+    create_saved_search: {
         parameters: {
             query?: never;
             header?: {
@@ -15417,7 +15489,7 @@ export interface operations {
             };
         };
     };
-    read_saved_search_saved_searches__id__get: {
+    read_saved_search: {
         parameters: {
             query?: never;
             header?: {
@@ -15451,7 +15523,7 @@ export interface operations {
             };
         };
     };
-    delete_saved_search_saved_searches__id__delete: {
+    delete_saved_search: {
         parameters: {
             query?: never;
             header?: {
@@ -15483,7 +15555,7 @@ export interface operations {
             };
         };
     };
-    read_saved_searches_saved_searches_filter_post: {
+    read_saved_searches: {
         parameters: {
             query?: never;
             header?: {
@@ -15494,7 +15566,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_saved_searches_saved_searches_filter_post"];
+                "application/json": components["schemas"]["Body_read_saved_searches"];
             };
         };
         responses: {
@@ -15518,7 +15590,7 @@ export interface operations {
             };
         };
     };
-    create_logs_logs__post: {
+    create_logs: {
         parameters: {
             query?: never;
             header?: {
@@ -15553,7 +15625,7 @@ export interface operations {
             };
         };
     };
-    read_logs_logs_filter_post: {
+    read_logs: {
         parameters: {
             query?: never;
             header?: {
@@ -15564,7 +15636,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_logs_logs_filter_post"];
+                "application/json": components["schemas"]["Body_read_logs"];
             };
         };
         responses: {
@@ -15588,7 +15660,7 @@ export interface operations {
             };
         };
     };
-    create_concurrency_limit_concurrency_limits__post: {
+    create_concurrency_limit: {
         parameters: {
             query?: never;
             header?: {
@@ -15623,7 +15695,7 @@ export interface operations {
             };
         };
     };
-    read_concurrency_limit_concurrency_limits__id__get: {
+    read_concurrency_limit: {
         parameters: {
             query?: never;
             header?: {
@@ -15657,7 +15729,7 @@ export interface operations {
             };
         };
     };
-    delete_concurrency_limit_concurrency_limits__id__delete: {
+    delete_concurrency_limit: {
         parameters: {
             query?: never;
             header?: {
@@ -15691,7 +15763,7 @@ export interface operations {
             };
         };
     };
-    read_concurrency_limit_by_tag_concurrency_limits_tag__tag__get: {
+    read_concurrency_limit_by_tag: {
         parameters: {
             query?: never;
             header?: {
@@ -15725,7 +15797,7 @@ export interface operations {
             };
         };
     };
-    delete_concurrency_limit_by_tag_concurrency_limits_tag__tag__delete: {
+    delete_concurrency_limit_by_tag: {
         parameters: {
             query?: never;
             header?: {
@@ -15759,7 +15831,7 @@ export interface operations {
             };
         };
     };
-    read_concurrency_limits_concurrency_limits_filter_post: {
+    read_concurrency_limits: {
         parameters: {
             query?: never;
             header?: {
@@ -15770,7 +15842,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_concurrency_limits_concurrency_limits_filter_post"];
+                "application/json": components["schemas"]["Body_read_concurrency_limits"];
             };
         };
         responses: {
@@ -15794,7 +15866,7 @@ export interface operations {
             };
         };
     };
-    reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post: {
+    reset_concurrency_limit_by_tag: {
         parameters: {
             query?: never;
             header?: {
@@ -15808,7 +15880,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"];
+                "application/json": components["schemas"]["Body_reset_concurrency_limit_by_tag"];
             };
         };
         responses: {
@@ -15832,7 +15904,7 @@ export interface operations {
             };
         };
     };
-    increment_concurrency_limits_v1_concurrency_limits_increment_post: {
+    increment_concurrency_limits_v1: {
         parameters: {
             query?: never;
             header?: {
@@ -15843,7 +15915,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_increment_concurrency_limits_v1_concurrency_limits_increment_post"];
+                "application/json": components["schemas"]["Body_increment_concurrency_limits_v1"];
             };
         };
         responses: {
@@ -15867,7 +15939,7 @@ export interface operations {
             };
         };
     };
-    decrement_concurrency_limits_v1_concurrency_limits_decrement_post: {
+    decrement_concurrency_limits_v1: {
         parameters: {
             query?: never;
             header?: {
@@ -15878,7 +15950,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"];
+                "application/json": components["schemas"]["Body_decrement_concurrency_limits_v1"];
             };
         };
         responses: {
@@ -15902,7 +15974,7 @@ export interface operations {
             };
         };
     };
-    create_concurrency_limit_v2_v2_concurrency_limits__post: {
+    create_concurrency_limit_v2: {
         parameters: {
             query?: never;
             header?: {
@@ -15937,7 +16009,7 @@ export interface operations {
             };
         };
     };
-    read_concurrency_limit_v2_v2_concurrency_limits__id_or_name__get: {
+    read_concurrency_limit_v2: {
         parameters: {
             query?: never;
             header?: {
@@ -15971,7 +16043,7 @@ export interface operations {
             };
         };
     };
-    delete_concurrency_limit_v2_v2_concurrency_limits__id_or_name__delete: {
+    delete_concurrency_limit_v2: {
         parameters: {
             query?: never;
             header?: {
@@ -16003,7 +16075,7 @@ export interface operations {
             };
         };
     };
-    update_concurrency_limit_v2_v2_concurrency_limits__id_or_name__patch: {
+    update_concurrency_limit_v2: {
         parameters: {
             query?: never;
             header?: {
@@ -16039,7 +16111,7 @@ export interface operations {
             };
         };
     };
-    read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post: {
+    read_all_concurrency_limits_v2: {
         parameters: {
             query?: never;
             header?: {
@@ -16050,7 +16122,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+                "application/json": components["schemas"]["Body_read_all_concurrency_limits_v2"];
             };
         };
         responses: {
@@ -16074,7 +16146,7 @@ export interface operations {
             };
         };
     };
-    bulk_increment_active_slots_v2_concurrency_limits_increment_post: {
+    bulk_increment_active_slots: {
         parameters: {
             query?: never;
             header?: {
@@ -16085,7 +16157,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post"];
+                "application/json": components["schemas"]["Body_bulk_increment_active_slots"];
             };
         };
         responses: {
@@ -16109,7 +16181,7 @@ export interface operations {
             };
         };
     };
-    bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post: {
+    bulk_increment_active_slots_with_lease: {
         parameters: {
             query?: never;
             header?: {
@@ -16120,7 +16192,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"];
+                "application/json": components["schemas"]["Body_bulk_increment_active_slots_with_lease"];
             };
         };
         responses: {
@@ -16144,7 +16216,7 @@ export interface operations {
             };
         };
     };
-    bulk_decrement_active_slots_v2_concurrency_limits_decrement_post: {
+    bulk_decrement_active_slots: {
         parameters: {
             query?: never;
             header?: {
@@ -16155,7 +16227,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"];
+                "application/json": components["schemas"]["Body_bulk_decrement_active_slots"];
             };
         };
         responses: {
@@ -16179,7 +16251,7 @@ export interface operations {
             };
         };
     };
-    bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post: {
+    bulk_decrement_active_slots_with_lease: {
         parameters: {
             query?: never;
             header?: {
@@ -16190,7 +16262,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"];
+                "application/json": components["schemas"]["Body_bulk_decrement_active_slots_with_lease"];
             };
         };
         responses: {
@@ -16212,7 +16284,7 @@ export interface operations {
             };
         };
     };
-    renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post: {
+    renew_concurrency_lease: {
         parameters: {
             query?: never;
             header?: {
@@ -16226,7 +16298,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"];
+                "application/json": components["schemas"]["Body_renew_concurrency_lease"];
             };
         };
         responses: {
@@ -16248,7 +16320,7 @@ export interface operations {
             };
         };
     };
-    create_block_type_block_types__post: {
+    create_block_type: {
         parameters: {
             query?: never;
             header?: {
@@ -16283,7 +16355,7 @@ export interface operations {
             };
         };
     };
-    read_block_type_by_id_block_types__id__get: {
+    read_block_type_by_id: {
         parameters: {
             query?: never;
             header?: {
@@ -16317,7 +16389,7 @@ export interface operations {
             };
         };
     };
-    delete_block_type_block_types__id__delete: {
+    delete_block_type: {
         parameters: {
             query?: never;
             header?: {
@@ -16349,7 +16421,7 @@ export interface operations {
             };
         };
     };
-    update_block_type_block_types__id__patch: {
+    update_block_type: {
         parameters: {
             query?: never;
             header?: {
@@ -16385,7 +16457,7 @@ export interface operations {
             };
         };
     };
-    read_block_type_by_slug_block_types_slug__slug__get: {
+    read_block_type_by_slug: {
         parameters: {
             query?: never;
             header?: {
@@ -16419,7 +16491,7 @@ export interface operations {
             };
         };
     };
-    read_block_types_block_types_filter_post: {
+    read_block_types: {
         parameters: {
             query?: never;
             header?: {
@@ -16430,7 +16502,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_block_types_block_types_filter_post"];
+                "application/json": components["schemas"]["Body_read_block_types"];
             };
         };
         responses: {
@@ -16454,7 +16526,7 @@ export interface operations {
             };
         };
     };
-    read_block_documents_for_block_type_block_types_slug__slug__block_documents_get: {
+    read_block_documents_for_block_type: {
         parameters: {
             query?: {
                 /** @description Whether to include sensitive values in the block document. */
@@ -16491,7 +16563,7 @@ export interface operations {
             };
         };
     };
-    read_block_document_by_name_for_block_type_block_types_slug__slug__block_documents_name__block_document_name__get: {
+    read_block_document_by_name_for_block_type: {
         parameters: {
             query?: {
                 /** @description Whether to include sensitive values in the block document. */
@@ -16530,7 +16602,7 @@ export interface operations {
             };
         };
     };
-    install_system_block_types_block_types_install_system_block_types_post: {
+    install_system_block_types: {
         parameters: {
             query?: never;
             header?: {
@@ -16561,7 +16633,7 @@ export interface operations {
             };
         };
     };
-    create_block_document_block_documents__post: {
+    create_block_document: {
         parameters: {
             query?: never;
             header?: {
@@ -16596,7 +16668,7 @@ export interface operations {
             };
         };
     };
-    read_block_documents_block_documents_filter_post: {
+    read_block_documents: {
         parameters: {
             query?: never;
             header?: {
@@ -16607,7 +16679,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_block_documents_block_documents_filter_post"];
+                "application/json": components["schemas"]["Body_read_block_documents"];
             };
         };
         responses: {
@@ -16631,7 +16703,7 @@ export interface operations {
             };
         };
     };
-    count_block_documents_block_documents_count_post: {
+    count_block_documents: {
         parameters: {
             query?: never;
             header?: {
@@ -16642,7 +16714,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_block_documents_block_documents_count_post"];
+                "application/json": components["schemas"]["Body_count_block_documents"];
             };
         };
         responses: {
@@ -16666,7 +16738,7 @@ export interface operations {
             };
         };
     };
-    read_block_document_by_id_block_documents__id__get: {
+    read_block_document_by_id: {
         parameters: {
             query?: {
                 /** @description Whether to include sensitive values in the block document. */
@@ -16703,7 +16775,7 @@ export interface operations {
             };
         };
     };
-    delete_block_document_block_documents__id__delete: {
+    delete_block_document: {
         parameters: {
             query?: never;
             header?: {
@@ -16735,7 +16807,7 @@ export interface operations {
             };
         };
     };
-    update_block_document_data_block_documents__id__patch: {
+    update_block_document_data: {
         parameters: {
             query?: never;
             header?: {
@@ -16771,7 +16843,7 @@ export interface operations {
             };
         };
     };
-    create_work_pool_work_pools__post: {
+    create_work_pool: {
         parameters: {
             query?: never;
             header?: {
@@ -16806,7 +16878,7 @@ export interface operations {
             };
         };
     };
-    read_work_pool_work_pools__name__get: {
+    read_work_pool: {
         parameters: {
             query?: never;
             header?: {
@@ -16840,7 +16912,7 @@ export interface operations {
             };
         };
     };
-    delete_work_pool_work_pools__name__delete: {
+    delete_work_pool: {
         parameters: {
             query?: never;
             header?: {
@@ -16872,7 +16944,7 @@ export interface operations {
             };
         };
     };
-    update_work_pool_work_pools__name__patch: {
+    update_work_pool: {
         parameters: {
             query?: never;
             header?: {
@@ -16908,7 +16980,7 @@ export interface operations {
             };
         };
     };
-    read_work_pools_work_pools_filter_post: {
+    read_work_pools: {
         parameters: {
             query?: never;
             header?: {
@@ -16919,7 +16991,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_pools_work_pools_filter_post"];
+                "application/json": components["schemas"]["Body_read_work_pools"];
             };
         };
         responses: {
@@ -16943,7 +17015,7 @@ export interface operations {
             };
         };
     };
-    count_work_pools_work_pools_count_post: {
+    count_work_pools: {
         parameters: {
             query?: never;
             header?: {
@@ -16954,7 +17026,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_work_pools_work_pools_count_post"];
+                "application/json": components["schemas"]["Body_count_work_pools"];
             };
         };
         responses: {
@@ -16978,7 +17050,7 @@ export interface operations {
             };
         };
     };
-    read_work_pool_concurrency_status_work_pools__name__concurrency_status_post: {
+    read_work_pool_concurrency_status: {
         parameters: {
             query?: never;
             header?: {
@@ -16992,7 +17064,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"];
+                "application/json": components["schemas"]["Body_read_work_pool_concurrency_status"];
             };
         };
         responses: {
@@ -17016,7 +17088,7 @@ export interface operations {
             };
         };
     };
-    get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post: {
+    get_scheduled_flow_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -17030,7 +17102,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"];
+                "application/json": components["schemas"]["Body_get_scheduled_flow_runs"];
             };
         };
         responses: {
@@ -17054,7 +17126,7 @@ export interface operations {
             };
         };
     };
-    create_work_queue_work_pools__work_pool_name__queues_post: {
+    create_work_pool_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17092,7 +17164,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_work_pools__work_pool_name__queues__name__get: {
+    read_work_pool_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17128,7 +17200,7 @@ export interface operations {
             };
         };
     };
-    delete_work_queue_work_pools__work_pool_name__queues__name__delete: {
+    delete_work_pool_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17162,7 +17234,7 @@ export interface operations {
             };
         };
     };
-    update_work_queue_work_pools__work_pool_name__queues__name__patch: {
+    update_work_pool_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17200,7 +17272,7 @@ export interface operations {
             };
         };
     };
-    read_work_queues_work_pools__work_pool_name__queues_filter_post: {
+    read_work_pool_queues: {
         parameters: {
             query?: never;
             header?: {
@@ -17214,7 +17286,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_queues_work_pools__work_pool_name__queues_filter_post"];
+                "application/json": components["schemas"]["Body_read_work_pool_queues"];
             };
         };
         responses: {
@@ -17238,7 +17310,7 @@ export interface operations {
             };
         };
     };
-    worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post: {
+    worker_heartbeat: {
         parameters: {
             query?: never;
             header?: {
@@ -17252,10 +17324,19 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post"];
+                "application/json": components["schemas"]["Body_worker_heartbeat"];
             };
         };
         responses: {
+            /** @description The worker ID when requested. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Successful Response */
             204: {
                 headers: {
@@ -17274,7 +17355,7 @@ export interface operations {
             };
         };
     };
-    read_workers_work_pools__work_pool_name__workers_filter_post: {
+    read_workers: {
         parameters: {
             query?: never;
             header?: {
@@ -17288,7 +17369,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_workers_work_pools__work_pool_name__workers_filter_post"];
+                "application/json": components["schemas"]["Body_read_workers"];
             };
         };
         responses: {
@@ -17312,7 +17393,7 @@ export interface operations {
             };
         };
     };
-    delete_worker_work_pools__work_pool_name__workers__name__delete: {
+    delete_worker: {
         parameters: {
             query?: never;
             header?: {
@@ -17346,7 +17427,7 @@ export interface operations {
             };
         };
     };
-    read_task_workers_task_workers_filter_post: {
+    read_task_workers: {
         parameters: {
             query?: never;
             header?: {
@@ -17357,7 +17438,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_task_workers_task_workers_filter_post"];
+                "application/json": components["schemas"]["Body_read_task_workers"];
             };
         };
         responses: {
@@ -17381,7 +17462,7 @@ export interface operations {
             };
         };
     };
-    create_work_queue_work_queues__post: {
+    create_work_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17416,7 +17497,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_work_queues__id__get: {
+    read_work_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17450,7 +17531,7 @@ export interface operations {
             };
         };
     };
-    delete_work_queue_work_queues__id__delete: {
+    delete_work_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17482,7 +17563,7 @@ export interface operations {
             };
         };
     };
-    update_work_queue_work_queues__id__patch: {
+    update_work_queue: {
         parameters: {
             query?: never;
             header?: {
@@ -17518,7 +17599,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_by_name_work_queues_name__name__get: {
+    read_work_queue_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -17552,7 +17633,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_runs_work_queues__id__get_runs_post: {
+    read_work_queue_runs: {
         parameters: {
             query?: never;
             header?: {
@@ -17568,7 +17649,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_queue_runs_work_queues__id__get_runs_post"];
+                "application/json": components["schemas"]["Body_read_work_queue_runs"];
             };
         };
         responses: {
@@ -17592,7 +17673,7 @@ export interface operations {
             };
         };
     };
-    read_work_queues_work_queues_filter_post: {
+    read_work_queues: {
         parameters: {
             query?: never;
             header?: {
@@ -17603,7 +17684,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_queues_work_queues_filter_post"];
+                "application/json": components["schemas"]["Body_read_work_queues"];
             };
         };
         responses: {
@@ -17627,7 +17708,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_concurrency_status_work_queues__id__concurrency_status_post: {
+    read_work_queue_concurrency_status: {
         parameters: {
             query?: never;
             header?: {
@@ -17641,7 +17722,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"];
+                "application/json": components["schemas"]["Body_read_work_queue_concurrency_status"];
             };
         };
         responses: {
@@ -17665,7 +17746,7 @@ export interface operations {
             };
         };
     };
-    read_work_queue_status_work_queues__id__status_get: {
+    read_work_queue_status: {
         parameters: {
             query?: never;
             header?: {
@@ -17699,7 +17780,7 @@ export interface operations {
             };
         };
     };
-    create_artifact_artifacts__post: {
+    create_artifact: {
         parameters: {
             query?: never;
             header?: {
@@ -17734,7 +17815,7 @@ export interface operations {
             };
         };
     };
-    read_artifact_artifacts__id__get: {
+    read_artifact: {
         parameters: {
             query?: never;
             header?: {
@@ -17768,7 +17849,7 @@ export interface operations {
             };
         };
     };
-    delete_artifact_artifacts__id__delete: {
+    delete_artifact: {
         parameters: {
             query?: never;
             header?: {
@@ -17800,7 +17881,7 @@ export interface operations {
             };
         };
     };
-    update_artifact_artifacts__id__patch: {
+    update_artifact: {
         parameters: {
             query?: never;
             header?: {
@@ -17836,7 +17917,7 @@ export interface operations {
             };
         };
     };
-    read_latest_artifact_artifacts__key__latest_get: {
+    read_latest_artifact: {
         parameters: {
             query?: never;
             header?: {
@@ -17870,7 +17951,7 @@ export interface operations {
             };
         };
     };
-    read_artifacts_artifacts_filter_post: {
+    read_artifacts: {
         parameters: {
             query?: never;
             header?: {
@@ -17881,7 +17962,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_artifacts_artifacts_filter_post"];
+                "application/json": components["schemas"]["Body_read_artifacts"];
             };
         };
         responses: {
@@ -17905,7 +17986,7 @@ export interface operations {
             };
         };
     };
-    read_latest_artifacts_artifacts_latest_filter_post: {
+    read_latest_artifacts: {
         parameters: {
             query?: never;
             header?: {
@@ -17916,7 +17997,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_latest_artifacts_artifacts_latest_filter_post"];
+                "application/json": components["schemas"]["Body_read_latest_artifacts"];
             };
         };
         responses: {
@@ -17940,7 +18021,7 @@ export interface operations {
             };
         };
     };
-    count_artifacts_artifacts_count_post: {
+    count_artifacts: {
         parameters: {
             query?: never;
             header?: {
@@ -17951,7 +18032,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_artifacts_artifacts_count_post"];
+                "application/json": components["schemas"]["Body_count_artifacts"];
             };
         };
         responses: {
@@ -17975,7 +18056,7 @@ export interface operations {
             };
         };
     };
-    count_latest_artifacts_artifacts_latest_count_post: {
+    count_latest_artifacts: {
         parameters: {
             query?: never;
             header?: {
@@ -17986,7 +18067,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_latest_artifacts_artifacts_latest_count_post"];
+                "application/json": components["schemas"]["Body_count_latest_artifacts"];
             };
         };
         responses: {
@@ -18010,7 +18091,7 @@ export interface operations {
             };
         };
     };
-    create_block_schema_block_schemas__post: {
+    create_block_schema: {
         parameters: {
             query?: never;
             header?: {
@@ -18045,7 +18126,7 @@ export interface operations {
             };
         };
     };
-    read_block_schema_by_id_block_schemas__id__get: {
+    read_block_schema_by_id: {
         parameters: {
             query?: never;
             header?: {
@@ -18079,7 +18160,7 @@ export interface operations {
             };
         };
     };
-    delete_block_schema_block_schemas__id__delete: {
+    delete_block_schema: {
         parameters: {
             query?: never;
             header?: {
@@ -18111,7 +18192,7 @@ export interface operations {
             };
         };
     };
-    read_block_schemas_block_schemas_filter_post: {
+    read_block_schemas: {
         parameters: {
             query?: never;
             header?: {
@@ -18122,7 +18203,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_block_schemas_block_schemas_filter_post"];
+                "application/json": components["schemas"]["Body_read_block_schemas"];
             };
         };
         responses: {
@@ -18146,7 +18227,7 @@ export interface operations {
             };
         };
     };
-    read_block_schema_by_checksum_block_schemas_checksum__checksum__get: {
+    read_block_schema_by_checksum: {
         parameters: {
             query?: {
                 /** @description Version of block schema. If not provided the most recently created block schema with the matching checksum will be returned. */
@@ -18183,7 +18264,7 @@ export interface operations {
             };
         };
     };
-    read_available_block_capabilities_block_capabilities__get: {
+    read_available_block_capabilities: {
         parameters: {
             query?: never;
             header?: {
@@ -18214,7 +18295,7 @@ export interface operations {
             };
         };
     };
-    read_view_content_collections_views__view__get: {
+    read_view_content: {
         parameters: {
             query?: never;
             header?: {
@@ -18249,7 +18330,7 @@ export interface operations {
             };
         };
     };
-    create_variable_variables__post: {
+    create_variable: {
         parameters: {
             query?: never;
             header?: {
@@ -18284,7 +18365,7 @@ export interface operations {
             };
         };
     };
-    read_variable_variables__id__get: {
+    read_variable: {
         parameters: {
             query?: never;
             header?: {
@@ -18317,7 +18398,7 @@ export interface operations {
             };
         };
     };
-    delete_variable_variables__id__delete: {
+    delete_variable: {
         parameters: {
             query?: never;
             header?: {
@@ -18348,7 +18429,7 @@ export interface operations {
             };
         };
     };
-    update_variable_variables__id__patch: {
+    update_variable: {
         parameters: {
             query?: never;
             header?: {
@@ -18383,7 +18464,7 @@ export interface operations {
             };
         };
     };
-    read_variable_by_name_variables_name__name__get: {
+    read_variable_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -18416,7 +18497,7 @@ export interface operations {
             };
         };
     };
-    delete_variable_by_name_variables_name__name__delete: {
+    delete_variable_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -18447,7 +18528,7 @@ export interface operations {
             };
         };
     };
-    update_variable_by_name_variables_name__name__patch: {
+    update_variable_by_name: {
         parameters: {
             query?: never;
             header?: {
@@ -18482,7 +18563,7 @@ export interface operations {
             };
         };
     };
-    read_variables_variables_filter_post: {
+    read_variables: {
         parameters: {
             query?: never;
             header?: {
@@ -18493,7 +18574,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_variables_variables_filter_post"];
+                "application/json": components["schemas"]["Body_read_variables"];
             };
         };
         responses: {
@@ -18517,7 +18598,7 @@ export interface operations {
             };
         };
     };
-    count_variables_variables_count_post: {
+    count_variables: {
         parameters: {
             query?: never;
             header?: {
@@ -18528,7 +18609,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_variables_variables_count_post"];
+                "application/json": components["schemas"]["Body_count_variables"];
             };
         };
         responses: {
@@ -18552,7 +18633,7 @@ export interface operations {
             };
         };
     };
-    create_csrf_token_csrf_token_get: {
+    create_csrf_token: {
         parameters: {
             query: {
                 /** @description The client to create a CSRF token for */
@@ -18586,7 +18667,7 @@ export interface operations {
             };
         };
     };
-    create_events_events_post: {
+    create_events: {
         parameters: {
             query?: never;
             header?: {
@@ -18619,7 +18700,7 @@ export interface operations {
             };
         };
     };
-    read_events_events_filter_post: {
+    read_events: {
         parameters: {
             query?: never;
             header?: {
@@ -18630,7 +18711,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_events_events_filter_post"];
+                "application/json": components["schemas"]["Body_read_events"];
             };
         };
         responses: {
@@ -18654,7 +18735,7 @@ export interface operations {
             };
         };
     };
-    read_account_events_page_events_filter_next_get: {
+    read_account_events_page: {
         parameters: {
             query: {
                 "page-token": string;
@@ -18687,7 +18768,7 @@ export interface operations {
             };
         };
     };
-    count_account_events_events_count_by__countable__post: {
+    count_account_events: {
         parameters: {
             query?: never;
             header?: {
@@ -18700,7 +18781,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_count_account_events_events_count_by__countable__post"];
+                "application/json": components["schemas"]["Body_count_account_events"];
             };
         };
         responses: {
@@ -18724,7 +18805,7 @@ export interface operations {
             };
         };
     };
-    create_automation_automations__post: {
+    create_automation: {
         parameters: {
             query?: never;
             header?: {
@@ -18759,7 +18840,7 @@ export interface operations {
             };
         };
     };
-    read_automation_automations__id__get: {
+    read_automation: {
         parameters: {
             query?: never;
             header?: {
@@ -18792,7 +18873,7 @@ export interface operations {
             };
         };
     };
-    update_automation_automations__id__put: {
+    update_automation: {
         parameters: {
             query?: never;
             header?: {
@@ -18827,7 +18908,7 @@ export interface operations {
             };
         };
     };
-    delete_automation_automations__id__delete: {
+    delete_automation: {
         parameters: {
             query?: never;
             header?: {
@@ -18858,7 +18939,7 @@ export interface operations {
             };
         };
     };
-    patch_automation_automations__id__patch: {
+    patch_automation: {
         parameters: {
             query?: never;
             header?: {
@@ -18893,7 +18974,7 @@ export interface operations {
             };
         };
     };
-    read_automations_automations_filter_post: {
+    read_automations: {
         parameters: {
             query?: never;
             header?: {
@@ -18904,7 +18985,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_automations_automations_filter_post"];
+                "application/json": components["schemas"]["Body_read_automations"];
             };
         };
         responses: {
@@ -18928,7 +19009,7 @@ export interface operations {
             };
         };
     };
-    count_automations_automations_count_post: {
+    count_automations: {
         parameters: {
             query?: never;
             header?: {
@@ -18939,7 +19020,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_count_automations_automations_count_post"];
+                "application/json": components["schemas"]["Body_count_automations"];
             };
         };
         responses: {
@@ -18963,7 +19044,7 @@ export interface operations {
             };
         };
     };
-    read_automations_related_to_resource_automations_related_to__resource_id__get: {
+    read_automations_related_to_resource: {
         parameters: {
             query?: never;
             header?: {
@@ -18996,7 +19077,7 @@ export interface operations {
             };
         };
     };
-    delete_automations_owned_by_resource_automations_owned_by__resource_id__delete: {
+    delete_automations_owned_by_resource: {
         parameters: {
             query?: never;
             header?: {
@@ -19029,7 +19110,7 @@ export interface operations {
             };
         };
     };
-    validate_template_templates_validate_post: {
+    validate_template: {
         parameters: {
             query?: never;
             header?: {
@@ -19062,7 +19143,7 @@ export interface operations {
             };
         };
     };
-    validate_template_automations_templates_validate_post: {
+    validate_automation_template: {
         parameters: {
             query?: never;
             header?: {
@@ -19095,7 +19176,7 @@ export interface operations {
             };
         };
     };
-    count_deployments_by_flow_ui_flows_count_deployments_post: {
+    count_deployments_by_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -19106,7 +19187,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_count_deployments_by_flow_ui_flows_count_deployments_post"];
+                "application/json": components["schemas"]["Body_count_deployments_by_flow"];
             };
         };
         responses: {
@@ -19132,7 +19213,7 @@ export interface operations {
             };
         };
     };
-    next_runs_by_flow_ui_flows_next_runs_post: {
+    next_runs_by_flow: {
         parameters: {
             query?: never;
             header?: {
@@ -19143,7 +19224,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_next_runs_by_flow_ui_flows_next_runs_post"];
+                "application/json": components["schemas"]["Body_next_runs_by_flow"];
             };
         };
         responses: {
@@ -19169,7 +19250,7 @@ export interface operations {
             };
         };
     };
-    read_flow_run_history_ui_flow_runs_history_post: {
+    read_flow_run_history: {
         parameters: {
             query?: never;
             header?: {
@@ -19180,7 +19261,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_flow_run_history_ui_flow_runs_history_post"];
+                "application/json": components["schemas"]["Body_read_flow_run_history"];
             };
         };
         responses: {
@@ -19204,7 +19285,7 @@ export interface operations {
             };
         };
     };
-    count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post: {
+    count_task_runs_by_flow_run: {
         parameters: {
             query?: never;
             header?: {
@@ -19215,7 +19296,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post"];
+                "application/json": components["schemas"]["Body_count_task_runs_by_flow_run"];
             };
         };
         responses: {
@@ -19241,7 +19322,7 @@ export interface operations {
             };
         };
     };
-    validate_obj_ui_schemas_validate_post: {
+    validate_obj: {
         parameters: {
             query?: never;
             header?: {
@@ -19252,7 +19333,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_validate_obj_ui_schemas_validate_post"];
+                "application/json": components["schemas"]["Body_validate_obj"];
             };
         };
         responses: {
@@ -19276,7 +19357,7 @@ export interface operations {
             };
         };
     };
-    read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post: {
+    read_dashboard_task_run_counts: {
         parameters: {
             query?: never;
             header?: {
@@ -19287,7 +19368,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post"];
+                "application/json": components["schemas"]["Body_read_dashboard_task_run_counts"];
             };
         };
         responses: {
@@ -19311,7 +19392,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_counts_by_state_ui_task_runs_count_post: {
+    read_task_run_counts_by_state: {
         parameters: {
             query?: never;
             header?: {
@@ -19322,7 +19403,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["Body_read_task_run_counts_by_state_ui_task_runs_count_post"];
+                "application/json": components["schemas"]["Body_read_task_run_counts_by_state"];
             };
         };
         responses: {
@@ -19346,7 +19427,7 @@ export interface operations {
             };
         };
     };
-    read_task_run_with_flow_run_name_ui_task_runs__id__get: {
+    read_task_run_with_flow_run_name: {
         parameters: {
             query?: never;
             header?: {
@@ -19380,7 +19461,7 @@ export interface operations {
             };
         };
     };
-    read_settings_admin_settings_get: {
+    read_settings: {
         parameters: {
             query?: never;
             header?: {
@@ -19411,7 +19492,7 @@ export interface operations {
             };
         };
     };
-    read_version_admin_version_get: {
+    read_version: {
         parameters: {
             query?: never;
             header?: {
@@ -19442,7 +19523,7 @@ export interface operations {
             };
         };
     };
-    read_server_default_result_storage_admin_storage_get: {
+    read_server_default_result_storage: {
         parameters: {
             query?: never;
             header?: {
@@ -19473,7 +19554,7 @@ export interface operations {
             };
         };
     };
-    update_server_default_result_storage_admin_storage_put: {
+    update_server_default_result_storage: {
         parameters: {
             query?: never;
             header?: {
@@ -19508,7 +19589,7 @@ export interface operations {
             };
         };
     };
-    clear_server_default_result_storage_admin_storage_delete: {
+    clear_server_default_result_storage: {
         parameters: {
             query?: never;
             header?: {
@@ -19537,7 +19618,7 @@ export interface operations {
             };
         };
     };
-    hello_hello_get: {
+    hello: {
         parameters: {
             query?: never;
             header?: {
@@ -19568,7 +19649,7 @@ export interface operations {
             };
         };
     };
-    perform_readiness_check_ready_get: {
+    perform_readiness_check: {
         parameters: {
             query?: never;
             header?: {

@@ -17,6 +17,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -34,6 +35,9 @@ concurrency_limit_app: cyclopts.App = cyclopts.App(
 async def create(tag: str, concurrency_limit: int):
     """Create a concurrency limit against a tag."""
     from prefect.client.orchestration import get_client
+
+    if concurrency_limit < 0:
+        exit_with_error("The concurrency limit must be 0 or greater.")
 
     async with get_client() as client:
         await client.create_concurrency_limit(
@@ -91,7 +95,7 @@ async def inspect(
     if output and output.lower() == "json":
         result_json = result.model_dump(mode="json")
         json_output = orjson.dumps(result_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         trid_table = Table()
         trid_table.add_column("Active Task Run IDs", style="cyan", no_wrap=True)
@@ -125,11 +129,19 @@ async def ls(
     *,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of limits to list."),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of limits to list.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     offset: Annotated[
         int,
-        cyclopts.Parameter("--offset", help="Offset for pagination."),
+        cyclopts.Parameter(
+            "--offset",
+            help="Offset for pagination.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 0,
     output: Annotated[
         Optional[str],
@@ -166,7 +178,7 @@ async def ls(
     if output and output.lower() == "json":
         limits_json = [cl.model_dump(mode="json") for cl in sorted_limits]
         json_output = orjson.dumps(limits_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Concurrency Limits",

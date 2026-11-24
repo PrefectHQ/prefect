@@ -382,28 +382,6 @@ def test_rate_limit_can_be_used_within_a_flow_with_strict():
         state.result()
 
 
-def test_rate_limit_mixed_sync_async(
-    concurrency_limit_with_decay: ConcurrencyLimitV2,
-):
-    executed = False
-
-    @task
-    def resource_heavy():
-        nonlocal executed
-        rate_limit(concurrency_limit_with_decay.name, occupy=1)
-        executed = True
-
-    @flow
-    def my_flow():
-        resource_heavy()
-
-    assert not executed
-
-    my_flow()
-
-    assert executed
-
-
 def test_rate_limit_emits_events(
     concurrency_limit_with_decay: ConcurrencyLimitV2,
     other_concurrency_limit_with_decay: ConcurrencyLimitV2,

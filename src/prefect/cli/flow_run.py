@@ -31,6 +31,7 @@ from prefect._internal.control_listener import Intent
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 from prefect.cli.flow_runs_watching import watch_flow_run
@@ -198,7 +199,7 @@ async def inspect(
             json_output = orjson.dumps(
                 flow_run_json, option=orjson.OPT_INDENT_2
             ).decode()
-            _cli.console.print(json_output, soft_wrap=True)
+            print_verbatim(json_output)
         else:
             _cli.console.print(Pretty(flow_run))
 
@@ -213,7 +214,11 @@ async def ls(
     ] = None,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of flow runs to list"),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of flow runs to list",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     state: Annotated[
         Optional[list[str]],
@@ -312,7 +317,7 @@ async def ls(
     if output and output.lower() == "json":
         flow_runs_json = [flow_run.model_dump(mode="json") for flow_run in flow_runs]
         json_output = orjson.dumps(flow_runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(title="Flow Runs")
         table.add_column("ID", justify="right", style="cyan", no_wrap=True)
@@ -727,7 +732,7 @@ async def logs(
 
     if output_json:
         json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
 
 
 @flow_run_app.command()

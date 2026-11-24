@@ -1,5 +1,6 @@
 ---
 title: How to write transactional workflows
+description: Group tasks into transactions that commit or roll back together, control commit timing, and build idempotent workflows.
 sidebarTitle: Write transactional workflows
 keywords: ["transaction", "rollback", "commit", "atomic", "idempotent"]
 ---
@@ -198,6 +199,11 @@ For example, changing the earlier `pipeline` to use `transaction(commit_mode=Com
 would commit `write_file` before `quality_test` runs. If `quality_test` fails, `del_file` would not
 run and the file would remain. With the default `LAZY` mode, `write_file` remains staged and
 its rollback hook deletes the file when `quality_test` fails.
+
+A parent transaction commits its staged children before it runs its own `on_commit` hooks and writes
+its own record. If a child fails to commit, for example because one of its `on_commit` hooks raises
+an exception or its result can't be persisted, the parent rolls back instead of committing.
+Children that committed before the failure remain committed.
 
 Use `LAZY` when completed tasks should remain eligible for rollback until the group succeeds.
 Use `EAGER` when tasks should commit independently and make their results available sooner.

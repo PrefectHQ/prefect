@@ -20,6 +20,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -566,7 +567,7 @@ async def ls(
     if output and output.lower() == "json":
         pools_json = [pool.model_dump(mode="json") for pool in sorted_pools]
         json_output = orjson.dumps(pools_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
     else:
         table = Table(
             title="Work Pools",
@@ -636,7 +637,7 @@ async def inspect(
                 json_output = orjson.dumps(
                     pool_json, option=orjson.OPT_INDENT_2
                 ).decode()
-                _cli.console.print(json_output, soft_wrap=True)
+                print_verbatim(json_output)
             else:
                 _cli.console.print(Pretty(pool))
         except ObjectNotFound:
@@ -704,7 +705,7 @@ async def slots(
                     "total": total,
                 }
         json_output = orjson.dumps(data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     # Header
@@ -1177,7 +1178,7 @@ async def preview(
     if output and output.lower() == "json":
         runs_json = [run.model_dump(mode="json") for run in sorted_runs]
         json_output = orjson.dumps(runs_json, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     for run in sorted_runs:
@@ -1306,7 +1307,7 @@ async def storage_inspect(
                 json_output = orjson.dumps(
                     storage_data, option=orjson.OPT_INDENT_2
                 ).decode()
-                _cli.console.print(json_output, soft_wrap=True)
+                print_verbatim(json_output)
             else:
                 storage_table.add_row("type", storage_type)
                 upload_config = _get_bundle_step_config(

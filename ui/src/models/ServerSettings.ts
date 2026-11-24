@@ -38,8 +38,12 @@ export type ServerSettings = {
   PREFECT_SERVER_API_PORT: number,
   PREFECT_SERVER_UI_ENABLED: boolean,
   PREFECT_SERVER_UI_API_URL: string,
-  PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT: boolean,
   PREFECT_SERVER_ANALYTICS_ENABLED: boolean,
   PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED: boolean,
   PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED: boolean,
+  server: {
+    ui: {
+      show_promotional_content: boolean,
+    },
+  },
 }

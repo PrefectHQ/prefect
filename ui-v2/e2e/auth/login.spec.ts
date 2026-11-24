@@ -125,4 +125,26 @@ test.describe("Login Flow", () => {
 		// Should redirect back to dashboard
 		await expect(page).toHaveURL(/\/dashboard/);
 	});
+
+	test("should ignore an off-site redirectTo after login", async ({ page }) => {
+		await page.goto("/login?redirectTo=https://evil.example/phish");
+		await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
+		await page.getByRole("button", { name: "Login" }).click();
+
+		await expect(page).toHaveURL((url) => url.pathname === "/dashboard");
+		expect(new URL(page.url()).host).not.toContain("evil.example");
+	});
+
+	test("should ignore a protocol-relative redirectTo when already logged in", async ({
+		page,
+	}) => {
+		await page.goto("/login");
+		await page.getByPlaceholder("admin:pass").fill(TEST_CREDENTIALS);
+		await page.getByRole("button", { name: "Login" }).click();
+		await expect(page).toHaveURL(/\/dashboard/);
+
+		await page.goto("/login?redirectTo=//evil.example/phish");
+
+		await expect(page).toHaveURL((url) => url.pathname === "/dashboard");
+	});
 });

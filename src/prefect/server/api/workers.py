@@ -4,10 +4,11 @@ Routes for interacting with work queue objects.
 
 from dataclasses import dataclass
 from logging import Logger
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, List, Optional, ParamSpec
 from uuid import UUID
 
 import sqlalchemy as sa
+from docket import Docket, Execution
 from fastapi import (
     Body,
     Depends,
@@ -16,6 +17,7 @@ from fastapi import (
     WebSocket,
     status,
 )
+from fastapi.responses import PlainTextResponse, Response
 from packaging.version import Version
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,7 +41,7 @@ from prefect.client.schemas.worker_channel import (
 )
 from prefect.logging import get_logger
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
     emit_work_queue_status_event,
@@ -66,6 +68,30 @@ router: PrefectRouter = PrefectRouter(
     tags=["Work Pools"],
 )
 logger: Logger = get_logger("prefect.server.api.workers")
+
+P = ParamSpec("P")
+
+
+def schedule_readiness_update(
+    docket: Docket,
+    function: Callable[P, Awaitable[None]],
+    key: str,
+    *,
+    becoming_ready: bool,
+) -> Callable[P, Awaitable[Execution]]:
+    """
+    Schedule a keyed readiness update from a poll.
+
+    Polls are deduplicated by `key` so repeated polls don't pile up tasks. When
+    the poll would move something to READY, any pending task is replaced
+    instead: a previous attempt can be left pending with its key still known
+    (for example, when a worker's claim fails during a Redis disruption) and
+    would otherwise block every later poll until docket's `redelivery_timeout`.
+    """
+    if becoming_ready:
+        return docket.replace(function, now("UTC"), key)
+    return docket.add(function, key=key)
+
 
 _OSS_WORKER_CHANNEL_REQUIRED_CAPABILITIES: list[WorkerChannelCapability] = [
     WORKER_HEARTBEAT_CAPABILITY,
@@ -174,6 +200,16 @@ class WorkerLookups:
             create_queue_if_not_found=create_queue_if_not_found,
         )
         return queue.id
+
+
+async def provide_worker_lookups() -> WorkerLookups:
+    """
+    Provide `WorkerLookups` to an API route.
+
+    FastAPI runs a class dependency in a worker thread on every request, so
+    routes depend on this function to create it on the event loop.
+    """
+    return WorkerLookups()
 
 
 class WorkerChannelSetupError(Exception):
@@ -425,7 +461,7 @@ async def _build_worker_ready_frame(
             sent_at=now("UTC"),
             payload={
                 "consumer_id": hello.payload.consumer_id,
-                "worker_id": None,
+                "worker_id": worker.id,
                 "selected_channel_version": selected_channel_version,
                 "effective_heartbeat_interval_seconds": (
                     hello.payload.heartbeat_interval_seconds
@@ -460,9 +496,9 @@ async def _build_worker_ready_frame(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_pool(
     work_pool: schemas.actions.WorkPoolCreate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -516,10 +552,10 @@ async def create_work_pool(
 @router.get("/{name}")
 async def read_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> schemas.responses.WorkPoolResponse:
     """
@@ -557,9 +593,9 @@ async def read_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     prefect_client_version: Optional[str] = Depends(
-        dependencies.get_prefect_client_version
+        dependencies.aget_prefect_client_version
     ),
 ) -> List[schemas.responses.WorkPoolResponse]:
     """
@@ -597,7 +633,7 @@ async def read_work_pools(
 @router.post("/count")
 async def count_work_pools(
     work_pools: Optional[schemas.filters.WorkPoolFilter] = Body(None, embed=True),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
     Count work pools
@@ -612,8 +648,8 @@ async def count_work_pools(
 async def update_work_pool(
     work_pool: schemas.actions.WorkPoolUpdate,
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Update a work pool
@@ -657,8 +693,8 @@ async def update_work_pool(
 @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_pool(
     work_pool_name: str = Path(..., description="The work pool name", alias="name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool
@@ -698,8 +734,8 @@ async def read_work_pool_concurrency_status(
     page: int = Body(1, ge=1),
     limit: int = dependencies.LimitBody(),
     flow_run_limit: int = Body(10, ge=0, le=200, description="Max flow runs per queue"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkPoolConcurrencyStatus:
     """
     Read concurrency status for a work pool, including per-queue breakdown
@@ -820,8 +856,8 @@ async def get_scheduled_flow_runs(
         None, description="The minimum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkerFlowRunResponse]:
     """
     Load scheduled runs for a worker
@@ -851,6 +887,17 @@ async def get_scheduled_flow_runs(
             ]
             work_queue_ids = [wq.id for wq in work_queues]
 
+        ready_work_queue_ids = [
+            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
+        ]
+        deployments_becoming_ready = bool(ready_work_queue_ids)
+        if not deployments_becoming_ready:
+            deployments_becoming_ready = (
+                await models.deployments.has_not_ready_deployments(
+                    session=session, work_queue_ids=[wq.id for wq in work_queues]
+                )
+            )
+
     async with db.session_context(begin_transaction=True) as session:
         queue_response = await models.workers.get_scheduled_flow_runs(
             session=session,
@@ -861,24 +908,35 @@ async def get_scheduled_flow_runs(
             limit=limit,
         )
 
-    await docket.add(
-        mark_work_queues_ready,
-        key=f"mark_work_queues_ready:work_pool:{work_pool_id}",
-    )(
-        polled_work_queue_ids=[
-            wq.id for wq in work_queues if wq.status != WorkQueueStatus.NOT_READY
-        ],
-        ready_work_queue_ids=[
-            wq.id for wq in work_queues if wq.status == WorkQueueStatus.NOT_READY
-        ],
-    )
+    polled_queue_ids = [wq.id for wq in work_queues]
+    # Record every poll before background-task deduplication can discard it.
+    async with db.session_context(begin_transaction=True) as session:
+        await models.work_queues.record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=polled_queue_ids,
+            ready_work_queue_ids=[],
+        )
 
-    await docket.add(
+    # Filtered polls only carry their own queues, so scope their keys to those
+    # queues; otherwise a poll for one subset could replace another's update.
+    key_scope = f"work_pool:{work_pool_id}"
+    if work_queue_ids is not None:
+        key_scope += ":" + ",".join(sorted(str(id) for id in set(work_queue_ids)))
+
+    if ready_work_queue_ids:
+        await schedule_readiness_update(
+            docket,
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:{key_scope}",
+            becoming_ready=True,
+        )(polled_work_queue_ids=[], ready_work_queue_ids=ready_work_queue_ids)
+
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
-        key=f"mark_deployments_ready:work_pool:{work_pool_id}",
-    )(
-        work_queue_ids=[wq.id for wq in work_queues],
-    )
+        key=f"mark_deployments_ready:{key_scope}",
+        becoming_ready=deployments_becoming_ready,
+    )(work_queue_ids=polled_queue_ids, skip_recently_polled=True)
 
     return queue_response
 
@@ -892,12 +950,16 @@ async def get_scheduled_flow_runs(
 # -----------------------------------------------------
 
 
-@router.post("/{work_pool_name}/queues", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{work_pool_name}/queues",
+    status_code=status.HTTP_201_CREATED,
+    operation_id="create_work_pool_queue",
+)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
     work_pool_name: str = Path(..., description="The work pool name"),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work pool queue. If a work pool queue with the same
@@ -936,14 +998,14 @@ async def create_work_queue(
     return response
 
 
-@router.get("/{work_pool_name}/queues/{name}")
+@router.get("/{work_pool_name}/queues/{name}", operation_id="read_work_pool_queue")
 async def read_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Read a work pool queue
@@ -972,14 +1034,14 @@ async def read_work_queue(
     return response
 
 
-@router.post("/{work_pool_name}/queues/filter")
+@router.post("/{work_pool_name}/queues/filter", operation_id="read_work_pool_queues")
 async def read_work_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queues: schemas.filters.WorkQueueFilter = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """
     Read all work pool queues
@@ -1013,15 +1075,19 @@ async def read_work_queues(
     return ret
 
 
-@router.patch("/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="update_work_pool_queue",
+)
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Update a work pool queue
@@ -1046,15 +1112,17 @@ async def update_work_queue(
 
 
 @router.delete(
-    "/{work_pool_name}/queues/{name}", status_code=status.HTTP_204_NO_CONTENT
+    "/{work_pool_name}/queues/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    operation_id="delete_work_pool_queue",
 )
 async def delete_work_queue(
     work_pool_name: str = Path(..., description="The work pool name"),
     work_queue_name: str = Path(
         ..., description="The work pool queue name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool queue
@@ -1089,7 +1157,7 @@ async def delete_work_queue(
 async def worker_channel_connect(
     websocket: WebSocket,
     work_pool_name: str = Path(..., description="The work pool name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     websocket = await subscriptions.accept_prefect_socket(
         websocket,
@@ -1114,7 +1182,9 @@ async def worker_channel_connect(
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
-            async with db.session_context(begin_transaction=True) as session:
+            async with db.session_context(
+                begin_transaction=True, with_for_update=True
+            ) as session:
                 ready, work_pool_update_event = await _build_worker_ready_frame(
                     session=session,
                     work_pool_name=work_pool_name,
@@ -1207,6 +1277,12 @@ async def worker_channel_connect(
 @router.post(
     "/{work_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        200: {
+            "description": "The worker ID when requested.",
+            "content": {"text/plain": {"schema": {"type": "string", "format": "uuid"}}},
+        },
+    },
 )
 async def worker_heartbeat(
     work_pool_name: str = Path(..., description="The work pool name"),
@@ -1214,10 +1290,18 @@ async def worker_heartbeat(
     heartbeat_interval_seconds: Optional[int] = Body(
         None, description="The worker's heartbeat interval in seconds", embed=True
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
-) -> None:
-    async with db.session_context(begin_transaction=True) as session:
+    return_id: bool = Body(
+        False,
+        description="Return the worker ID. Defaults to false.",
+        embed=True,
+    ),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
+) -> Response:
+    """Record a heartbeat and optionally return the worker's ID."""
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         work_pool = await models.workers.read_work_pool_by_name(
             session=session,
             work_pool_name=work_pool_name,
@@ -1228,13 +1312,17 @@ async def worker_heartbeat(
                 detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        await models.workers.record_worker_heartbeat(
+        worker = await models.workers.record_worker_heartbeat(
             session=session,
             work_pool=work_pool,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
             emit_status_change=emit_work_pool_status_event,
+            return_worker=return_id,
         )
+        if worker is not None:
+            return PlainTextResponse(str(worker.id))
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{work_pool_name}/workers/filter")
@@ -1243,8 +1331,8 @@ async def read_workers(
     workers: Optional[schemas.filters.WorkerFilter] = None,
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkerResponse]:
     """
     Read all worker processes
@@ -1270,8 +1358,8 @@ async def delete_worker(
     worker_name: str = Path(
         ..., description="The work pool's worker name", alias="name"
     ),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work pool's worker

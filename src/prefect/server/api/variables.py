@@ -13,8 +13,8 @@ from prefect.server import models
 from prefect.server.api.dependencies import LimitBody
 from prefect.server.database import (
     PrefectDBInterface,
+    aprovide_database_interface,
     orm_models,
-    provide_database_interface,
 )
 from prefect.server.schemas import actions, core, filters, sorting
 from prefect.server.utilities.server import PrefectRouter
@@ -55,7 +55,7 @@ router: PrefectRouter = PrefectRouter(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_variable(
     variable: actions.VariableCreate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> core.Variable:
     """
     Create a variable.
@@ -79,7 +79,7 @@ async def create_variable(
 @router.get("/{id:uuid}")
 async def read_variable(
     variable_id: UUID = Path(..., alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> core.Variable:
     async with db.session_context() as session:
         model = await get_variable_or_404(session=session, variable_id=variable_id)
@@ -90,7 +90,7 @@ async def read_variable(
 @router.get("/name/{name:str}")
 async def read_variable_by_name(
     name: str = Path(...),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> core.Variable:
     async with db.session_context() as session:
         model = await get_variable_by_name_or_404(session=session, name=name)
@@ -104,7 +104,7 @@ async def read_variables(
     offset: int = Body(0, ge=0),
     variables: Optional[filters.VariableFilter] = None,
     sort: sorting.VariableSort = Body(sorting.VariableSort.NAME_ASC),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[core.Variable]:
     async with db.session_context() as session:
         return await models.variables.read_variables(
@@ -119,7 +119,7 @@ async def read_variables(
 @router.post("/count")
 async def count_variables(
     variables: Optional[filters.VariableFilter] = Body(None, embed=True),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     async with db.session_context() as session:
         return await models.variables.count_variables(
@@ -132,7 +132,7 @@ async def count_variables(
 async def update_variable(
     variable: actions.VariableUpdate,
     variable_id: UUID = Path(..., alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         updated = await models.variables.update_variable(
@@ -148,7 +148,7 @@ async def update_variable(
 async def update_variable_by_name(
     variable: actions.VariableUpdate,
     name: str = Path(..., alias="name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         updated = await models.variables.update_variable_by_name(
@@ -163,7 +163,7 @@ async def update_variable_by_name(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_variable(
     variable_id: UUID = Path(..., alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deleted = await models.variables.delete_variable(
@@ -176,7 +176,7 @@ async def delete_variable(
 @router.delete("/name/{name:str}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_variable_by_name(
     name: str = Path(...),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deleted = await models.variables.delete_variable_by_name(

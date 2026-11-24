@@ -15,6 +15,7 @@ import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
+    print_verbatim,
     with_cli_exception_handling,
 )
 
@@ -171,9 +172,9 @@ async def inspect(
             automation = no_really_json(automation)
 
         if yaml or (output and output.lower() == "yaml"):
-            _cli.console.print(pyyaml.dump(automation, sort_keys=False))
+            print_verbatim(pyyaml.dump(automation, sort_keys=False))
         elif json or (output and output.lower() == "json"):
-            _cli.console.print(
+            print_verbatim(
                 orjson.dumps(automation, option=orjson.OPT_INDENT_2).decode()
             )
     else:

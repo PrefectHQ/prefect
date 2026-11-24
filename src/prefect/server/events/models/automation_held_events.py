@@ -229,9 +229,16 @@ async def sweep_held_events(
         db.AutomationBucket.bucketing_key == db.AutomationHeldEvent.bucketing_key,
         db.AutomationBucket.end > now,
     )
-    await session.execute(
-        sa.delete(db.AutomationHeldEvent).where(
+    # Waiting on a row another sweep or `hold_event` has locked can deadlock, so
+    # the sweep skips it and a later sweep deletes it.
+    expired = (
+        sa.select(db.AutomationHeldEvent.id)
+        .where(
             db.AutomationHeldEvent.updated < now - HELD_EXPECT_EVENTS_RETENTION,
             ~open_bucket,
         )
+        .with_for_update(skip_locked=True)
+    )
+    await session.execute(
+        sa.delete(db.AutomationHeldEvent).where(db.AutomationHeldEvent.id.in_(expired))
     )

@@ -19,8 +19,7 @@ There might be a number of events that occur during an order on your platform, f
 <Tip>
 **Event grammar**
 
-The above choices of event names are arbitrary. With Prefect events, you're free to select any event grammar that best
-represents your use case.
+These event names are only an example. Choose any grammar that fits your use case, as long as names don't start with `prefect.` or `prefect-cloud.`, which are reserved for events that Prefect emits; see [namespace conventions](/v3/api-ref/events#namespace-conventions).
 </Tip>
 
 In this case, we want to trigger a deployment when a user completes an order, so our trigger should:

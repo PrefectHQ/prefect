@@ -54,6 +54,8 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 | Change the state of a flow run | `change-flow-run-state` | All |
 | Suspend a flow run | `suspend-flow-run` | All |
 | Resume a flow run | `resume-flow-run` | All |
+| Archive a flow | `archive-flow` | Prefect Cloud |
+| Unarchive a flow | `unarchive-flow` | Prefect Cloud |
 | Run a deployment | `run-deployment` | All |
 | Pause a deployment schedule | `pause-deployment` | All |
 | Resume a deployment schedule | `resume-deployment` | All |
@@ -100,6 +102,8 @@ When an automation fires, it emits events that you can use to trace what happene
 - `prefect.automation.triggered` or `prefect.automation.resolved` - emitted when the trigger condition is met
 - `prefect.automation.action.triggered` - emitted when an action starts
 - `prefect.automation.action.executed` or `prefect.automation.action.failed` - emitted when an action completes
+
+On a self-hosted Prefect server, a `5xx` API response during flow run creation can trigger a retry of the `run-deployment` action. Prefect reuses the same idempotency key on retry to avoid creating a duplicate flow run.
 
 The action events include related resources that link back to their source events:
 

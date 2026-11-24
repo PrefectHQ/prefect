@@ -9,7 +9,7 @@ from fastapi import Depends, HTTPException, Path, status
 
 import prefect.server.models as models
 import prefect.server.schemas as schemas
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 
 router: PrefectRouter = PrefectRouter(
@@ -22,7 +22,7 @@ async def read_flow_run_state(
     flow_run_state_id: UUID = Path(
         ..., description="The flow run state id", alias="id"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.states.State:
     """
     Get a flow run state by id.
@@ -43,7 +43,7 @@ async def read_flow_run_state(
 @router.get("/")
 async def read_flow_run_states(
     flow_run_id: UUID,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.states.State]:
     """
     Get states associated with a flow run.

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from prefect.client.orchestration import get_client
 from prefect.deployments.steps.core import (
     _PULL_STEP_SOURCE_CWD,
+    StepExecutionError,
     _observe_step_completion,
     run_steps,
 )
@@ -373,6 +374,9 @@ async def prepare_workspace(
                     flow_run=flow_run,
                     logger=run_logger,
                 )
+        except StepExecutionError as exc:
+            run_logger.error(str(exc.__cause__ or exc))
+            raise
         finally:
             _PULL_STEP_SOURCE_CWD.reset(source_cwd_token)
 

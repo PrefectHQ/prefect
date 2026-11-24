@@ -13,7 +13,7 @@ Module containing tasks and flows for interacting with dbt Cloud job runs
 ### `get_dbt_cloud_run_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L51" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_dbt_cloud_run_info(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, include_related: Optional[List[Literal['trigger', 'job', 'debug_logs', 'run_steps']]] = None) -> Dict
+get_dbt_cloud_run_info(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, include_related: list[Literal['trigger', 'job', 'debug_logs', 'run_steps']] | None = None) -> dict
 ```
 
 
@@ -31,10 +31,10 @@ logs will be truncated to the last 1,000 lines of the debug log output file.
 - The run data returned by the dbt Cloud administrative API.
 
 
-### `list_dbt_cloud_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `list_dbt_cloud_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-list_dbt_cloud_run_artifacts(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, step: Optional[int] = None) -> List[str]
+list_dbt_cloud_run_artifacts(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, step: int | None = None) -> list[str]
 ```
 
 
@@ -52,10 +52,10 @@ for the last step in the run.
 - A list of paths to artifact files that can be used to retrieve the generated artifacts.
 
 
-### `get_dbt_cloud_run_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_dbt_cloud_run_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L158" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_dbt_cloud_run_artifact(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, path: str, step: Optional[int] = None) -> Union[Dict, str]
+get_dbt_cloud_run_artifact(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, path: str, step: int | None = None) -> dict | str
 ```
 
 
@@ -124,10 +124,10 @@ get_artifact_flow()
 ```
 
 
-### `wait_for_dbt_cloud_job_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `wait_for_dbt_cloud_job_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/runs.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-wait_for_dbt_cloud_job_run(run_id: int, dbt_cloud_credentials: DbtCloudCredentials, max_wait_seconds: int = 900, poll_frequency_seconds: int = 10) -> Tuple[DbtCloudJobRunStatus, Dict]
+wait_for_dbt_cloud_job_run(run_id: int, dbt_cloud_credentials: DbtCloudCredentials, max_wait_seconds: int = 900, poll_frequency_seconds: int = 10) -> tuple[DbtCloudJobRunStatus, dict]
 ```
 
 

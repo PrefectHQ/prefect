@@ -8,8 +8,8 @@ from uuid import UUID
 
 import pytest
 
-from prefect.client.orchestration import PrefectClient
-from prefect.context import TagsContext, tags
+from prefect.client.orchestration import PrefectClient, get_client
+from prefect.context import SyncClientContext, TagsContext, tags
 from prefect.events import emit_event
 from prefect.events.schemas.events import Event
 from prefect.filesystems import LocalFileSystem
@@ -299,6 +299,55 @@ class TestThreadPoolTaskRunner:
             return recursive_task.submit(33)
 
         assert test_flow().result() == 0
+
+    def test_submitted_task_keeps_submitting_context_sync_client_open(self):
+        release = threading.Event()
+
+        @task
+        def uses_client() -> int:
+            assert release.wait(timeout=10)
+            return get_client(sync_client=True).hello().status_code
+
+        with ThreadPoolTaskRunner() as runner:
+            with SyncClientContext() as client_ctx:
+                future = runner.submit(uses_client, {})
+            release.set()
+            assert future.result() == 200
+
+        assert client_ctx.client._closed
+
+    async def test_tasks_submitted_from_sync_task_in_async_flow_outlive_parent(
+        self,
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/23748.
+
+        A sync task in an async flow runs with its own sync client, which is
+        closed when the task returns. Tasks it submitted must still be able to
+        use that client after the parent has returned.
+        """
+        parent_returned = threading.Event()
+
+        @task
+        def upstream() -> int:
+            assert parent_returned.wait(timeout=10)
+            return 2
+
+        @task
+        def downstream(x: int) -> int:
+            return x + 2
+
+        @task
+        def parent() -> PrefectFuture[int]:
+            return downstream.submit(x=upstream.submit())
+
+        @flow(task_runner=ThreadPoolTaskRunner(max_workers=1))
+        async def test_flow() -> int:
+            future = parent()
+            parent_returned.set()
+            return future.result()
+
+        assert await test_flow() == 4
 
     def test_warns_on_nested_submit_when_pool_is_saturated(
         self, caplog: pytest.LogCaptureFixture

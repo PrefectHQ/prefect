@@ -13,6 +13,7 @@ import httpx
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -31,7 +32,9 @@ from prefect.server.api.server import (
     create_api_app,
     create_app,
     create_ui_app,
+    is_client_retryable_exception,
 )
+from prefect.server.database import PrefectDBInterface, orm_models
 from prefect.server.utilities.server import method_paths_from_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -53,6 +56,40 @@ from prefect.settings import (
 pytestmark = pytest.mark.clear_db
 
 
+def test_openapi_operation_ids_use_route_names():
+    app = create_api_app(ignore_cache=True)
+    paths = app.openapi()["paths"]
+    operation_ids = [
+        operation["operationId"]
+        for path in paths.values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert operation_ids
+    assert len(operation_ids) == len(set(operation_ids))
+
+    checked = 0
+    for route in app.routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+            if isinstance(route, APIRoute)
+            else ()
+        )
+        for candidate in candidates:
+            if not candidate.include_in_schema:
+                continue
+            for method in candidate.methods:
+                operation = paths[candidate.path_format][method.lower()]
+                assert operation["operationId"] == (
+                    candidate.operation_id or candidate.name
+                )
+                checked += 1
+    assert checked == len(operation_ids)
+
+
 async def test_validation_error_handler_422(client):
     bad_flow_data = {"name": "my-flow", "tags": "this should be a list not a string"}
     response = await client.post("/flows/", json=bad_flow_data)
@@ -67,6 +104,81 @@ async def test_validation_error_handler_422(client):
         }
     ]
     assert response.json()["request_body"] == bad_flow_data
+
+
+async def test_validation_error_handler_renders_non_finite_floats(client: AsyncClient):
+    response = await client.post(
+        "/flows/",
+        content=b'{"name": "my-flow", "tags": NaN}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["exception_detail"][0]["input"] == "NaN"
+    assert response.json()["request_body"] == {"name": "my-flow", "tags": "NaN"}
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        b'{"name": "my-flow", "tags": ["ok", "\\ud800"]}',
+        b'{"name": "my-flow", "tags": ["ok", "\xed\xa0\x80"]}',
+    ],
+    ids=["escaped", "raw"],
+)
+async def test_unpaired_surrogates_are_rejected(client: AsyncClient, body: bytes):
+    response = await client.post(
+        "/flows/", content=body, headers={"content-type": "application/json"}
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["exception_detail"] == [
+        {
+            "type": "string_unicode",
+            "loc": ["body", "tags", 1],
+            "msg": "String should not contain unpaired surrogates",
+            "input": None,
+        }
+    ]
+    assert response.json()["request_body"] == {
+        "name": "my-flow",
+        "tags": ["ok", "\\ud800"],
+    }
+
+
+async def test_unpaired_surrogate_in_variable_value_is_rejected(client: AsyncClient):
+    response = await client.post(
+        "/variables/",
+        content=b'{"name": "my_variable", "value": {"x": "\\udc00"}}',
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert response.json()["exception_detail"][0]["loc"] == ["body", "value", "x"]
+
+
+async def test_surrogate_pairs_are_accepted(client: AsyncClient):
+    name = f"my-flow-{uuid4()}"
+    response = await client.post(
+        "/flows/",
+        content=b'{"name": "%s-\\ud83d\\ude00"}' % name.encode(),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json()["name"] == f"{name}-\U0001f600"
+
+
+async def test_values_rejected_by_the_database_return_422(
+    client_without_exceptions: AsyncClient,
+    flow: orm_models.Flow,
+    db: PrefectDBInterface,
+):
+    response = await client_without_exceptions.post(
+        "/flow_runs/",
+        json={"flow_id": str(flow.id), "parameters": {"x": "a\x00b"}},
+    )
+    if db.dialect.name == "postgresql":
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.json()["exception_message"] == "Invalid request received."
+    else:
+        assert response.status_code == status.HTTP_201_CREATED
 
 
 async def test_validation_error_handler_409(client):
@@ -215,6 +327,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -242,6 +356,57 @@ async def test_retryable_exception_handler(exc):
 
         response = await client.get("/api/raise_other_error")
         assert response.status_code == 500
+
+
+def _asyncpg_dbapi_error(sqlstate: str) -> sa.exc.DBAPIError:
+    orig = Exception("orig")
+    orig.sqlstate = orig.pgcode = sqlstate  # pyright: ignore[reportAttributeAccessIssue]
+    return sa.exc.DBAPIError("statement", {}, orig)
+
+
+@pytest.mark.parametrize(
+    "exc",
+    (
+        _asyncpg_dbapi_error("22P05"),
+        _asyncpg_dbapi_error("22P02"),
+        _asyncpg_dbapi_error("22021"),
+        asyncpg.exceptions.UntranslatableCharacterError(),
+        asyncpg.exceptions.InvalidTextRepresentationError(),
+    ),
+)
+async def test_invalid_data_exception_handler(exc: Exception):
+    assert not is_client_retryable_exception(exc)
+
+    async def raise_invalid_data_error():
+        raise exc
+
+    with temporary_settings(
+        {PREFECT_SERVER_DOCKET_NAME: f"test-docket-{uuid4().hex[:8]}"}
+    ):
+        app = create_app(ephemeral=True, ignore_cache=True)
+    app.api_app.add_api_route("/raise_invalid_data_error", raise_invalid_data_error)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://test",
+    ) as client:
+        response = await client.get("/api/raise_invalid_data_error")
+        assert response.status_code == 422
+        assert response.json()["exception_message"] == "Invalid request received."
+
+
+def test_non_data_database_errors_remain_retryable():
+    assert is_client_retryable_exception(_asyncpg_dbapi_error("57014"))
+    assert is_client_retryable_exception(TimeoutError("asyncpg timeout"))
+    assert is_client_retryable_exception(sa.exc.TimeoutError("queue pool timeout"))
+    assert is_client_retryable_exception(
+        asyncpg.exceptions.PostgresConnectionError("connection failure")
+    )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
@@ -654,6 +819,27 @@ def test_create_ui_app_uses_v1_default_when_v2_disabled(
     settings_response.raise_for_status()
     assert settings_response.json()["default_ui"] == "v1"
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
+
+
+@pytest.mark.parametrize("v2_enabled", [True, False])
+def test_create_ui_app_warns_that_v2_enabled_setting_is_deprecated(
+    caplog: pytest.LogCaptureFixture,
+    v2_enabled: bool,
+):
+    with temporary_settings({PREFECT_SERVER_UI_V2_ENABLED: v2_enabled}):
+        create_ui_app(ephemeral=False)
+
+    deprecation_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "PREFECT_SERVER_UI_V2_ENABLED" in record.getMessage()
+    ]
+    if v2_enabled:
+        assert deprecation_messages == []
+    else:
+        assert len(deprecation_messages) == 1
+        assert "deprecated" in deprecation_messages[0]
+        assert "V1 UI will be removed in Prefect 3.10" in deprecation_messages[0]
 
 
 def test_create_ui_app_respects_v1_cookie_at_neutral_root(

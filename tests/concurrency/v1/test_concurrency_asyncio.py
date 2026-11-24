@@ -267,11 +267,11 @@ async def test_concurrency_without_limit_names(names):
     assert not executed
 
     with mock.patch(
-        "prefect.concurrency.v1._asyncio.acquire_concurrency_slots",
+        "prefect.concurrency.v1.asyncio.acquire_concurrency_slots",
         wraps=lambda *args, **kwargs: None,
     ) as acquire_spy:
         with mock.patch(
-            "prefect.concurrency.v1._asyncio.release_concurrency_slots",
+            "prefect.concurrency.v1.asyncio.release_concurrency_slots",
             wraps=lambda *args, **kwargs: None,
         ) as release_spy:
             await resource_heavy()

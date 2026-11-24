@@ -130,12 +130,22 @@ def test_schema_generation_preserves_the_ui_contract(
         command.append("--api-compatibility")
     subprocess.run(command, cwd=tmp_path, check=True, capture_output=True, text=True)
     schema = json.loads((tmp_path / "oss_schema.json").read_text())
+    prefix = "/api" if compatibility else ""
+    heartbeat = schema["paths"][
+        f"{prefix}/work_pools/{{work_pool_name}}/workers/heartbeat"
+    ]
+    body = heartbeat["post"]["requestBody"]["content"]["application/json"]["schema"]
+    heartbeat_schema = schema["components"]["schemas"][body["$ref"].split("/")[-1]]
+    assert "return_id" not in heartbeat_schema["required"]
+    return_id = heartbeat_schema["properties"]["return_id"]
     if compatibility:
+        assert return_id["default"] is False
         assert "/api/flows/" in schema["paths"]
         assert "/api/ui-settings" not in schema["paths"]
         assert "UISettings" not in schema["components"]["schemas"]
         assert all(path.startswith("/api/") for path in schema["paths"])
     else:
+        assert "default" not in return_id
         assert "/flows/" in schema["paths"]
         assert "/ui-settings" in schema["paths"]
         assert "UISettings" in schema["components"]["schemas"]

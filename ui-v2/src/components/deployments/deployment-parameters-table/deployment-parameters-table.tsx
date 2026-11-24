@@ -33,7 +33,10 @@ const formatParameterValue = (value: unknown): string => {
 	if (value === null || value === undefined) {
 		return "";
 	}
-	if (Array.isArray(value)) {
+	if (
+		Array.isArray(value) &&
+		!value.some((item) => item !== null && typeof item === "object")
+	) {
 		return value.join(",");
 	}
 	if (typeof value === "object") {

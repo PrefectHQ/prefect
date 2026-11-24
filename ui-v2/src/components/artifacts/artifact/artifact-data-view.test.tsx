@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import { createFakeArtifact } from "@/mocks";
@@ -7,6 +7,11 @@ import { ArtifactDataView } from "./artifact-data-view";
 const rows = [
 	{ metric: "latency", value: 120 },
 	{ metric: "throughput", value: 1500 },
+];
+
+const listRows = [
+	["latency", 120],
+	["throughput", 1500],
 ];
 
 describe("ArtifactDataView", () => {
@@ -111,16 +116,53 @@ describe("ArtifactDataView", () => {
 		expect(screen.getByText("fallback content")).toBeInTheDocument();
 	});
 
-	it("falls back for row-less table data such as lists of lists", () => {
+	it.each([
+		["JSON string", JSON.stringify(listRows)],
+		["array", listRows],
+	])("renders list-of-lists table artifacts with %s data", (_, data) => {
+		render(
+			<ArtifactDataView
+				artifact={createFakeArtifact({ type: "table", data })}
+				fallback={<p>fallback content</p>}
+			/>,
+		);
+
+		expect(screen.getByRole("cell", { name: "latency" })).toBeInTheDocument();
+		expect(screen.getByRole("cell", { name: "1500" })).toBeInTheDocument();
+		expect(screen.queryByText("fallback content")).not.toBeInTheDocument();
+	});
+
+	it("filters list-of-lists table rows by search", async () => {
 		render(
 			<ArtifactDataView
 				artifact={createFakeArtifact({
 					type: "table",
-					data: JSON.stringify([
-						["latency", 120],
-						["throughput", 1500],
-					]),
+					data: JSON.stringify(listRows),
 				})}
+			/>,
+		);
+
+		fireEvent.change(screen.getByPlaceholderText("Search"), {
+			target: { value: "through" },
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.queryByRole("cell", { name: "latency" }),
+			).not.toBeInTheDocument();
+		});
+		expect(
+			screen.getByRole("cell", { name: "throughput" }),
+		).toBeInTheDocument();
+	});
+
+	it.each([
+		["null rows", [null]],
+		["primitive rows", [1, 2]],
+	])("falls back for table artifacts with %s", (_, data) => {
+		render(
+			<ArtifactDataView
+				artifact={createFakeArtifact({ type: "table", data })}
 				fallback={<p>fallback content</p>}
 			/>,
 		);

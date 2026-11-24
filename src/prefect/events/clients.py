@@ -422,7 +422,7 @@ class PrefectEventsClient(EventsClient):
     async def _reconnect(self) -> None:
         logger.debug("Reconnecting websocket connection.")
 
-        if self._websocket:
+        if hasattr(self._connect, "connection"):
             self._websocket = None
             await self._connect.__aexit__(None, None, None)
             logger.debug("Cleared existing websocket connection.")
@@ -935,7 +935,10 @@ class PrefectEventSubscriber:
                     attempts,
                     self._reconnection_attempts,
                 )
-                if attempts > self._reconnection_attempts:
+                if (
+                    consecutive_failures > self._reconnection_attempts
+                    or consecutive_clean_closes > self._reconnection_attempts
+                ):
                     raise
 
                 if attempts > 2:

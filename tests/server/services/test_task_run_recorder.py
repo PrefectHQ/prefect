@@ -1280,6 +1280,80 @@ async def test_cancelled_error_from_database_counts_toward_retry_limit(
     assert flush_attempts == 2
 
 
+async def test_inline_flush_survives_cancelled_error_from_database(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A CancelledError raised by the database during a batch-triggered flush
+    must not escape the handler, since that would stop the consumer task that
+    called it. The batch must be kept and recorded by a later flush."""
+    first = pending_event
+    second = pending_event.model_copy(update={"id": uuid4()})
+    recorded: list[ReceivedEvent] = []
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        if flush_attempts == 1:
+            raise asyncio.CancelledError()
+        recorded.extend(events)
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    # write_batch_size=1 so every message flushes inline; the periodic flush
+    # never runs
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=3600
+    ) as handler:
+        await handler(message(first))
+        await handler(message(second))
+
+        # assert before exiting the context, since teardown also flushes
+        assert [e.id for e in recorded] == [first.id]
+
+    assert [e.id for e in recorded] == [first.id, second.id]
+
+
+async def test_inline_flush_propagates_task_cancellation(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Cancelling the task running a batch-triggered flush must still cancel it,
+    and the batch it was writing must be recorded by the final flush."""
+    write_started = asyncio.Event()
+    recorded: list[ReceivedEvent] = []
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        if flush_attempts == 1:
+            write_started.set()
+            await asyncio.sleep(100)
+        recorded.extend(events)
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    async with task_run_recorder.consumer(
+        write_batch_size=1, flush_every=3600
+    ) as handler:
+        handling = asyncio.create_task(handler(message(pending_event)))
+        await asyncio.wait_for(write_started.wait(), timeout=5)
+
+        handling.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await handling
+
+    assert [e.id for e in recorded] == [pending_event.id]
+
+
 def make_event_with_flow_run(
     task_run_id: str,
     flow_run_id: Optional[str],
@@ -2157,6 +2231,77 @@ async def test_bulk_upsert_detaches_a_task_run_from_its_flow_run(
     task_run = await read_task_run(session=session, task_run_id=task_run_id)
     assert task_run is not None
     assert task_run.flow_run_id is None
+
+
+async def test_bulk_upsert_drops_events_for_missing_flow_runs(
+    session: AsyncSession,
+    flow_run: FlowRun,
+    caplog: pytest.LogCaptureFixture,
+):
+    """An event whose flow run does not exist would violate the `flow_run_id`
+    foreign key and fail the whole batch, so it is dropped on its own and the
+    rest of the batch is recorded.
+    """
+    flow_run_id = flow_run.id
+    valid_task_run_id = str(uuid4())
+    orphan_task_run_id = str(uuid4())
+    missing_flow_run_id = str(uuid4())
+    orphan = upsert_event(missing_flow_run_id, 1, task_run_id=orphan_task_run_id)
+
+    with caplog.at_level("WARNING"):
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                upsert_event(str(flow_run_id), 0, task_run_id=valid_task_run_id),
+                orphan,
+                upsert_event(None, 2),
+            ]
+        )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=valid_task_run_id)
+    assert task_run is not None
+    assert task_run.flow_run_id == flow_run_id
+    assert len(await read_task_run_states(session, task_run.id)) == 1
+
+    assert await read_task_run(session=session, task_run_id=orphan_task_run_id) is None
+    assert str(orphan.id) in caplog.text
+    assert missing_flow_run_id in caplog.text
+
+
+async def test_bulk_upsert_with_only_events_for_missing_flow_runs(
+    session: AsyncSession,
+):
+    task_run_id = str(uuid4())
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(str(uuid4()), task_run_id=task_run_id)]
+    )
+
+    assert await read_task_run(session=session, task_run_id=task_run_id) is None
+
+
+async def test_consumer_records_batch_containing_event_for_missing_flow_run(
+    session: AsyncSession,
+    flow_run: FlowRun,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23663"""
+    valid_task_run_id = str(uuid4())
+
+    async with task_run_recorder.consumer(
+        write_batch_size=2, flush_every=1, max_persist_retries=0
+    ) as handler:
+        with caplog.at_level("ERROR"):
+            await handler(message(upsert_event(str(uuid4()), 0)))
+            await handler(
+                message(
+                    upsert_event(str(flow_run.id), 1, task_run_id=valid_task_run_id)
+                )
+            )
+
+    assert "Error flushing" not in caplog.text
+    session.expire_all()
+    assert await read_task_run(session=session, task_run_id=valid_task_run_id)
 
 
 async def test_bulk_upsert_statements_stay_within_the_parameter_budget(

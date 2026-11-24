@@ -16,7 +16,7 @@ from itertools import combinations
 from pathlib import Path
 from textwrap import dedent
 from time import sleep
-from typing import Any, Coroutine, Generator, List, Union
+from typing import Any, Callable, Coroutine, Generator, List, Union
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -1048,23 +1048,30 @@ class TestRunner:
         )
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    @pytest.mark.parametrize(
+        "flow_param, flow_run_param",
+        [("flow", "flow_run"), ("flow_", "run")],
+        ids=["documented-names", "other-names"],
+    )
     async def test_runner_runs_on_crashed_hooks_for_remotely_stored_flows(
         self,
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
         in_temporary_runner_directory: None,
         temp_storage: MockStorage,
+        flow_param: str,
+        flow_run_param: str,
     ):
         runner = Runner(pause_on_shutdown=False)
         temp_storage.code = dedent(
-            """\
+            f"""\
         import os
 
         from prefect import flow
         from prefect.logging.loggers import flow_run_logger
 
-        def on_crashed(flow, flow_run, state):
-            logger = flow_run_logger(flow_run, flow)
+        def on_crashed({flow_param}, {flow_run_param}, state):
+            logger = flow_run_logger({flow_run_param}, {flow_param})
             logger.info("This flow crashed!")
 
         @flow(on_crashed=[on_crashed], log_prints=True)
@@ -2116,6 +2123,37 @@ class TestRunnerDeployment:
             assert updated.schedules[0].active is True
             if expected_cron == "0 4 * * *":
                 assert updated.schedules[0].id == before.schedules[0].id
+
+    @pytest.mark.parametrize(
+        "schedule_kwargs",
+        [
+            pytest.param(lambda: {"cron": "10 * * * *"}, id="cron"),
+            pytest.param(lambda: {"interval": 3600}, id="interval"),
+            pytest.param(lambda: {"schedule": Cron("10 * * * *")}, id="Cron"),
+            pytest.param(lambda: {"schedule": Interval(3600)}, id="Interval"),
+        ],
+    )
+    async def test_aapply_keeps_paused_schedule_paused(
+        self,
+        prefect_client: PrefectClient,
+        schedule_kwargs: Callable[[], dict[str, Any]],
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302"""
+        deployment_id = await RunnerDeployment.from_flow(
+            dummy_flow_1, name="paused-schedule", **schedule_kwargs()
+        ).aapply()
+        (schedule,) = (await prefect_client.read_deployment(deployment_id)).schedules
+        await prefect_client.update_deployment_schedule(
+            deployment_id, schedule.id, active=False
+        )
+
+        # redeploy the same code
+        await RunnerDeployment.from_flow(
+            dummy_flow_1, name="paused-schedule", **schedule_kwargs()
+        ).aapply()
+
+        (schedule,) = (await prefect_client.read_deployment(deployment_id)).schedules
+        assert schedule.active is False
 
     @pytest.mark.parametrize("sync", [False, True])
     @pytest.mark.parametrize("clear_schedules", [False, True])

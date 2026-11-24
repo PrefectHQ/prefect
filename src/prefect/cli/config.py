@@ -11,12 +11,13 @@ from typing import Annotated, Any, Literal, Union, cast
 import cyclopts
 import orjson
 from dotenv import dotenv_values
+from rich.markup import escape
 
 import prefect.cli._app as _cli
 import prefect.context
 import prefect.settings
 from prefect._internal.compatibility.backports import tomllib
-from prefect.cli._utilities import exit_with_error, exit_with_success
+from prefect.cli._utilities import exit_with_error, exit_with_success, print_verbatim
 from prefect.exceptions import ProfileSettingsValidationError
 from prefect.settings import Settings, get_current_settings
 from prefect.settings.legacy import (
@@ -71,9 +72,9 @@ def set_(
             for error in problem.errors():
                 help_message += (
                     f"[bold red]Validation error(s) for setting[/bold red] "
-                    f"[blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
+                    f"[blue]{escape(setting.name)}[/blue]\n\n - {escape(error['msg'])}\n\n"
                 )
-        exit_with_error(help_message)
+        exit_with_error(help_message, markup=True)
 
     for setting, value in parsed_settings.items():
         _cli.console.print(f"Set {setting!r} to {value!r}.")
@@ -361,7 +362,7 @@ def view(
         if ui_url:
             config_data["ui_url"] = ui_url
         json_output = orjson.dumps(config_data, option=orjson.OPT_INDENT_2).decode()
-        _cli.console.print(json_output, soft_wrap=True)
+        print_verbatim(json_output)
         return
 
     formatted_settings = [

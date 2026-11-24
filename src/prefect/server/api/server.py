@@ -11,7 +11,9 @@ import contextlib
 import gc
 import hmac
 import importlib.metadata
+import json
 import logging
+import math
 import mimetypes
 import os
 import random
@@ -21,6 +23,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from functools import wraps
@@ -56,6 +59,10 @@ from prefect.logging import get_logger
 from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
+from prefect.server.database import (
+    aprovide_database_interface,
+    provide_database_interface,
+)
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
@@ -292,14 +299,32 @@ async def validation_exception_handler(
     """Provide a detailed message for request validation errors."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder(
-            {
-                "exception_message": "Invalid request received.",
-                "exception_detail": exc.errors(),
-                "request_body": exc.body,
-            }
+        content=_json_safe(
+            jsonable_encoder(
+                {
+                    "exception_message": "Invalid request received.",
+                    "exception_detail": exc.errors(),
+                    "request_body": exc.body,
+                }
+            )
         ),
     )
+
+
+def _json_safe(value: Any) -> Any:
+    """
+    Replace values that cannot be rendered as strict JSON, such as `NaN` or strings
+    containing unpaired surrogates, so that invalid input can be echoed back.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return json.dumps(value)
+    if isinstance(value, str):
+        return value.encode("utf-8", "backslashreplace").decode("utf-8")
+    if isinstance(value, dict):
+        return {_json_safe(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(v) for v in value]
+    return value
 
 
 async def integrity_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -317,7 +342,20 @@ async def integrity_exception_handler(request: Request, exc: Exception) -> JSONR
     )
 
 
+def is_invalid_data_exception(exc: Exception) -> bool:
+    """
+    Whether the database rejected a value as invalid (SQLSTATE class 22, "data
+    exception"), e.g. a NUL character or `NaN` in a PostgreSQL JSON value.
+    """
+    orig = exc.orig if isinstance(exc, sqlalchemy.exc.DBAPIError) else exc
+    sqlstate = getattr(orig, "sqlstate", None)
+    return isinstance(sqlstate, str) and sqlstate.startswith("22")
+
+
 def is_client_retryable_exception(exc: Exception) -> bool:
+    if is_invalid_data_exception(exc):
+        return False
+
     if isinstance(exc, sqlalchemy.exc.OperationalError) and isinstance(
         exc.orig, sqlite3.OperationalError
     ):
@@ -334,9 +372,16 @@ def is_client_retryable_exception(exc: Exception) -> bool:
         exc,
         (
             sqlalchemy.exc.DBAPIError,
+            sqlalchemy.exc.TimeoutError,
+            TimeoutError,
             asyncpg.exceptions.QueryCanceledError,
             asyncpg.exceptions.ConnectionDoesNotExistError,
             asyncpg.exceptions.CannotConnectNowError,
+            asyncpg.exceptions.PostgresConnectionError,
+            # raised unwrapped by asyncpg when the database host does not
+            # resolve or refuses the connection, e.g. during a restart
+            socket.gaierror,
+            ConnectionRefusedError,
             sqlalchemy.exc.InvalidRequestError,
             sqlalchemy.orm.exc.DetachedInstanceError,
         ),
@@ -399,8 +444,29 @@ async def custom_internal_exception_handler(
     """
     Log a detailed exception for internal server errors before returning.
 
-    Send 503 for errors clients can retry on.
+    Send 422 for values the database rejected and 503 for errors clients can retry on.
     """
+    if is_invalid_data_exception(exc):
+        logger.warning("Database rejected a value in request:", exc_info=True)
+        return JSONResponse(
+            content={
+                "exception_message": "Invalid request received.",
+                "exception_detail": [
+                    {
+                        "type": "value_error",
+                        "loc": ["body"],
+                        "msg": (
+                            "The database rejected a value in the request. This "
+                            "usually means a string contains a NUL character or a "
+                            "JSON value contains NaN or Infinity. See server logs "
+                            "for details."
+                        ),
+                    }
+                ],
+            },
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
     if is_client_retryable_exception(exc):
         if PREFECT_API_LOG_RETRYABLE_ERRORS.value():
             logger.error("Encountered retryable exception in request:", exc_info=True)
@@ -428,6 +494,67 @@ async def prefect_object_not_found_exception_handler(
 
 
 API_APP_CACHE: dict[tuple[str, str | None], FastAPI] = {}
+
+
+# API routes depend on async variants of these dependencies so FastAPI resolves
+# them on the event loop. Overrides registered for an original dependency still
+# apply to the routes.
+_ORIGINAL_DEPENDENCIES: dict[Callable[..., Any], Callable[..., Any]] = {
+    aprovide_database_interface: provide_database_interface,
+    api.dependencies.aprovide_request_api_version: (
+        api.dependencies.provide_request_api_version
+    ),
+    api.dependencies.aget_created_by: api.dependencies.get_created_by,
+    api.dependencies.aget_updated_by: api.dependencies.get_updated_by,
+    api.dependencies.ais_ephemeral_request: api.dependencies.is_ephemeral_request,
+    api.dependencies.aget_prefect_client_version: (
+        api.dependencies.get_prefect_client_version
+    ),
+    api.dependencies.adocket: api.dependencies.docket,
+    api.events.averified_page_token: api.events.verified_page_token,
+    api.workers.provide_worker_lookups: api.workers.WorkerLookups,
+}
+
+
+class _DependencyOverrides(Mapping[Callable[..., Any], Callable[..., Any]]):
+    """
+    An app's dependency overrides, where an override registered for a route's
+    dependency takes precedence over one registered for its original dependency.
+    """
+
+    def __init__(self, overrides: Mapping[Callable[..., Any], Callable[..., Any]]):
+        self._overrides = overrides
+
+    def __getitem__(self, dependency: Callable[..., Any]) -> Callable[..., Any]:
+        try:
+            return self._overrides[dependency]
+        except KeyError:
+            if dependency not in _ORIGINAL_DEPENDENCIES:
+                raise
+            return self._overrides[_ORIGINAL_DEPENDENCIES[dependency]]
+
+    def __iter__(self) -> Iterator[Callable[..., Any]]:
+        return iter(self._overrides)
+
+    def __len__(self) -> int:
+        return len(self._overrides)
+
+
+class _DependencyOverridesProvider:
+    """Provides an app's dependency overrides to the routes it includes."""
+
+    def __init__(self, app: FastAPI):
+        self._app = app
+
+    @property
+    def dependency_overrides(
+        self,
+    ) -> Mapping[Callable[..., Any], Callable[..., Any]]:
+        overrides = self._app.dependency_overrides
+        if not overrides:
+            # FastAPI skips override lookups for an empty mapping.
+            return overrides
+        return _DependencyOverrides(overrides)
 
 
 def create_api_app(
@@ -462,7 +589,14 @@ def create_api_app(
         return API_APP_CACHE[cache_key]
 
     fast_api_app_kwargs = fast_api_app_kwargs or {}
-    api_app = FastAPI(title=API_TITLE, **fast_api_app_kwargs)
+    api_app = FastAPI(
+        title=API_TITLE,
+        **{
+            "generate_unique_id_function": lambda route: route.name,
+            **fast_api_app_kwargs,
+        },
+    )
+    api_app.router.dependency_overrides_provider = _DependencyOverridesProvider(api_app)
 
     if logfire:
         logfire.instrument_fastapi(api_app)  # pyright: ignore
@@ -566,6 +700,12 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
     configured_default_ui: UIVersion = (
         "v2" if prefect.settings.get_current_settings().server.ui.v2_enabled else "v1"
     )
+    if configured_default_ui == "v1":
+        logger.warning(
+            "Setting `PREFECT_SERVER_UI_V2_ENABLED=false` is deprecated. The V1 UI"
+            " will be removed in Prefect 3.10, and this setting will no longer have"
+            " any effect. Unset `PREFECT_SERVER_UI_V2_ENABLED` to use the V2 UI."
+        )
     v1_base_url, v2_base_url = _resolve_ui_base_urls(PREFECT_UI_SERVE_BASE.value())
     ui_settings_path = _join_ui_path(v1_base_url, "ui-settings")
     static_directory_root = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()

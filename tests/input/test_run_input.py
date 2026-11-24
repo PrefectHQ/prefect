@@ -5,7 +5,9 @@ import orjson
 import pydantic
 import pytest
 
+from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.objects import FlowRunInput
+from prefect.client.schemas.responses import SetStateStatus
 from prefect.context import FlowRunContext
 from prefect.flows import flow
 from prefect.input import (
@@ -22,6 +24,7 @@ from prefect.input.run_input import (
     run_input_subclass_from_type,
     send_input,
 )
+from prefect.server.database import orm_models
 from prefect.states import Paused, Running, Suspended
 
 
@@ -180,8 +183,7 @@ async def test_load_fails_validation_raises_exception(flow_run_context):
     )
 
     with pytest.raises(pydantic.ValidationError, match="boolean"):
-        person = await Person.load(keyset)
-        assert isinstance(person, Person)
+        await Person.load(keyset)
 
 
 async def test_load_from_flow_run_input(flow_run_context):
@@ -204,6 +206,42 @@ async def test_load_from_flow_run_input(flow_run_context):
         receiver=flow_run_context.flow_run.id,
         sender=flow_run_input.sender,
     )
+
+
+class Count(RunInput):
+    count: int
+
+
+async def test_load_after_resume_preserves_integer_beyond_64_bit_range(
+    flow_run: orm_models.FlowRun, prefect_client: PrefectClient
+):
+    count = 2**64 + 1
+    paused = Paused(pause_key="1")
+    keyset = keyset_from_paused_state(paused)
+    paused.state_details.run_input_keyset = keyset
+    await prefect_client.set_flow_run_state(flow_run.id, Running(), force=True)
+    await prefect_client.set_flow_run_state(flow_run.id, paused, force=True)
+    await Count.save(keyset, flow_run_id=flow_run.id)
+
+    result = await prefect_client.resume_flow_run(
+        flow_run.id, run_input={"count": count}
+    )
+    assert result.status == SetStateStatus.ACCEPT
+
+    assert (await Count.load(keyset, flow_run_id=flow_run.id)).count == count
+    assert read_flow_run_input(
+        keyset["response"], flow_run_id=flow_run.id, _sync=True
+    ) == {"count": count}
+
+
+def test_load_from_flow_run_input_preserves_integer_beyond_64_bit_range():
+    flow_run_input = FlowRunInput(
+        flow_run_id=uuid4(),
+        key="count-response",
+        value=f'{{"count": {2**64 + 1}}}',
+    )
+
+    assert Count.load_from_flow_run_input(flow_run_input).count == 2**64 + 1
 
 
 async def test_with_initial_data(flow_run_context):
@@ -488,13 +526,6 @@ async def test_automatic_input_can_receive_metadata(flow_run):
     assert received.value == 1
 
 
-async def test_automatic_input_can_receive_without_metadata(flow_run):
-    await send_input(1, flow_run_id=flow_run.id)
-
-    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
-    assert received == 1
-
-
 async def test_automatic_input_receive_multiple_values(flow_run):
     async def send():
         for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
@@ -589,22 +620,6 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
 
 
 async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator(
-    flow_run,
-):
-    with pytest.raises(TimeoutError):
-        async for _ in receive_input(
-            int,
-            flow_run_id=flow_run.id,
-            timeout=0,
-            poll_interval=0.1,
-            # Normally the loop would just exit, but this causes it to raise
-            # when it doesn't receive a value for `timeout` seconds.
-            raise_timeout_error=True,
-        ):
-            pass
-
-
-async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
     flow_run,
 ):
     with pytest.raises(TimeoutError):

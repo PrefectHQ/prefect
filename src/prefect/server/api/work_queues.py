@@ -18,9 +18,10 @@ from sqlalchemy.exc import IntegrityError
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
+from prefect.server.api.workers import schedule_readiness_update
 from prefect.server.database import (
     PrefectDBInterface,
-    provide_database_interface,
+    aprovide_database_interface,
 )
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.work_queues import (
@@ -37,7 +38,7 @@ router: PrefectRouter = PrefectRouter(prefix="/work_queues", tags=["Work Queues"
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_work_queue(
     work_queue: schemas.actions.WorkQueueCreate,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Creates a new work queue.
@@ -72,7 +73,7 @@ async def create_work_queue(
 async def update_work_queue(
     work_queue: schemas.actions.WorkQueueUpdate,
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Updates an existing work queue.
@@ -103,7 +104,7 @@ async def update_work_queue(
 @router.get("/name/{name}")
 async def read_work_queue_by_name(
     name: str = Path(..., description="The work queue name"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
@@ -131,7 +132,7 @@ async def read_work_queue_by_name(
 @router.get("/{id:uuid}")
 async def read_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueResponse:
     """
     Get a work queue by id.
@@ -171,7 +172,7 @@ async def read_work_queue_runs(
         default=False,
         description="A header to indicate this request came from the Prefect UI.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
     Get flow runs from the work queue.
@@ -189,22 +190,42 @@ async def read_work_queue_runs(
     if x_prefect_ui:
         return flow_runs
 
-    await docket.add(
-        mark_work_queues_ready,
-        key=f"mark_work_queues_ready:{work_queue_id}",
-    )(
-        polled_work_queue_ids=[work_queue_id],
-        ready_work_queue_ids=(
-            [work_queue_id] if work_queue.status == WorkQueueStatus.NOT_READY else []
-        ),
-    )
+    work_queue_becoming_ready = work_queue.status == WorkQueueStatus.NOT_READY
+    if work_queue_becoming_ready:
+        deployments_becoming_ready = True
+    else:
+        async with db.session_context() as session:
+            deployments_becoming_ready = (
+                await models.deployments.has_not_ready_deployments(
+                    session=session, work_queue_ids=[work_queue_id]
+                )
+            )
 
-    await docket.add(
+    # Record every poll before background-task deduplication can discard it.
+    async with db.session_context(begin_transaction=True) as session:
+        await models.work_queues.record_work_queue_polls(
+            session=session,
+            polled_work_queue_ids=[work_queue_id],
+            ready_work_queue_ids=[],
+        )
+
+    if work_queue_becoming_ready:
+        await schedule_readiness_update(
+            docket,
+            mark_work_queues_ready,
+            key=f"mark_work_queues_ready:{work_queue_id}",
+            becoming_ready=True,
+        )(
+            polled_work_queue_ids=[],
+            ready_work_queue_ids=[work_queue_id],
+        )
+
+    await schedule_readiness_update(
+        docket,
         mark_deployments_ready,
         key=f"mark_deployments_ready:work_queue:{work_queue_id}",
-    )(
-        work_queue_ids=[work_queue_id],
-    )
+        becoming_ready=deployments_becoming_ready,
+    )(work_queue_ids=[work_queue_id], skip_recently_polled=True)
 
     return flow_runs
 
@@ -214,7 +235,7 @@ async def read_work_queues(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """
     Query for work queues.
@@ -243,7 +264,7 @@ async def read_work_queues(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_work_queue(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a work queue by id.
@@ -270,7 +291,7 @@ async def read_work_queue_concurrency_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
     page: int = Body(1, ge=1),
     limit: int = dependencies.LimitBody(),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.WorkQueueConcurrencyStatus:
     """
     Read concurrency status for a work queue, including paginated flow run
@@ -336,7 +357,7 @@ async def read_work_queue_concurrency_status(
 @router.get("/{id:uuid}/status")
 async def read_work_queue_status(
     work_queue_id: UUID = Path(..., description="The work queue id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.WorkQueueStatusDetail:
     """
     Get the status of a work queue.
