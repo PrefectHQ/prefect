@@ -49,6 +49,8 @@ export const Route = createFileRoute("/path")({
 });
 ```
 
+If a search param becomes a navigation target (e.g. `redirectTo` on `/login`), declare it as `z.string().refine(isSafeRedirectPath).optional().catch(undefined)` (`isSafeRedirectPath` from `@/utils`). A plain `z.string()` lets `//host` or `https://...` values redirect off-origin, and leaving out `.catch(undefined)` turns a rejected value into a search-validation error when it should fall back to the default.
+
 ## loaderDeps and UI-Only Search Params
 
 `loaderDeps` controls which search params re-trigger the loader. When the loader re-runs, the route re-suspends and all local UI state resets (accordion sections collapse, dialogs close, etc.).

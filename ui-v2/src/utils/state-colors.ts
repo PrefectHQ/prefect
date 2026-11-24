@@ -28,7 +28,8 @@ export function getStateColor(state: StateType, shade = 600): string {
 		return STATE_COLORS[state];
 	}
 	const cssVar = `--state-${state.toLowerCase()}-${shade}`;
-	const computed = getComputedStyle(document.documentElement)
+	// Color modes override the variables on <body>, below the theme on <html>.
+	const computed = getComputedStyle(document.body)
 		.getPropertyValue(cssVar)
 		.trim();
 	return computed || STATE_COLORS[state];

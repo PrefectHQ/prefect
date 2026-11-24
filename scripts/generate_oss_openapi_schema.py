@@ -16,6 +16,17 @@ if args.api_compatibility:
         f"/api{path}": item for path, item in openapi_schema["paths"].items()
     }
 else:
+    # openapi-typescript treats defaults on referenced properties as required.
+    # Keep the REST schema default, but allow generated clients to omit this flag.
+    heartbeat = openapi_schema["paths"][
+        "/work_pools/{work_pool_name}/workers/heartbeat"
+    ]
+    body = heartbeat["post"]["requestBody"]["content"]["application/json"]["schema"]
+    heartbeat_schema = openapi_schema["components"]["schemas"][
+        body["$ref"].split("/")[-1]
+    ]
+    heartbeat_schema["properties"]["return_id"].pop("default", None)
+
     # UI type generation also needs the root webserver's settings endpoint.
     ui_app = create_ui_app(ephemeral=True)
     ui_schema = ui_app.openapi()

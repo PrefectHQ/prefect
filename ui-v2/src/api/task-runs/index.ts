@@ -10,14 +10,12 @@ import { getQueryService } from "../service";
 export type TaskRun = components["schemas"]["UITaskRun"];
 export type TaskRunResponse = components["schemas"]["TaskRunResponse"];
 
-export type TaskRunsFilter =
-	components["schemas"]["Body_read_task_runs_task_runs_filter_post"];
+export type TaskRunsFilter = components["schemas"]["Body_read_task_runs"];
 
 export type TaskRunsPaginateFilter =
-	components["schemas"]["Body_paginate_task_runs_task_runs_paginate_post"];
+	components["schemas"]["Body_paginate_task_runs"];
 
-type SetTaskRunStateBody =
-	components["schemas"]["Body_set_task_run_state_task_runs__id__set_state_post"];
+type SetTaskRunStateBody = components["schemas"]["Body_set_task_run_state"];
 
 type SetTaskRunStateParams = {
 	id: string;
@@ -46,8 +44,7 @@ type SetTaskRunStateParams = {
  * detail		=>   ['taskRuns', 'details', id]
  * ```
  */
-export type TaskRunsCountFilter =
-	components["schemas"]["Body_count_task_runs_task_runs_count_post"];
+export type TaskRunsCountFilter = components["schemas"]["Body_count_task_runs"];
 
 export const queryKeyFactory = {
 	all: () => ["taskRuns"] as const,
@@ -361,7 +358,7 @@ export const useDeleteTaskRun = () => {
 };
 
 export type TaskRunsHistoryFilter =
-	components["schemas"]["Body_task_run_history_task_runs_history_post"];
+	components["schemas"]["Body_task_run_history"];
 
 export type HistoryResponse = components["schemas"]["HistoryResponse"];
 

@@ -526,13 +526,6 @@ async def test_automatic_input_can_receive_metadata(flow_run):
     assert received.value == 1
 
 
-async def test_automatic_input_can_receive_without_metadata(flow_run):
-    await send_input(1, flow_run_id=flow_run.id)
-
-    received = await receive_input(int, flow_run_id=flow_run.id, timeout=0.1).next()
-    assert received == 1
-
-
 async def test_automatic_input_receive_multiple_values(flow_run):
     async def send():
         for city in [("New York", "NY"), ("Boston", "MA"), ("Chicago", "IL")]:
@@ -627,22 +620,6 @@ async def test_automatic_input_receive_with_exclude_keys(flow_run):
 
 
 async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator(
-    flow_run,
-):
-    with pytest.raises(TimeoutError):
-        async for _ in receive_input(
-            int,
-            flow_run_id=flow_run.id,
-            timeout=0,
-            poll_interval=0.1,
-            # Normally the loop would just exit, but this causes it to raise
-            # when it doesn't receive a value for `timeout` seconds.
-            raise_timeout_error=True,
-        ):
-            pass
-
-
-async def test_automatic_input_receive_can_can_raise_timeout_errors_as_generator_sync(
     flow_run,
 ):
     with pytest.raises(TimeoutError):

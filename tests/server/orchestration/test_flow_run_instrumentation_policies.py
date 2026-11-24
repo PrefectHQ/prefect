@@ -42,6 +42,7 @@ from prefect.server.schemas.states import (
     StateDetails,
     StateType,
 )
+from prefect.settings import temporary_settings
 from prefect.states import Cancelled, to_state_create
 from prefect.types._datetime import DateTime, now
 
@@ -519,6 +520,53 @@ async def test_instrumenting_a_flow_with_tags(
         )
         in event.related
     )
+
+
+async def test_instrumenting_a_flow_run_with_more_tags_than_an_event_can_relate(
+    session: AsyncSession,
+    flow: ORMFlow,
+    deployment: ORMDeployment,
+    flow_run: ORMFlowRun,
+    orchestration_parameters: dict[str, Any],
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/19064, where a
+    deployment with more tags than an event can relate failed every state change of
+    its flow runs."""
+    automation_id = uuid4()
+    deployment.tags = ["tag-a", "tag-b", "tag-c"]
+    flow_run.tags = ["tag-a", "tag-b", "tag-c", "tag-d"]
+    flow_run.deployment_id = deployment.id
+    flow_run.created_by = CreatedBy(
+        id=automation_id, type="AUTOMATION", display_value="I'm Triggered"
+    )
+    session.add_all([flow_run, deployment])
+    await session.commit()
+
+    transition = (StateType.PENDING, StateType.RUNNING)
+    context = FlowOrchestrationContext(
+        initial_state=State(type=transition[0]),
+        proposed_state=State(type=transition[1]),
+        run=flow_run,
+        session=session,
+        parameters=orchestration_parameters,
+    )
+
+    with temporary_settings(updates={"server.events.maximum_related_resources": 5}):
+        async with InstrumentFlowRunStateTransitions(context, *transition):
+            await context.validate_proposed_state()
+    await session.commit()
+
+    assert AssertingEventsClient.last
+    (event,) = AssertingEventsClient.last.events
+
+    # the tags that do not fit are left out, and the run's other resources stay
+    assert [(related.role, related.id) for related in event.related] == [
+        ("flow", f"prefect.flow.{flow.id}"),
+        ("deployment", f"prefect.deployment.{deployment.id}"),
+        ("tag", "prefect.tag.tag-a"),
+        ("tag", "prefect.tag.tag-b"),
+        ("creator", f"prefect.automation.{automation_id}"),
+    ]
 
 
 @pytest.fixture

@@ -886,7 +886,12 @@ async def test_trimming_skips_idle_consumer_groups(
     )
 
     # Trim the stream - should skip the stuck group but use the active group
-    await _trim_stream_to_lowest_delivered_id(stream_name)
+    with patch("prefect_redis.messaging.logger.warning") as mock_warning:
+        await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    # ...and warn that the stuck group's unread entries may be trimmed
+    mock_warning.assert_called_once()
+    assert "stuck-group" in mock_warning.call_args.args
 
     # Check results
     stream_info = await redis.xinfo_stream(stream_name)
@@ -902,6 +907,132 @@ async def test_trimming_skips_idle_consumer_groups(
     assert (
         stream_info["length"] <= 2
     )  # Redis might keep 1-2 messages due to trimming behavior
+
+
+async def test_trimming_preserves_pending_entries(redis: Redis):
+    """Entries that a group has read but not acknowledged must survive a trim so
+    they can be retried, even after the group has read past them."""
+    stream_name = "test-trim-pending-stream"
+    for i in range(1, 5):
+        await redis.xadd(stream_name, {"data": f"test{i}"}, id=f"1000-{i}")
+
+    await redis.xgroup_create(stream_name, "lagging", id="0")
+    await redis.xgroup_create(stream_name, "ahead", id="0")
+
+    # The lagging group fails to handle the first entry, then reads on
+    await redis.xreadgroup("lagging", "c1", {stream_name: ">"}, count=1)
+    messages = await redis.xreadgroup("lagging", "c1", {stream_name: ">"})
+    await redis.xack(stream_name, "lagging", *[i for _, m in messages for i, _ in m])
+
+    messages = await redis.xreadgroup("ahead", "c2", {stream_name: ">"})
+    await redis.xack(stream_name, "ahead", *[i for _, m in messages for i, _ in m])
+
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    remaining = [message_id for message_id, _ in await redis.xrange(stream_name)]
+    assert remaining == ["1000-1", "1000-2", "1000-3", "1000-4"]
+
+    _, claimed, deleted = await redis.xautoclaim(
+        stream_name, "lagging", "c1", min_idle_time=0, start_id="0-0"
+    )
+    assert [message_id for message_id, _ in claimed] == ["1000-1"]
+    assert deleted == []
+
+
+async def test_trimming_compares_ids_numerically(redis: Redis):
+    """Stream IDs must be compared as numbers, not strings ("1000-10" > "1000-2")."""
+    stream_name = "test-trim-numeric-stream"
+    for i in range(1, 11):
+        await redis.xadd(stream_name, {"data": f"test{i}"}, id=f"1000-{i}")
+
+    await redis.xgroup_create(stream_name, "lagging", id="0")
+    await redis.xgroup_create(stream_name, "ahead", id="0")
+
+    messages = await redis.xreadgroup("lagging", "c1", {stream_name: ">"}, count=2)
+    await redis.xack(stream_name, "lagging", *[i for _, m in messages for i, _ in m])
+    messages = await redis.xreadgroup("ahead", "c2", {stream_name: ">"})
+    await redis.xack(stream_name, "ahead", *[i for _, m in messages for i, _ in m])
+
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    remaining = [message_id for message_id, _ in await redis.xrange(stream_name)]
+    assert remaining == [f"1000-{i}" for i in range(2, 11)]
+
+
+async def test_trimming_warns_when_skipping_group_with_unread_entries(redis: Redis):
+    """A group that has not read anything yet is excluded from the trim floor; the
+    trim should warn that its unread entries may be trimmed."""
+    stream_name = "test-trim-unread-stream"
+    for i in range(1, 4):
+        await redis.xadd(stream_name, {"data": f"test{i}"}, id=f"1000-{i}")
+
+    await redis.xgroup_create(stream_name, "unread", id="0")
+    await redis.xgroup_create(stream_name, "ahead", id="0")
+    messages = await redis.xreadgroup("ahead", "c2", {stream_name: ">"})
+    await redis.xack(stream_name, "ahead", *[i for _, m in messages for i, _ in m])
+
+    with patch("prefect_redis.messaging.logger.warning") as mock_warning:
+        await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    mock_warning.assert_called_once()
+    assert "unread" in mock_warning.call_args.args
+
+
+async def test_trimming_does_not_warn_for_idle_group_that_has_caught_up(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+):
+    stream_name = "test-trim-caught-up-stream"
+    for i in range(1, 4):
+        await redis.xadd(stream_name, {"data": f"test{i}"}, id=f"1000-{i}")
+
+    await redis.xgroup_create(stream_name, "idle", id="0")
+    await redis.xgroup_create(stream_name, "active", id="0")
+    messages = await redis.xreadgroup("idle", "c1", {stream_name: ">"})
+    await redis.xack(stream_name, "idle", *[i for _, m in messages for i, _ in m])
+
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD", "1")
+    await asyncio.sleep(1.5)
+
+    messages = await redis.xreadgroup("active", "c2", {stream_name: ">"}, count=2)
+    await redis.xack(stream_name, "active", *[i for _, m in messages for i, _ in m])
+
+    with patch("prefect_redis.messaging.logger.warning") as mock_warning:
+        await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    mock_warning.assert_not_called()
+    remaining = [message_id for message_id, _ in await redis.xrange(stream_name)]
+    assert remaining == ["1000-2", "1000-3"]
+
+
+async def test_process_pending_messages_warns_about_deleted_pending_entries(
+    redis: Redis,
+):
+    """When XAUTOCLAIM reports pending entries whose stream entry no longer
+    exists, the consumer should log them instead of dropping them silently."""
+    consumer = Consumer("deleted-pending-tests", min_idle_time=timedelta(seconds=0))
+    for i in range(1, 3):
+        await redis.xadd(
+            consumer.stream,
+            {"data": f"test{i}", "attributes": "{}"},
+            id=f"1000-{i}",
+        )
+    await redis.xgroup_create(consumer.stream, consumer.group, id="0")
+    await redis.xreadgroup(consumer.group, consumer.name, {consumer.stream: ">"})
+    await redis.xtrim(consumer.stream, minid="1000-2", approximate=False)
+
+    handled: list[Message] = []
+
+    async def handler(message: Message):
+        handled.append(message)
+
+    with patch("prefect_redis.messaging.logger.warning") as mock_warning:
+        await consumer.process_pending_messages(handler, redis, 10)
+
+    assert [message.data for message in handled] == ["test2"]
+    mock_warning.assert_called_once()
+    assert "1000-1" in mock_warning.call_args.args
+    assert consumer.stream in mock_warning.call_args.args
+    assert consumer.group in mock_warning.call_args.args
 
 
 async def test_cleanup_empty_consumer_groups(redis: Redis):

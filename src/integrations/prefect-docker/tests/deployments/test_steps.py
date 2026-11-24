@@ -239,6 +239,46 @@ def test_build_docker_image_raises_with_auto_and_existing_dockerfile():
         Path("Dockerfile").unlink()
 
 
+@pytest.mark.usefixtures("mock_docker_client", "mock_datetime")
+def test_build_docker_image_auto_writes_utf8_dockerfiles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    project_dir = tmp_path / "r\u00e9sum\u00e9"
+    project_dir.mkdir()
+    monkeypatch.chdir(project_dir)
+
+    original_open = Path.open
+
+    def open_with_ascii_default(self: Path, mode: str = "r", *args: Any, **kwargs: Any):
+        if "b" not in mode and not args:
+            kwargs.setdefault("encoding", "ascii")
+        return original_open(self, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_with_ascii_default)
+
+    written: dict[str, bytes] = {}
+    original_unlink = os.unlink
+
+    def capture_then_unlink(path: str, *args: Any, **kwargs: Any):
+        written[path] = Path(path).read_bytes()
+        original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(
+        "prefect_docker.deployments.steps.os.unlink", capture_then_unlink
+    )
+
+    build_docker_image(
+        image_name="registry/repo",
+        dockerfile="auto",
+        persist_dockerfile=True,
+        ignore_cache=True,
+    )
+
+    persisted = (project_dir / "Dockerfile.generated").read_bytes()
+    assert "WORKDIR /opt/prefect/r\u00e9sum\u00e9/".encode("utf-8") in persisted
+    assert written["Dockerfile"] == persisted
+
+
 def test_build_docker_image_rejects_invalid_image_name(
     mock_docker_client: MagicMock,
 ):

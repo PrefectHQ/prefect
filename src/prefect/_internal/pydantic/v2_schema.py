@@ -34,20 +34,6 @@ def is_v2_type(v: t.Any) -> bool:
         return False
 
 
-def has_v2_type_as_param(signature: inspect.Signature) -> bool:
-    parameters = signature.parameters.values()
-    for p in parameters:
-        # check if this parameter is a v2 model
-        if is_v2_type(p.annotation):
-            return True
-
-        # check if this parameter is a collection of types
-        for v in typing.get_args(p.annotation):
-            if is_v2_type(v):
-                return True
-    return False
-
-
 def _annotated_field_description(annotation: t.Any) -> str | None:
     """
     Return the description of the `Field`s in an `Annotated` type, if any.

@@ -33,6 +33,7 @@ from prefect import flow, task
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.context import FlowRunContext, TaskRunContext
 from prefect.exceptions import MissingContextError
@@ -67,7 +68,6 @@ from prefect.logging.loggers import (
     task_run_logger,
 )
 from prefect.runtime import deployment as runtime_deployment
-from prefect.server.schemas.actions import LogCreate
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -1089,7 +1089,7 @@ class TestWorkerLogging:
                 self._worker_channel.set_client(self._client)
                 return
 
-            self._worker_channel = _WorkerChannelTestDouble(self, None)
+            self._worker_channel = _WorkerChannelTestDouble(self, WORKER_ID)
 
     @pytest.fixture
     def logging_to_api_enabled(self):
@@ -1149,7 +1149,10 @@ class TestWorkerLogging:
             name="test", work_pool_name="test-work-pool"
         ) as worker:
             await worker.sync_with_backend()
-            worker._logger.debug("test-worker-log")
+            with temporary_settings(
+                updates={PREFECT_API_URL: "https://api.prefect.cloud/api"}
+            ):
+                worker._logger.debug("test-worker-log")
 
         log_statement = [
             log
@@ -1169,7 +1172,7 @@ class TestWorkerLogging:
         async with self.ServerWorkerTestImpl(
             name="test", work_pool_name="test-work-pool"
         ) as worker:
-            assert isinstance(worker._logger, logging.Logger)
+            assert worker.backend_id == WORKER_ID
             worker._logger.debug("test-worker-log")
 
         mock_log_worker.instance().send.assert_not_called()
@@ -1373,23 +1376,20 @@ class TestAPILogWorker:
         self,
         worker: APILogWorker,
         log_dict: dict[str, Any],
-        respx_mock: respx.MockRouter,
+        prefect_client: PrefectClient,
     ):
-        worker_id = str(uuid.uuid4())
-        log_dict["worker_id"] = worker_id
-        # Open source servers do not accept worker logs
-        create_logs = respx_mock.post(path__regex=r"/logs/$").mock(
-            return_value=httpx.Response(201)
-        )
-        respx_mock.route().pass_through()
+        worker_id = uuid.uuid4()
+        flow_run_id = uuid.UUID(log_dict["flow_run_id"])
 
         worker.send(log_dict)
+        worker.send({**log_dict, "worker_id": str(worker_id)})
         await worker.drain()
 
-        assert create_logs.call_count == 1
-        logs = json.loads(create_logs.calls.last.request.content)
-        assert len(logs) == 1
-        assert logs[0]["worker_id"] == worker_id
+        logs = await prefect_client.read_logs(
+            log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
+        )
+        assert len(logs) == 2
+        assert {log.worker_id for log in logs} == {None, worker_id}
 
     async def test_send_does_not_send_payload_size(
         self,

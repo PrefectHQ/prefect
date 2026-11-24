@@ -9,16 +9,30 @@ sidebarTitle: dependencies
 
 Utilities for injecting FastAPI dependencies.
 
+FastAPI runs a sync dependency in a worker thread on every request. API routes
+depend on the `a`-prefixed async variants of these helpers, which call the sync
+helpers on the event loop.
+
 
 ## Functions
 
-### `provide_request_api_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `provide_request_api_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 provide_request_api_version(x_prefect_api_version: str = Header(None)) -> Version | None
 ```
 
-### `LimitBody` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aprovide_request_api_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aprovide_request_api_version(x_prefect_api_version: str = Header(None)) -> Version | None
+```
+
+
+Async variant of `provide_request_api_version` for API routes.
+
+
+### `LimitBody` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 LimitBody() -> Any
@@ -29,7 +43,7 @@ A `fastapi.Depends` factory for pulling a `limit: int` parameter from the
 request body while determining the default from the current settings.
 
 
-### `get_created_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_created_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_created_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.CreatedBy]
@@ -40,7 +54,17 @@ A dependency that returns the provenance information to use when creating object
 during this API call.
 
 
-### `get_updated_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aget_created_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_created_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.CreatedBy]
+```
+
+
+Async variant of `get_created_by` for API routes.
+
+
+### `get_updated_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_updated_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.UpdatedBy]
@@ -51,7 +75,17 @@ A dependency that returns the provenance information to use when updating object
 during this API call.
 
 
-### `is_ephemeral_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aget_updated_by` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_updated_by(prefect_automation_id: Optional[UUID] = Header(None, include_in_schema=False), prefect_automation_name: Optional[str] = Header(None, include_in_schema=False)) -> Optional[schemas.core.UpdatedBy]
+```
+
+
+Async variant of `get_updated_by` for API routes.
+
+
+### `is_ephemeral_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_ephemeral_request(request: Request) -> bool
@@ -61,7 +95,17 @@ is_ephemeral_request(request: Request) -> bool
 A dependency that returns whether the request is to an ephemeral server.
 
 
-### `get_prefect_client_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ais_ephemeral_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ais_ephemeral_request(request: Request) -> bool
+```
+
+
+Async variant of `is_ephemeral_request` for API routes.
+
+
+### `get_prefect_client_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_prefect_client_version(user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None) -> Optional[str]
@@ -71,15 +115,35 @@ get_prefect_client_version(user_agent: Annotated[Optional[str], Header(include_i
 Attempts to parse out the Prefect client version from the User-Agent header.
 
 
-### `docket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aget_prefect_client_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aget_prefect_client_version(user_agent: Annotated[Optional[str], Header(include_in_schema=False)] = None) -> Optional[str]
+```
+
+
+Async variant of `get_prefect_client_version` for API routes.
+
+
+### `docket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 docket(request: Request) -> Docket_
 ```
 
+### `adocket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adocket(request: Request) -> Docket_
+```
+
+
+Async variant of `docket` for API routes.
+
+
 ## Classes
 
-### `EnforceMinimumAPIVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnforceMinimumAPIVersion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/dependencies.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 FastAPI Dependency used to check compatibility between the version of the api

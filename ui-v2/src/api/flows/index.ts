@@ -8,10 +8,8 @@ import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
 export type Flow = components["schemas"]["Flow"];
-export type FlowsFilter =
-	components["schemas"]["Body_read_flows_flows_filter_post"];
-export type FlowsPaginateFilter =
-	components["schemas"]["Body_paginate_flows_flows_paginate_post"];
+export type FlowsFilter = components["schemas"]["Body_read_flows"];
+export type FlowsPaginateFilter = components["schemas"]["Body_paginate_flows"];
 export type SimpleNextFlowRun = components["schemas"]["SimpleNextFlowRun"];
 
 /**

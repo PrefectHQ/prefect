@@ -39,6 +39,7 @@ from prefect._internal.launchers import resolve_bundle_step_with_launcher
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
 from prefect._internal.server_maintenance import polling_window_start
+from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
@@ -1556,7 +1557,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 run_logger.info(
                     f"Worker '{self.name}' submitting flow run '{flow_run.id}'"
                 )
-                if self.backend_id:
+                if self.backend_id and self._client.server_type == ServerType.CLOUD:
                     try:
                         worker_url = url_for(
                             "worker",
@@ -1911,8 +1912,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         Cancel a flow run by killing its infrastructure and marking it cancelled.
 
-        Only cancels flow runs that were pending (not yet started).
+        Only cancels flow runs that were pending (not yet started). Errors are
+        logged rather than raised: this runs in the worker's task group, so an
+        escaping error would stop the worker.
         """
+        try:
+            await self._cancel_pending_run(flow_run_id)
+        except Exception:
+            self._logger.exception(f"Failed to cancel flow run {flow_run_id}")
+
+    async def _cancel_pending_run(self, flow_run_id: UUID) -> None:
         try:
             flow_run = await self.client.read_flow_run(flow_run_id)
         except ObjectNotFound:

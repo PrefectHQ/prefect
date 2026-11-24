@@ -15,8 +15,11 @@ import jsonschema
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi import Body
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -57,6 +60,40 @@ from prefect.settings import (
 )
 
 pytestmark = pytest.mark.clear_db
+
+
+def test_openapi_operation_ids_use_route_names():
+    app = create_api_app(ignore_cache=True)
+    paths = app.openapi()["paths"]
+    operation_ids = [
+        operation["operationId"]
+        for path in paths.values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert operation_ids
+    assert len(operation_ids) == len(set(operation_ids))
+
+    checked = 0
+    for route in app.routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+            if isinstance(route, APIRoute)
+            else ()
+        )
+        for candidate in candidates:
+            if not candidate.include_in_schema:
+                continue
+            for method in candidate.methods:
+                operation = paths[candidate.path_format][method.lower()]
+                assert operation["operationId"] == (
+                    candidate.operation_id or candidate.name
+                )
+                checked += 1
+    assert checked == len(operation_ids)
 
 
 async def test_validation_error_handler_422(client):
@@ -133,8 +170,11 @@ def test_openapi_schema_does_not_document_fastapi_validation_error_body(
         )
 
 
-async def test_api_app_uses_prefect_validation_handler_by_default():
-    api_app = create_api_app(ignore_cache=True)
+@pytest.mark.parametrize("fast_api_app_kwargs", [{}, {"exception_handlers": None}])
+async def test_api_app_uses_prefect_validation_handler_by_default(
+    fast_api_app_kwargs: dict[str, Any],
+):
+    api_app = create_api_app(ignore_cache=True, fast_api_app_kwargs=fast_api_app_kwargs)
 
     async with AsyncClient(
         transport=ASGITransport(app=api_app), base_url="http://test"
@@ -146,7 +186,19 @@ async def test_api_app_uses_prefect_validation_handler_by_default():
     assert "InvalidRequestResponse" in api_app.openapi()["components"]["schemas"]
 
 
-def test_api_app_with_other_validation_handler_keeps_fastapi_422_schema():
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/templates/validate", 5),
+        ("/templates/validate", "{{ broken"),
+        ("/automations/templates/validate", 5),
+        ("/automations/templates/validate", "{{ broken"),
+    ],
+)
+async def test_api_app_with_other_validation_handler_keeps_fastapi_422_schema(
+    path: str, body: Any
+):
     api_app = create_api_app(
         ignore_cache=True,
         fast_api_app_kwargs={
@@ -156,9 +208,57 @@ def test_api_app_with_other_validation_handler_keeps_fastapi_422_schema():
         },
     )
 
-    schemas = api_app.openapi()["components"]["schemas"]
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post(path, json=body)
+        schema = (await client.get("/openapi.json")).json()
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    jsonschema.validate(response.json(), _documented_422_schema(schema, path, "post"))
+    schemas = schema["components"]["schemas"]
     assert "HTTPValidationError" in schemas
     assert "InvalidRequestResponse" not in schemas
+
+
+@pytest.mark.parametrize("schema_kind", ["inline", "composed", "validation-reference"])
+async def test_api_app_preserves_declared_422_schema(
+    schema_kind: str, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr("prefect.server.api.server.API_APP_CACHE", {})
+    api_app = create_api_app(ignore_cache=True)
+    body_schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {"custom": {"type": "integer"}},
+        "required": ["custom"],
+    }
+    if schema_kind == "composed":
+        body_schema = {"anyOf": [body_schema]}
+    elif schema_kind == "validation-reference":
+        body_schema = {
+            "anyOf": [
+                body_schema,
+                {"$ref": "#/components/schemas/HTTPValidationError"},
+            ]
+        }
+
+    @api_app.post(
+        "/custom-error",
+        responses={422: {"content": {"application/json": {"schema": body_schema}}}},
+    )
+    def custom_error(value: int = Body(...)) -> JSONResponse:
+        return JSONResponse({"custom": value}, status_code=422)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        schema = (await client.get("/openapi.json")).json()
+        for body in (1, "invalid"):
+            response = await client.post("/custom-error", json=body)
+            assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+            jsonschema.validate(
+                response.json(), _documented_422_schema(schema, "/custom-error", "post")
+            )
 
 
 def test_create_app_openapi_documents_prefect_422_responses():
@@ -396,6 +496,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -469,6 +571,11 @@ def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(
         asyncpg.exceptions.PostgresConnectionError("connection failure")
     )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
@@ -881,6 +988,27 @@ def test_create_ui_app_uses_v1_default_when_v2_disabled(
     settings_response.raise_for_status()
     assert settings_response.json()["default_ui"] == "v1"
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
+
+
+@pytest.mark.parametrize("v2_enabled", [True, False])
+def test_create_ui_app_warns_that_v2_enabled_setting_is_deprecated(
+    caplog: pytest.LogCaptureFixture,
+    v2_enabled: bool,
+):
+    with temporary_settings({PREFECT_SERVER_UI_V2_ENABLED: v2_enabled}):
+        create_ui_app(ephemeral=False)
+
+    deprecation_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "PREFECT_SERVER_UI_V2_ENABLED" in record.getMessage()
+    ]
+    if v2_enabled:
+        assert deprecation_messages == []
+    else:
+        assert len(deprecation_messages) == 1
+        assert "deprecated" in deprecation_messages[0]
+        assert "V1 UI will be removed in Prefect 3.10" in deprecation_messages[0]
 
 
 def test_create_ui_app_respects_v1_cookie_at_neutral_root(

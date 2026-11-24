@@ -6,7 +6,7 @@ import {
 import type { components } from "@/api/prefect";
 import { getQueryService } from "../service";
 
-type LogsFilter = components["schemas"]["Body_read_logs_logs_filter_post"];
+type LogsFilter = components["schemas"]["Body_read_logs"];
 
 /**
  * Query key factory for logs-related queries

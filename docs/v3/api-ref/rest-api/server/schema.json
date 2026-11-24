@@ -14,7 +14,7 @@
                     "Root"
                 ],
                 "summary": "Health Check",
-                "operationId": "health_check_health_get",
+                "operationId": "health_check",
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -22,7 +22,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "boolean",
-                                    "title": "Response Health Check Health Get"
+                                    "title": "Response Health Check"
                                 }
                             }
                         }
@@ -36,7 +36,7 @@
                     "Root"
                 ],
                 "summary": "Server Version",
-                "operationId": "server_version_version_get",
+                "operationId": "server_version",
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -44,7 +44,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "string",
-                                    "title": "Response Server Version Version Get"
+                                    "title": "Response Server Version"
                                 }
                             }
                         }
@@ -59,7 +59,7 @@
                 ],
                 "summary": "Create Flow",
                 "description": "Creates a new flow from the provided schema. If a flow with the\nsame name already exists, the existing flow is returned.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows.",
-                "operationId": "create_flow_flows__post",
+                "operationId": "create_flow",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -112,7 +112,7 @@
                 ],
                 "summary": "Update Flow",
                 "description": "Updates a flow.",
-                "operationId": "update_flow_flows__id__patch",
+                "operationId": "update_flow",
                 "parameters": [
                     {
                         "name": "id",
@@ -168,7 +168,7 @@
                 ],
                 "summary": "Read Flow",
                 "description": "Get a flow by id.",
-                "operationId": "read_flow_flows__id__get",
+                "operationId": "read_flow",
                 "parameters": [
                     {
                         "name": "id",
@@ -221,7 +221,7 @@
                 ],
                 "summary": "Delete Flow",
                 "description": "Delete a flow by id.",
-                "operationId": "delete_flow_flows__id__delete",
+                "operationId": "delete_flow",
                 "parameters": [
                     {
                         "name": "id",
@@ -269,7 +269,7 @@
                 ],
                 "summary": "Count Flows",
                 "description": "Count flows.",
-                "operationId": "count_flows_flows_count_post",
+                "operationId": "count_flows",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -285,7 +285,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_flows_flows_count_post"
+                                "$ref": "#/components/schemas/Body_count_flows"
                             }
                         }
                     }
@@ -297,7 +297,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Flows Flows Count Post"
+                                    "title": "Response Count Flows"
                                 }
                             }
                         }
@@ -322,7 +322,7 @@
                 ],
                 "summary": "Read Flow By Name",
                 "description": "Get a flow by name.",
-                "operationId": "read_flow_by_name_flows_name__name__get",
+                "operationId": "read_flow_by_name",
                 "parameters": [
                     {
                         "name": "name",
@@ -376,7 +376,7 @@
                 ],
                 "summary": "Read Flows",
                 "description": "Query for flows.",
-                "operationId": "read_flows_flows_filter_post",
+                "operationId": "read_flows",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -392,7 +392,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flows_flows_filter_post"
+                                "$ref": "#/components/schemas/Body_read_flows"
                             }
                         }
                     }
@@ -407,7 +407,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Flow"
                                     },
-                                    "title": "Response Read Flows Flows Filter Post"
+                                    "title": "Response Read Flows"
                                 }
                             }
                         }
@@ -432,7 +432,7 @@
                 ],
                 "summary": "Bulk Delete Flows",
                 "description": "Bulk delete flows matching the specified filter criteria.\n\nThis also deletes all associated deployments.\n\nReturns the IDs of flows that were deleted.",
-                "operationId": "bulk_delete_flows_flows_bulk_delete_post",
+                "operationId": "bulk_delete_flows",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -448,7 +448,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_delete_flows_flows_bulk_delete_post"
+                                "$ref": "#/components/schemas/Body_bulk_delete_flows"
                             }
                         }
                     }
@@ -484,7 +484,7 @@
                 ],
                 "summary": "Paginate Flows",
                 "description": "Pagination query for flows.",
-                "operationId": "paginate_flows_flows_paginate_post",
+                "operationId": "paginate_flows",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -500,7 +500,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_flows_flows_paginate_post"
+                                "$ref": "#/components/schemas/Body_paginate_flows"
                             }
                         }
                     }
@@ -536,7 +536,7 @@
                 ],
                 "summary": "Create Flow Run",
                 "description": "Create a flow run. If a flow run with the same flow_id and\nidempotency key already exists, the existing flow run will be returned.\n\nIf no state is provided, the flow run will be created in a PENDING state.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows.",
-                "operationId": "create_flow_run_flow_runs__post",
+                "operationId": "create_flow_run",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -589,7 +589,7 @@
                 ],
                 "summary": "Update Flow Run",
                 "description": "Updates a flow run.",
-                "operationId": "update_flow_run_flow_runs__id__patch",
+                "operationId": "update_flow_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -645,7 +645,7 @@
                 ],
                 "summary": "Read Flow Run",
                 "description": "Get a flow run by id.",
-                "operationId": "read_flow_run_flow_runs__id__get",
+                "operationId": "read_flow_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -698,7 +698,7 @@
                 ],
                 "summary": "Delete Flow Run",
                 "description": "Delete a flow run by id.",
-                "operationId": "delete_flow_run_flow_runs__id__delete",
+                "operationId": "delete_flow_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -746,7 +746,7 @@
                 ],
                 "summary": "Count Flow Runs",
                 "description": "Query for flow runs.",
-                "operationId": "count_flow_runs_flow_runs_count_post",
+                "operationId": "count_flow_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -762,7 +762,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_flow_runs_flow_runs_count_post"
+                                "$ref": "#/components/schemas/Body_count_flow_runs"
                             }
                         }
                     }
@@ -774,7 +774,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Flow Runs Flow Runs Count Post"
+                                    "title": "Response Count Flow Runs"
                                 }
                             }
                         }
@@ -799,7 +799,7 @@
                 ],
                 "summary": "Average Flow Run Lateness",
                 "description": "Query for average flow-run lateness in seconds.",
-                "operationId": "average_flow_run_lateness_flow_runs_lateness_post",
+                "operationId": "average_flow_run_lateness",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -815,7 +815,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_average_flow_run_lateness_flow_runs_lateness_post"
+                                "$ref": "#/components/schemas/Body_average_flow_run_lateness"
                             }
                         }
                     }
@@ -834,7 +834,7 @@
                                             "type": "null"
                                         }
                                     ],
-                                    "title": "Response Average Flow Run Lateness Flow Runs Lateness Post"
+                                    "title": "Response Average Flow Run Lateness"
                                 }
                             }
                         }
@@ -859,7 +859,7 @@
                 ],
                 "summary": "Flow Run History",
                 "description": "Query for flow run history data across a given range and interval.",
-                "operationId": "flow_run_history_flow_runs_history_post",
+                "operationId": "flow_run_history",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -876,7 +876,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_flow_run_history_flow_runs_history_post"
+                                "$ref": "#/components/schemas/Body_flow_run_history"
                             }
                         }
                     }
@@ -891,7 +891,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/HistoryResponse"
                                     },
-                                    "title": "Response Flow Run History Flow Runs History Post"
+                                    "title": "Response Flow Run History"
                                 }
                             }
                         }
@@ -917,7 +917,7 @@
                 ],
                 "summary": "Read Flow Run Graph V1",
                 "description": "Get a task run dependency map for a given flow run.",
-                "operationId": "read_flow_run_graph_v1_flow_runs__id__graph_get",
+                "operationId": "read_flow_run_graph_v1",
                 "parameters": [
                     {
                         "name": "id",
@@ -951,7 +951,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/DependencyResult"
                                     },
-                                    "title": "Response Read Flow Run Graph V1 Flow Runs  Id  Graph Get"
+                                    "title": "Response Read Flow Run Graph V1"
                                 }
                             }
                         }
@@ -977,7 +977,7 @@
                 ],
                 "summary": "Read Flow Run Graph V2",
                 "description": "Get a graph of the tasks and subflow runs for the given flow run",
-                "operationId": "read_flow_run_graph_v2_flow_runs__id__graph_v2_get",
+                "operationId": "read_flow_run_graph_v2",
                 "parameters": [
                     {
                         "name": "id",
@@ -1045,7 +1045,7 @@
                 ],
                 "summary": "Resume Flow Run",
                 "description": "Resume a paused flow run.",
-                "operationId": "resume_flow_run_flow_runs__id__resume_post",
+                "operationId": "resume_flow_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -1073,7 +1073,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_resume_flow_run_flow_runs__id__resume_post"
+                                "$ref": "#/components/schemas/Body_resume_flow_run"
                             }
                         }
                     }
@@ -1109,7 +1109,7 @@
                 ],
                 "summary": "Read Flow Runs",
                 "description": "Query for flow runs.",
-                "operationId": "read_flow_runs_flow_runs_filter_post",
+                "operationId": "read_flow_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1125,7 +1125,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_flow_runs_flow_runs_filter_post"
+                                "$ref": "#/components/schemas/Body_read_flow_runs"
                             }
                         }
                     }
@@ -1140,7 +1140,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/FlowRunResponse"
                                     },
-                                    "title": "Response Read Flow Runs Flow Runs Filter Post"
+                                    "title": "Response Read Flow Runs"
                                 }
                             }
                         }
@@ -1165,7 +1165,7 @@
                 ],
                 "summary": "Bulk Delete Flow Runs",
                 "description": "Bulk delete flow runs matching the specified filter criteria.\n\nReturns the IDs of flow runs that were deleted.",
-                "operationId": "bulk_delete_flow_runs_flow_runs_bulk_delete_post",
+                "operationId": "bulk_delete_flow_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1181,7 +1181,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+                                "$ref": "#/components/schemas/Body_bulk_delete_flow_runs"
                             }
                         }
                     }
@@ -1217,7 +1217,7 @@
                 ],
                 "summary": "Bulk Set Flow Run State",
                 "description": "Bulk set state for flow runs matching the specified filter criteria.\n\nReturns the orchestration results for each flow run.",
-                "operationId": "bulk_set_flow_run_state_flow_runs_bulk_set_state_post",
+                "operationId": "bulk_set_flow_run_state",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1234,7 +1234,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
+                                "$ref": "#/components/schemas/Body_bulk_set_flow_run_state"
                             }
                         }
                     }
@@ -1270,7 +1270,7 @@
                 ],
                 "summary": "Set Flow Run State",
                 "description": "Set a flow run state, invoking any orchestration rules.",
-                "operationId": "set_flow_run_state_flow_runs__id__set_state_post",
+                "operationId": "set_flow_run_state",
                 "parameters": [
                     {
                         "name": "id",
@@ -1299,7 +1299,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_set_flow_run_state_flow_runs__id__set_state_post"
+                                "$ref": "#/components/schemas/Body_set_flow_run_state"
                             }
                         }
                     }
@@ -1335,7 +1335,7 @@
                 ],
                 "summary": "Create Flow Run Input",
                 "description": "Create a key/value input for a flow run.",
-                "operationId": "create_flow_run_input_flow_runs__id__input_post",
+                "operationId": "create_flow_run_input",
                 "parameters": [
                     {
                         "name": "id",
@@ -1364,7 +1364,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_create_flow_run_input_flow_runs__id__input_post"
+                                "$ref": "#/components/schemas/Body_create_flow_run_input"
                             }
                         }
                     }
@@ -1398,7 +1398,7 @@
                 ],
                 "summary": "Filter Flow Run Input",
                 "description": "Filter flow run inputs by key prefix",
-                "operationId": "filter_flow_run_input_flow_runs__id__input_filter_post",
+                "operationId": "filter_flow_run_input",
                 "parameters": [
                     {
                         "name": "id",
@@ -1427,7 +1427,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_filter_flow_run_input_flow_runs__id__input_filter_post"
+                                "$ref": "#/components/schemas/Body_filter_flow_run_input"
                             }
                         }
                     }
@@ -1442,7 +1442,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/FlowRunInput"
                                     },
-                                    "title": "Response Filter Flow Run Input Flow Runs  Id  Input Filter Post"
+                                    "title": "Response Filter Flow Run Input"
                                 }
                             }
                         }
@@ -1467,7 +1467,7 @@
                 ],
                 "summary": "Read Flow Run Input",
                 "description": "Create a value from a flow run input",
-                "operationId": "read_flow_run_input_flow_runs__id__input__key__get",
+                "operationId": "read_flow_run_input",
                 "parameters": [
                     {
                         "name": "id",
@@ -1529,7 +1529,7 @@
                 ],
                 "summary": "Delete Flow Run Input",
                 "description": "Delete a flow run input",
-                "operationId": "delete_flow_run_input_flow_runs__id__input__key__delete",
+                "operationId": "delete_flow_run_input",
                 "parameters": [
                     {
                         "name": "id",
@@ -1588,7 +1588,7 @@
                 ],
                 "summary": "Paginate Flow Runs",
                 "description": "Pagination query for flow runs.",
-                "operationId": "paginate_flow_runs_flow_runs_paginate_post",
+                "operationId": "paginate_flow_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1604,7 +1604,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_flow_runs_flow_runs_paginate_post"
+                                "$ref": "#/components/schemas/Body_paginate_flow_runs"
                             }
                         }
                     }
@@ -1640,7 +1640,7 @@
                 ],
                 "summary": "Download Logs",
                 "description": "Download all flow run logs as a CSV file, collecting all logs until there are no more logs to retrieve.",
-                "operationId": "download_logs_flow_runs__id__logs_download_get",
+                "operationId": "download_logs",
                 "parameters": [
                     {
                         "name": "id",
@@ -1693,7 +1693,7 @@
                 ],
                 "summary": "Update Flow Run Labels",
                 "description": "Update the labels of a flow run.",
-                "operationId": "update_flow_run_labels_flow_runs__id__labels_patch",
+                "operationId": "update_flow_run_labels",
                 "parameters": [
                     {
                         "name": "id",
@@ -1754,7 +1754,7 @@
                 ],
                 "summary": "Create Task Run",
                 "description": "Create a task run. If a task run with the same flow_run_id,\ntask_key, and dynamic_key already exists, the existing task\nrun will be returned.\n\nIf no state is provided, the task run will be created in a PENDING state.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tasks.",
-                "operationId": "create_task_run_task_runs__post",
+                "operationId": "create_task_run",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1807,7 +1807,7 @@
                 ],
                 "summary": "Update Task Run",
                 "description": "Updates a task run.",
-                "operationId": "update_task_run_task_runs__id__patch",
+                "operationId": "update_task_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -1863,7 +1863,7 @@
                 ],
                 "summary": "Read Task Run",
                 "description": "Get a task run by id.",
-                "operationId": "read_task_run_task_runs__id__get",
+                "operationId": "read_task_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -1916,7 +1916,7 @@
                 ],
                 "summary": "Delete Task Run",
                 "description": "Delete a task run by id.",
-                "operationId": "delete_task_run_task_runs__id__delete",
+                "operationId": "delete_task_run",
                 "parameters": [
                     {
                         "name": "id",
@@ -1964,7 +1964,7 @@
                 ],
                 "summary": "Count Task Runs",
                 "description": "Count task runs.",
-                "operationId": "count_task_runs_task_runs_count_post",
+                "operationId": "count_task_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -1980,7 +1980,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_task_runs_task_runs_count_post"
+                                "$ref": "#/components/schemas/Body_count_task_runs"
                             }
                         }
                     }
@@ -1992,7 +1992,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Task Runs Task Runs Count Post"
+                                    "title": "Response Count Task Runs"
                                 }
                             }
                         }
@@ -2017,7 +2017,7 @@
                 ],
                 "summary": "Task Run History",
                 "description": "Query for task run history data across a given range and interval.",
-                "operationId": "task_run_history_task_runs_history_post",
+                "operationId": "task_run_history",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2034,7 +2034,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_task_run_history_task_runs_history_post"
+                                "$ref": "#/components/schemas/Body_task_run_history"
                             }
                         }
                     }
@@ -2049,7 +2049,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/HistoryResponse"
                                     },
-                                    "title": "Response Task Run History Task Runs History Post"
+                                    "title": "Response Task Run History"
                                 }
                             }
                         }
@@ -2074,7 +2074,7 @@
                 ],
                 "summary": "Read Task Runs",
                 "description": "Query for task runs.",
-                "operationId": "read_task_runs_task_runs_filter_post",
+                "operationId": "read_task_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2090,7 +2090,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_runs_task_runs_filter_post"
+                                "$ref": "#/components/schemas/Body_read_task_runs"
                             }
                         }
                     }
@@ -2105,7 +2105,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/TaskRun"
                                     },
-                                    "title": "Response Read Task Runs Task Runs Filter Post"
+                                    "title": "Response Read Task Runs"
                                 }
                             }
                         }
@@ -2130,7 +2130,7 @@
                 ],
                 "summary": "Paginate Task Runs",
                 "description": "Pagination query for task runs.",
-                "operationId": "paginate_task_runs_task_runs_paginate_post",
+                "operationId": "paginate_task_runs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2146,7 +2146,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_task_runs_task_runs_paginate_post"
+                                "$ref": "#/components/schemas/Body_paginate_task_runs"
                             }
                         }
                     }
@@ -2182,7 +2182,7 @@
                 ],
                 "summary": "Set Task Run State",
                 "description": "Set a task run state, invoking any orchestration rules.",
-                "operationId": "set_task_run_state_task_runs__id__set_state_post",
+                "operationId": "set_task_run_state",
                 "parameters": [
                     {
                         "name": "id",
@@ -2211,7 +2211,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_set_task_run_state_task_runs__id__set_state_post"
+                                "$ref": "#/components/schemas/Body_set_task_run_state"
                             }
                         }
                     }
@@ -2247,7 +2247,7 @@
                 ],
                 "summary": "Read Flow Run State",
                 "description": "Get a flow run state by id.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/flows#final-state-determination.",
-                "operationId": "read_flow_run_state_flow_run_states__id__get",
+                "operationId": "read_flow_run_state",
                 "parameters": [
                     {
                         "name": "id",
@@ -2302,7 +2302,7 @@
                 ],
                 "summary": "Read Flow Run States",
                 "description": "Get states associated with a flow run.",
-                "operationId": "read_flow_run_states_flow_run_states__get",
+                "operationId": "read_flow_run_states",
                 "parameters": [
                     {
                         "name": "flow_run_id",
@@ -2334,7 +2334,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/State"
                                     },
-                                    "title": "Response Read Flow Run States Flow Run States  Get"
+                                    "title": "Response Read Flow Run States"
                                 }
                             }
                         }
@@ -2359,7 +2359,7 @@
                 ],
                 "summary": "Read Task Run State",
                 "description": "Get a task run state by id.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tasks.",
-                "operationId": "read_task_run_state_task_run_states__id__get",
+                "operationId": "read_task_run_state",
                 "parameters": [
                     {
                         "name": "id",
@@ -2414,7 +2414,7 @@
                 ],
                 "summary": "Read Task Run States",
                 "description": "Get states associated with a task run.",
-                "operationId": "read_task_run_states_task_run_states__get",
+                "operationId": "read_task_run_states",
                 "parameters": [
                     {
                         "name": "task_run_id",
@@ -2446,7 +2446,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/State"
                                     },
-                                    "title": "Response Read Task Run States Task Run States  Get"
+                                    "title": "Response Read Task Run States"
                                 }
                             }
                         }
@@ -2471,7 +2471,7 @@
                 ],
                 "summary": "Read Observed States",
                 "description": "Discover exact state names and types from retained run transitions.\n\nSearch by case-insensitive name or type prefix. Timestamps describe retained\nhistory; deleting runs can change them or remove a state from the results.",
-                "operationId": "read_observed_states_observed_states_get",
+                "operationId": "read_observed_states",
                 "parameters": [
                     {
                         "name": "query",
@@ -2531,7 +2531,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/ObservedState"
                                     },
-                                    "title": "Response Read Observed States Observed States Get"
+                                    "title": "Response Read Observed States"
                                 }
                             }
                         }
@@ -2556,7 +2556,7 @@
                 ],
                 "summary": "Create Deployment",
                 "description": "Creates a new deployment from the provided schema. If a deployment with\nthe same name and flow_id already exists, the deployment is updated.\n\nIf the deployment has an active schedule, flow runs will be scheduled.\nWhen upserting, any scheduled runs from the existing deployment will be deleted.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/deployments.",
-                "operationId": "create_deployment_deployments__post",
+                "operationId": "create_deployment",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2608,7 +2608,7 @@
                     "Deployments"
                 ],
                 "summary": "Update Deployment",
-                "operationId": "update_deployment_deployments__id__patch",
+                "operationId": "update_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -2646,6 +2646,15 @@
                     "204": {
                         "description": "Successful Response"
                     },
+                    "400": {
+                        "description": "The deployment parameters could not be hydrated."
+                    },
+                    "404": {
+                        "description": "The deployment or concurrency limit was not found."
+                    },
+                    "409": {
+                        "description": "The job variables are not valid for the work pool, or parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema."
+                    },
                     "422": {
                         "description": "Validation Error",
                         "content": {
@@ -2664,7 +2673,7 @@
                 ],
                 "summary": "Read Deployment",
                 "description": "Get a deployment by id.",
-                "operationId": "read_deployment_deployments__id__get",
+                "operationId": "read_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -2717,7 +2726,7 @@
                 ],
                 "summary": "Delete Deployment",
                 "description": "Delete a deployment by id.",
-                "operationId": "delete_deployment_deployments__id__delete",
+                "operationId": "delete_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -2765,7 +2774,7 @@
                 ],
                 "summary": "Read Deployment By Name",
                 "description": "Get a deployment using the name of the flow and the deployment.",
-                "operationId": "read_deployment_by_name_deployments_name__flow_name___deployment_name__get",
+                "operationId": "read_deployment_by_name",
                 "parameters": [
                     {
                         "name": "flow_name",
@@ -2830,7 +2839,7 @@
                 ],
                 "summary": "Read Deployments",
                 "description": "Query for deployments.",
-                "operationId": "read_deployments_deployments_filter_post",
+                "operationId": "read_deployments",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2846,7 +2855,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_deployments_deployments_filter_post"
+                                "$ref": "#/components/schemas/Body_read_deployments"
                             }
                         }
                     }
@@ -2861,7 +2870,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/DeploymentResponse"
                                     },
-                                    "title": "Response Read Deployments Deployments Filter Post"
+                                    "title": "Response Read Deployments"
                                 }
                             }
                         }
@@ -2886,7 +2895,7 @@
                 ],
                 "summary": "Paginate Deployments",
                 "description": "Pagination query for flow runs.",
-                "operationId": "paginate_deployments_deployments_paginate_post",
+                "operationId": "paginate_deployments",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2902,7 +2911,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_paginate_deployments_deployments_paginate_post"
+                                "$ref": "#/components/schemas/Body_paginate_deployments"
                             }
                         }
                     }
@@ -2938,7 +2947,7 @@
                 ],
                 "summary": "Get Scheduled Flow Runs For Deployments",
                 "description": "Get scheduled runs for a set of deployments. Used by a runner to poll for work.",
-                "operationId": "get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post",
+                "operationId": "get_scheduled_flow_runs_for_deployments",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -2955,7 +2964,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post"
+                                "$ref": "#/components/schemas/Body_get_scheduled_flow_runs_for_deployments"
                             }
                         }
                     }
@@ -2970,7 +2979,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/FlowRunResponse"
                                     },
-                                    "title": "Response Get Scheduled Flow Runs For Deployments Deployments Get Scheduled Flow Runs Post"
+                                    "title": "Response Get Scheduled Flow Runs For Deployments"
                                 }
                             }
                         }
@@ -2995,7 +3004,7 @@
                 ],
                 "summary": "Count Deployments",
                 "description": "Count deployments.",
-                "operationId": "count_deployments_deployments_count_post",
+                "operationId": "count_deployments",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -3011,7 +3020,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_deployments_deployments_count_post"
+                                "$ref": "#/components/schemas/Body_count_deployments"
                             }
                         }
                     }
@@ -3023,7 +3032,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Deployments Deployments Count Post"
+                                    "title": "Response Count Deployments"
                                 }
                             }
                         }
@@ -3048,7 +3057,7 @@
                 ],
                 "summary": "Bulk Delete Deployments",
                 "description": "Bulk delete deployments matching the specified filter criteria.\n\nReturns the IDs of deployments that were deleted.",
-                "operationId": "bulk_delete_deployments_deployments_bulk_delete_post",
+                "operationId": "bulk_delete_deployments",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -3064,7 +3073,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_delete_deployments_deployments_bulk_delete_post"
+                                "$ref": "#/components/schemas/Body_bulk_delete_deployments"
                             }
                         }
                     }
@@ -3100,7 +3109,7 @@
                 ],
                 "summary": "Schedule Deployment",
                 "description": "Schedule runs for a deployment. For backfills, provide start/end times in the past.\n\nThis function will generate the minimum number of runs that satisfy the min\nand max times, and the min and max counts. Specifically, the following order\nwill be respected.\n\n    - Runs will be generated starting on or after the `start_time`\n    - No more than `max_runs` runs will be generated\n    - No runs will be generated after `end_time` is reached\n    - At least `min_runs` runs will be generated\n    - Runs will be generated until at least `start_time + min_time` is reached",
-                "operationId": "schedule_deployment_deployments__id__schedule_post",
+                "operationId": "schedule_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -3128,7 +3137,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_schedule_deployment_deployments__id__schedule_post"
+                                "$ref": "#/components/schemas/Body_schedule_deployment"
                             }
                         }
                     }
@@ -3162,7 +3171,7 @@
                 ],
                 "summary": "Resume Deployment",
                 "description": "Set a deployment schedule to active. Runs will be scheduled immediately.",
-                "operationId": "resume_deployment_deployments__id__resume_deployment_post",
+                "operationId": "resume_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -3215,7 +3224,7 @@
                 ],
                 "summary": "Pause Deployment",
                 "description": "Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled\nstate will be deleted.",
-                "operationId": "pause_deployment_deployments__id__pause_deployment_post",
+                "operationId": "pause_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -3268,7 +3277,7 @@
                 ],
                 "summary": "Create Flow Run From Deployment",
                 "description": "Create a flow run from a deployment.\n\nAny parameters not provided will be inferred from the deployment's parameters.\nIf tags are not provided, the deployment's tags will be used.\n\nIf no state is provided, the flow run will be created in a SCHEDULED state.",
-                "operationId": "create_flow_run_from_deployment_deployments__id__create_flow_run_post",
+                "operationId": "create_flow_run_from_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -3304,7 +3313,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Successful Response",
+                        "description": "An existing flow run with the same idempotency key was returned.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3312,6 +3321,25 @@
                                 }
                             }
                         }
+                    },
+                    "201": {
+                        "description": "A new flow run was created.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FlowRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "The flow run parameters could not be hydrated, or a work queue was given for a deployment that has no work pool."
+                    },
+                    "404": {
+                        "description": "The deployment was not found."
+                    },
+                    "409": {
+                        "description": "Parameter schema enforcement is enabled and the parameters do not match the deployment's parameter schema, or the deployment does not have a valid parameter schema."
                     },
                     "422": {
                         "description": "Validation Error",
@@ -3333,7 +3361,7 @@
                 ],
                 "summary": "Bulk Create Flow Runs From Deployment",
                 "description": "Create multiple flow runs from a deployment.\n\nAny parameters not provided will be inferred from the deployment's parameters.\nIf tags are not provided, the deployment's tags will be used.\n\nIf no state is provided, the flow runs will be created in a SCHEDULED state.",
-                "operationId": "bulk_create_flow_runs_from_deployment_deployments__id__create_flow_run_bulk_post",
+                "operationId": "bulk_create_flow_runs_from_deployment",
                 "parameters": [
                     {
                         "name": "id",
@@ -3403,7 +3431,7 @@
                 ],
                 "summary": "Work Queue Check For Deployment",
                 "description": "Get list of work-queues that are able to pick up the specified deployment.\n\nThis endpoint is intended to be used by the UI to provide users warnings\nabout deployments that are unable to be executed because there are no work\nqueues that will pick up their runs, based on existing filter criteria. It\nmay be deprecated in the future because there is not a strict relationship\nbetween work queues and deployments.",
-                "operationId": "work_queue_check_for_deployment_deployments__id__work_queue_check_get",
+                "operationId": "work_queue_check_for_deployment",
                 "deprecated": true,
                 "parameters": [
                     {
@@ -3438,7 +3466,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkQueue"
                                     },
-                                    "title": "Response Work Queue Check For Deployment Deployments  Id  Work Queue Check Get"
+                                    "title": "Response Work Queue Check For Deployment"
                                 }
                             }
                         }
@@ -3462,7 +3490,7 @@
                     "Deployments"
                 ],
                 "summary": "Read Deployment Schedules",
-                "operationId": "read_deployment_schedules_deployments__id__schedules_get",
+                "operationId": "read_deployment_schedules",
                 "parameters": [
                     {
                         "name": "id",
@@ -3496,7 +3524,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/DeploymentSchedule"
                                     },
-                                    "title": "Response Read Deployment Schedules Deployments  Id  Schedules Get"
+                                    "title": "Response Read Deployment Schedules"
                                 }
                             }
                         }
@@ -3518,7 +3546,7 @@
                     "Deployments"
                 ],
                 "summary": "Create Deployment Schedules",
-                "operationId": "create_deployment_schedules_deployments__id__schedules_post",
+                "operationId": "create_deployment_schedules",
                 "parameters": [
                     {
                         "name": "id",
@@ -3567,7 +3595,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/DeploymentSchedule"
                                     },
-                                    "title": "Response Create Deployment Schedules Deployments  Id  Schedules Post"
+                                    "title": "Response Create Deployment Schedules"
                                 }
                             }
                         }
@@ -3591,7 +3619,7 @@
                     "Deployments"
                 ],
                 "summary": "Update Deployment Schedule",
-                "operationId": "update_deployment_schedule_deployments__id__schedules__schedule_id__patch",
+                "operationId": "update_deployment_schedule",
                 "parameters": [
                     {
                         "name": "id",
@@ -3659,7 +3687,7 @@
                     "Deployments"
                 ],
                 "summary": "Delete Deployment Schedule",
-                "operationId": "delete_deployment_schedule_deployments__id__schedules__schedule_id__delete",
+                "operationId": "delete_deployment_schedule",
                 "parameters": [
                     {
                         "name": "id",
@@ -3719,7 +3747,7 @@
                 ],
                 "summary": "Create Saved Search",
                 "description": "Creates a new saved search from the provided schema.\n\nIf a saved search with the same name already exists, the saved search's fields are\nreplaced.",
-                "operationId": "create_saved_search_saved_searches__put",
+                "operationId": "create_saved_search",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -3772,7 +3800,7 @@
                 ],
                 "summary": "Read Saved Search",
                 "description": "Get a saved search by id.",
-                "operationId": "read_saved_search_saved_searches__id__get",
+                "operationId": "read_saved_search",
                 "parameters": [
                     {
                         "name": "id",
@@ -3825,7 +3853,7 @@
                 ],
                 "summary": "Delete Saved Search",
                 "description": "Delete a saved search by id.",
-                "operationId": "delete_saved_search_saved_searches__id__delete",
+                "operationId": "delete_saved_search",
                 "parameters": [
                     {
                         "name": "id",
@@ -3873,7 +3901,7 @@
                 ],
                 "summary": "Read Saved Searches",
                 "description": "Query for saved searches.",
-                "operationId": "read_saved_searches_saved_searches_filter_post",
+                "operationId": "read_saved_searches",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -3889,7 +3917,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_saved_searches_saved_searches_filter_post"
+                                "$ref": "#/components/schemas/Body_read_saved_searches"
                             }
                         }
                     }
@@ -3904,7 +3932,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/SavedSearch"
                                     },
-                                    "title": "Response Read Saved Searches Saved Searches Filter Post"
+                                    "title": "Response Read Saved Searches"
                                 }
                             }
                         }
@@ -3929,7 +3957,7 @@
                 ],
                 "summary": "Create Logs",
                 "description": "Create new logs from the provided schema.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/add-logging.",
-                "operationId": "create_logs_logs__post",
+                "operationId": "create_logs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -3984,7 +4012,7 @@
                 ],
                 "summary": "Read Logs",
                 "description": "Query for logs.",
-                "operationId": "read_logs_logs_filter_post",
+                "operationId": "read_logs",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4000,7 +4028,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_logs_logs_filter_post"
+                                "$ref": "#/components/schemas/Body_read_logs"
                             }
                         }
                     }
@@ -4015,7 +4043,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Log"
                                     },
-                                    "title": "Response Read Logs Logs Filter Post"
+                                    "title": "Response Read Logs"
                                 }
                             }
                         }
@@ -4040,7 +4068,7 @@
                 ],
                 "summary": "Create Concurrency Limit",
                 "description": "Create a task run concurrency limit.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/tag-based-concurrency-limits.",
-                "operationId": "create_concurrency_limit_concurrency_limits__post",
+                "operationId": "create_concurrency_limit",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4093,7 +4121,7 @@
                 ],
                 "summary": "Read Concurrency Limit",
                 "description": "Get a concurrency limit by id.\n\nThe `active slots` field contains a list of TaskRun IDs currently using a\nconcurrency slot for the specified tag.",
-                "operationId": "read_concurrency_limit_concurrency_limits__id__get",
+                "operationId": "read_concurrency_limit",
                 "parameters": [
                     {
                         "name": "id",
@@ -4145,7 +4173,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Delete Concurrency Limit",
-                "operationId": "delete_concurrency_limit_concurrency_limits__id__delete",
+                "operationId": "delete_concurrency_limit",
                 "parameters": [
                     {
                         "name": "id",
@@ -4198,7 +4226,7 @@
                 ],
                 "summary": "Read Concurrency Limit By Tag",
                 "description": "Get a concurrency limit by tag.\n\nThe `active slots` field contains a list of TaskRun IDs currently using a\nconcurrency slot for the specified tag.",
-                "operationId": "read_concurrency_limit_by_tag_concurrency_limits_tag__tag__get",
+                "operationId": "read_concurrency_limit_by_tag",
                 "parameters": [
                     {
                         "name": "tag",
@@ -4249,7 +4277,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Delete Concurrency Limit By Tag",
-                "operationId": "delete_concurrency_limit_by_tag_concurrency_limits_tag__tag__delete",
+                "operationId": "delete_concurrency_limit_by_tag",
                 "parameters": [
                     {
                         "name": "tag",
@@ -4301,7 +4329,7 @@
                 ],
                 "summary": "Read Concurrency Limits",
                 "description": "Query for concurrency limits.\n\nFor each concurrency limit the `active slots` field contains a list of TaskRun IDs\ncurrently using a concurrency slot for the specified tag.",
-                "operationId": "read_concurrency_limits_concurrency_limits_filter_post",
+                "operationId": "read_concurrency_limits",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4317,7 +4345,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_concurrency_limits_concurrency_limits_filter_post"
+                                "$ref": "#/components/schemas/Body_read_concurrency_limits"
                             }
                         }
                     }
@@ -4332,7 +4360,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/ConcurrencyLimit"
                                     },
-                                    "title": "Response Read Concurrency Limits Concurrency Limits Filter Post"
+                                    "title": "Response Read Concurrency Limits"
                                 }
                             }
                         }
@@ -4356,7 +4384,7 @@
                     "Concurrency Limits"
                 ],
                 "summary": "Reset Concurrency Limit By Tag",
-                "operationId": "reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post",
+                "operationId": "reset_concurrency_limit_by_tag",
                 "parameters": [
                     {
                         "name": "tag",
@@ -4383,7 +4411,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"
+                                "$ref": "#/components/schemas/Body_reset_concurrency_limit_by_tag"
                             }
                         }
                     }
@@ -4417,7 +4445,7 @@
                 ],
                 "summary": "Increment Concurrency Limits V1",
                 "description": "Increment concurrency limits for the given tags.\n\nDuring migration, this handles both V1 and V2 limits to support mixed states.\nPost-migration, it only uses V2 with lease-based concurrency.",
-                "operationId": "increment_concurrency_limits_v1_concurrency_limits_increment_post",
+                "operationId": "increment_concurrency_limits_v1",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4434,7 +4462,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_increment_concurrency_limits_v1_concurrency_limits_increment_post"
+                                "$ref": "#/components/schemas/Body_increment_concurrency_limits_v1"
                             }
                         }
                     }
@@ -4449,7 +4477,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
                                     },
-                                    "title": "Response Increment Concurrency Limits V1 Concurrency Limits Increment Post"
+                                    "title": "Response Increment Concurrency Limits V1"
                                 }
                             }
                         }
@@ -4474,7 +4502,7 @@
                 ],
                 "summary": "Decrement Concurrency Limits V1",
                 "description": "Decrement concurrency limits for the given tags.\n\nFinds and revokes the lease for V2 limits or decrements V1 active slots.\nReturns the list of limits that were decremented.",
-                "operationId": "decrement_concurrency_limits_v1_concurrency_limits_decrement_post",
+                "operationId": "decrement_concurrency_limits_v1",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4491,7 +4519,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
+                                "$ref": "#/components/schemas/Body_decrement_concurrency_limits_v1"
                             }
                         }
                     }
@@ -4506,7 +4534,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
                                     },
-                                    "title": "Response Decrement Concurrency Limits V1 Concurrency Limits Decrement Post"
+                                    "title": "Response Decrement Concurrency Limits V1"
                                 }
                             }
                         }
@@ -4531,7 +4559,7 @@
                 ],
                 "summary": "Create Concurrency Limit V2",
                 "description": "Create a task run concurrency limit.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/global-concurrency-limits.",
-                "operationId": "create_concurrency_limit_v2_v2_concurrency_limits__post",
+                "operationId": "create_concurrency_limit_v2",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4583,7 +4611,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Read Concurrency Limit V2",
-                "operationId": "read_concurrency_limit_v2_v2_concurrency_limits__id_or_name__get",
+                "operationId": "read_concurrency_limit_v2",
                 "parameters": [
                     {
                         "name": "id_or_name",
@@ -4642,7 +4670,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Update Concurrency Limit V2",
-                "operationId": "update_concurrency_limit_v2_v2_concurrency_limits__id_or_name__patch",
+                "operationId": "update_concurrency_limit_v2",
                 "parameters": [
                     {
                         "name": "id_or_name",
@@ -4704,7 +4732,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Delete Concurrency Limit V2",
-                "operationId": "delete_concurrency_limit_v2_v2_concurrency_limits__id_or_name__delete",
+                "operationId": "delete_concurrency_limit_v2",
                 "parameters": [
                     {
                         "name": "id_or_name",
@@ -4758,7 +4786,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Read All Concurrency Limits V2",
-                "operationId": "read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post",
+                "operationId": "read_all_concurrency_limits_v2",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4774,7 +4802,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"
+                                "$ref": "#/components/schemas/Body_read_all_concurrency_limits_v2"
                             }
                         }
                     }
@@ -4789,7 +4817,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/GlobalConcurrencyLimitResponse"
                                     },
-                                    "title": "Response Read All Concurrency Limits V2 V2 Concurrency Limits Filter Post"
+                                    "title": "Response Read All Concurrency Limits V2"
                                 }
                             }
                         }
@@ -4813,7 +4841,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Bulk Increment Active Slots",
-                "operationId": "bulk_increment_active_slots_v2_concurrency_limits_increment_post",
+                "operationId": "bulk_increment_active_slots",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4830,7 +4858,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post"
+                                "$ref": "#/components/schemas/Body_bulk_increment_active_slots"
                             }
                         }
                     }
@@ -4845,7 +4873,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
                                     },
-                                    "title": "Response Bulk Increment Active Slots V2 Concurrency Limits Increment Post"
+                                    "title": "Response Bulk Increment Active Slots"
                                 }
                             }
                         }
@@ -4869,7 +4897,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Bulk Increment Active Slots With Lease",
-                "operationId": "bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post",
+                "operationId": "bulk_increment_active_slots_with_lease",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4886,7 +4914,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
+                                "$ref": "#/components/schemas/Body_bulk_increment_active_slots_with_lease"
                             }
                         }
                     }
@@ -4921,7 +4949,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Bulk Decrement Active Slots",
-                "operationId": "bulk_decrement_active_slots_v2_concurrency_limits_decrement_post",
+                "operationId": "bulk_decrement_active_slots",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4938,7 +4966,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"
+                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots"
                             }
                         }
                     }
@@ -4953,7 +4981,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/MinimalConcurrencyLimitResponse"
                                     },
-                                    "title": "Response Bulk Decrement Active Slots V2 Concurrency Limits Decrement Post"
+                                    "title": "Response Bulk Decrement Active Slots"
                                 }
                             }
                         }
@@ -4977,7 +5005,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Bulk Decrement Active Slots With Lease",
-                "operationId": "bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post",
+                "operationId": "bulk_decrement_active_slots_with_lease",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -4994,7 +5022,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
+                                "$ref": "#/components/schemas/Body_bulk_decrement_active_slots_with_lease"
                             }
                         }
                     }
@@ -5022,7 +5050,7 @@
                     "Concurrency Limits V2"
                 ],
                 "summary": "Renew Concurrency Lease",
-                "operationId": "renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post",
+                "operationId": "renew_concurrency_lease",
                 "parameters": [
                     {
                         "name": "lease_id",
@@ -5050,7 +5078,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"
+                                "$ref": "#/components/schemas/Body_renew_concurrency_lease"
                             }
                         }
                     }
@@ -5079,7 +5107,7 @@
                 ],
                 "summary": "Create Block Type",
                 "description": "Create a new block type.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
-                "operationId": "create_block_type_block_types__post",
+                "operationId": "create_block_type",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5132,7 +5160,7 @@
                 ],
                 "summary": "Read Block Type By Id",
                 "description": "Get a block type by ID.",
-                "operationId": "read_block_type_by_id_block_types__id__get",
+                "operationId": "read_block_type_by_id",
                 "parameters": [
                     {
                         "name": "id",
@@ -5185,7 +5213,7 @@
                 ],
                 "summary": "Update Block Type",
                 "description": "Update a block type.",
-                "operationId": "update_block_type_block_types__id__patch",
+                "operationId": "update_block_type",
                 "parameters": [
                     {
                         "name": "id",
@@ -5240,7 +5268,7 @@
                     "Block types"
                 ],
                 "summary": "Delete Block Type",
-                "operationId": "delete_block_type_block_types__id__delete",
+                "operationId": "delete_block_type",
                 "parameters": [
                     {
                         "name": "id",
@@ -5288,7 +5316,7 @@
                 ],
                 "summary": "Read Block Type By Slug",
                 "description": "Get a block type by name.",
-                "operationId": "read_block_type_by_slug_block_types_slug__slug__get",
+                "operationId": "read_block_type_by_slug",
                 "parameters": [
                     {
                         "name": "slug",
@@ -5342,7 +5370,7 @@
                 ],
                 "summary": "Read Block Types",
                 "description": "Gets all block types. Optionally limit return with limit and offset.",
-                "operationId": "read_block_types_block_types_filter_post",
+                "operationId": "read_block_types",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5358,7 +5386,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_types_block_types_filter_post"
+                                "$ref": "#/components/schemas/Body_read_block_types"
                             }
                         }
                     }
@@ -5373,7 +5401,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/BlockType"
                                     },
-                                    "title": "Response Read Block Types Block Types Filter Post"
+                                    "title": "Response Read Block Types"
                                 }
                             }
                         }
@@ -5399,7 +5427,7 @@
                     "Block documents"
                 ],
                 "summary": "Read Block Documents For Block Type",
-                "operationId": "read_block_documents_for_block_type_block_types_slug__slug__block_documents_get",
+                "operationId": "read_block_documents_for_block_type",
                 "parameters": [
                     {
                         "name": "slug",
@@ -5444,7 +5472,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/BlockDocument"
                                     },
-                                    "title": "Response Read Block Documents For Block Type Block Types Slug  Slug  Block Documents Get"
+                                    "title": "Response Read Block Documents For Block Type"
                                 }
                             }
                         }
@@ -5470,7 +5498,7 @@
                     "Block documents"
                 ],
                 "summary": "Read Block Document By Name For Block Type",
-                "operationId": "read_block_document_by_name_for_block_type_block_types_slug__slug__block_documents_name__block_document_name__get",
+                "operationId": "read_block_document_by_name_for_block_type",
                 "parameters": [
                     {
                         "name": "slug",
@@ -5546,7 +5574,7 @@
                     "Block types"
                 ],
                 "summary": "Install System Block Types",
-                "operationId": "install_system_block_types_block_types_install_system_block_types_post",
+                "operationId": "install_system_block_types",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5587,7 +5615,7 @@
                 ],
                 "summary": "Create Block Document",
                 "description": "Create a new block document.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
-                "operationId": "create_block_document_block_documents__post",
+                "operationId": "create_block_document",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5640,7 +5668,7 @@
                 ],
                 "summary": "Read Block Documents",
                 "description": "Query for block documents.",
-                "operationId": "read_block_documents_block_documents_filter_post",
+                "operationId": "read_block_documents",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5656,7 +5684,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_documents_block_documents_filter_post"
+                                "$ref": "#/components/schemas/Body_read_block_documents"
                             }
                         }
                     }
@@ -5671,7 +5699,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/BlockDocument"
                                     },
-                                    "title": "Response Read Block Documents Block Documents Filter Post"
+                                    "title": "Response Read Block Documents"
                                 }
                             }
                         }
@@ -5696,7 +5724,7 @@
                 ],
                 "summary": "Count Block Documents",
                 "description": "Count block documents.",
-                "operationId": "count_block_documents_block_documents_count_post",
+                "operationId": "count_block_documents",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5712,7 +5740,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_block_documents_block_documents_count_post"
+                                "$ref": "#/components/schemas/Body_count_block_documents"
                             }
                         }
                     }
@@ -5724,7 +5752,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Block Documents Block Documents Count Post"
+                                    "title": "Response Count Block Documents"
                                 }
                             }
                         }
@@ -5748,7 +5776,7 @@
                     "Block documents"
                 ],
                 "summary": "Read Block Document By Id",
-                "operationId": "read_block_document_by_id_block_documents__id__get",
+                "operationId": "read_block_document_by_id",
                 "parameters": [
                     {
                         "name": "id",
@@ -5812,7 +5840,7 @@
                     "Block documents"
                 ],
                 "summary": "Delete Block Document",
-                "operationId": "delete_block_document_block_documents__id__delete",
+                "operationId": "delete_block_document",
                 "parameters": [
                     {
                         "name": "id",
@@ -5857,7 +5885,7 @@
                     "Block documents"
                 ],
                 "summary": "Update Block Document Data",
-                "operationId": "update_block_document_data_block_documents__id__patch",
+                "operationId": "update_block_document_data",
                 "parameters": [
                     {
                         "name": "id",
@@ -5915,7 +5943,7 @@
                 ],
                 "summary": "Create Work Pool",
                 "description": "Creates a new work pool. If a work pool with the same\nname already exists, an error will be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools.",
-                "operationId": "create_work_pool_work_pools__post",
+                "operationId": "create_work_pool",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -5968,7 +5996,7 @@
                 ],
                 "summary": "Read Work Pool",
                 "description": "Read a work pool by name",
-                "operationId": "read_work_pool_work_pools__name__get",
+                "operationId": "read_work_pool",
                 "parameters": [
                     {
                         "name": "name",
@@ -6020,7 +6048,7 @@
                 ],
                 "summary": "Update Work Pool",
                 "description": "Update a work pool",
-                "operationId": "update_work_pool_work_pools__name__patch",
+                "operationId": "update_work_pool",
                 "parameters": [
                     {
                         "name": "name",
@@ -6075,7 +6103,7 @@
                 ],
                 "summary": "Delete Work Pool",
                 "description": "Delete a work pool",
-                "operationId": "delete_work_pool_work_pools__name__delete",
+                "operationId": "delete_work_pool",
                 "parameters": [
                     {
                         "name": "name",
@@ -6122,7 +6150,7 @@
                 ],
                 "summary": "Read Work Pools",
                 "description": "Read multiple work pools",
-                "operationId": "read_work_pools_work_pools_filter_post",
+                "operationId": "read_work_pools",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -6138,7 +6166,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_pools_work_pools_filter_post"
+                                "$ref": "#/components/schemas/Body_read_work_pools"
                             }
                         }
                     }
@@ -6153,7 +6181,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkPoolResponse"
                                     },
-                                    "title": "Response Read Work Pools Work Pools Filter Post"
+                                    "title": "Response Read Work Pools"
                                 }
                             }
                         }
@@ -6178,7 +6206,7 @@
                 ],
                 "summary": "Count Work Pools",
                 "description": "Count work pools",
-                "operationId": "count_work_pools_work_pools_count_post",
+                "operationId": "count_work_pools",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -6194,7 +6222,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_work_pools_work_pools_count_post"
+                                "$ref": "#/components/schemas/Body_count_work_pools"
                             }
                         }
                     }
@@ -6206,7 +6234,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Work Pools Work Pools Count Post"
+                                    "title": "Response Count Work Pools"
                                 }
                             }
                         }
@@ -6231,7 +6259,7 @@
                 ],
                 "summary": "Read Work Pool Concurrency Status",
                 "description": "Read concurrency status for a work pool, including per-queue breakdown\nwith flow run summaries. Queues are paginated; flow runs per queue are\ncapped by flow_run_limit.",
-                "operationId": "read_work_pool_concurrency_status_work_pools__name__concurrency_status_post",
+                "operationId": "read_work_pool_concurrency_status",
                 "parameters": [
                     {
                         "name": "name",
@@ -6258,7 +6286,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+                                "$ref": "#/components/schemas/Body_read_work_pool_concurrency_status"
                             }
                         }
                     }
@@ -6294,7 +6322,7 @@
                 ],
                 "summary": "Get Scheduled Flow Runs",
                 "description": "Load scheduled runs for a worker",
-                "operationId": "get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post",
+                "operationId": "get_scheduled_flow_runs",
                 "parameters": [
                     {
                         "name": "name",
@@ -6321,7 +6349,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"
+                                "$ref": "#/components/schemas/Body_get_scheduled_flow_runs"
                             }
                         }
                     }
@@ -6336,7 +6364,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkerFlowRunResponse"
                                     },
-                                    "title": "Response Get Scheduled Flow Runs Work Pools  Name  Get Scheduled Flow Runs Post"
+                                    "title": "Response Get Scheduled Flow Runs"
                                 }
                             }
                         }
@@ -6361,7 +6389,7 @@
                 ],
                 "summary": "Create Work Queue",
                 "description": "Creates a new work pool queue. If a work pool queue with the same\nname already exists, an error will be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.",
-                "operationId": "create_work_queue_work_pools__work_pool_name__queues_post",
+                "operationId": "create_work_pool_queue",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6425,7 +6453,7 @@
                 ],
                 "summary": "Read Work Queue",
                 "description": "Read a work pool queue",
-                "operationId": "read_work_queue_work_pools__work_pool_name__queues__name__get",
+                "operationId": "read_work_pool_queue",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6488,7 +6516,7 @@
                 ],
                 "summary": "Update Work Queue",
                 "description": "Update a work pool queue",
-                "operationId": "update_work_queue_work_pools__work_pool_name__queues__name__patch",
+                "operationId": "update_work_pool_queue",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6554,7 +6582,7 @@
                 ],
                 "summary": "Delete Work Queue",
                 "description": "Delete a work pool queue",
-                "operationId": "delete_work_queue_work_pools__work_pool_name__queues__name__delete",
+                "operationId": "delete_work_pool_queue",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6612,7 +6640,7 @@
                 ],
                 "summary": "Read Work Queues",
                 "description": "Read all work pool queues",
-                "operationId": "read_work_queues_work_pools__work_pool_name__queues_filter_post",
+                "operationId": "read_work_pool_queues",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6639,7 +6667,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queues_work_pools__work_pool_name__queues_filter_post"
+                                "$ref": "#/components/schemas/Body_read_work_pool_queues"
                             }
                         }
                     }
@@ -6654,7 +6682,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkQueueResponse"
                                     },
-                                    "title": "Response Read Work Queues Work Pools  Work Pool Name  Queues Filter Post"
+                                    "title": "Response Read Work Pool Queues"
                                 }
                             }
                         }
@@ -6678,7 +6706,8 @@
                     "Work Pools"
                 ],
                 "summary": "Worker Heartbeat",
-                "operationId": "worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post",
+                "description": "Record a heartbeat and optionally return the worker's ID.",
+                "operationId": "worker_heartbeat",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6706,7 +6735,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post"
+                                "$ref": "#/components/schemas/Body_worker_heartbeat"
                             }
                         }
                     }
@@ -6714,6 +6743,17 @@
                 "responses": {
                     "204": {
                         "description": "Successful Response"
+                    },
+                    "200": {
+                        "description": "The worker ID when requested.",
+                        "content": {
+                            "text/plain": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                }
+                            }
+                        }
                     },
                     "422": {
                         "description": "Validation Error",
@@ -6735,7 +6775,7 @@
                 ],
                 "summary": "Read Workers",
                 "description": "Read all worker processes",
-                "operationId": "read_workers_work_pools__work_pool_name__workers_filter_post",
+                "operationId": "read_workers",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6762,7 +6802,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_workers_work_pools__work_pool_name__workers_filter_post"
+                                "$ref": "#/components/schemas/Body_read_workers"
                             }
                         }
                     }
@@ -6777,7 +6817,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkerResponse"
                                     },
-                                    "title": "Response Read Workers Work Pools  Work Pool Name  Workers Filter Post"
+                                    "title": "Response Read Workers"
                                 }
                             }
                         }
@@ -6802,7 +6842,7 @@
                 ],
                 "summary": "Delete Worker",
                 "description": "Delete a work pool's worker",
-                "operationId": "delete_worker_work_pools__work_pool_name__workers__name__delete",
+                "operationId": "delete_worker",
                 "parameters": [
                     {
                         "name": "work_pool_name",
@@ -6860,7 +6900,7 @@
                 ],
                 "summary": "Read Task Workers",
                 "description": "Read active task workers. Optionally filter by task keys.\n\nFor more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows/run-background-tasks.",
-                "operationId": "read_task_workers_task_workers_filter_post",
+                "operationId": "read_task_workers",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -6876,7 +6916,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_task_workers_task_workers_filter_post"
+                                "$ref": "#/components/schemas/Body_read_task_workers"
                             }
                         }
                     }
@@ -6891,7 +6931,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/TaskWorkerResponse"
                                     },
-                                    "title": "Response Read Task Workers Task Workers Filter Post"
+                                    "title": "Response Read Task Workers"
                                 }
                             }
                         }
@@ -6916,7 +6956,7 @@
                 ],
                 "summary": "Create Work Queue",
                 "description": "Creates a new work queue.\n\nIf a work queue with the same name already exists, an error\nwill be raised.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.",
-                "operationId": "create_work_queue_work_queues__post",
+                "operationId": "create_work_queue",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -6969,7 +7009,7 @@
                 ],
                 "summary": "Update Work Queue",
                 "description": "Updates an existing work queue.",
-                "operationId": "update_work_queue_work_queues__id__patch",
+                "operationId": "update_work_queue",
                 "parameters": [
                     {
                         "name": "id",
@@ -7025,7 +7065,7 @@
                 ],
                 "summary": "Read Work Queue",
                 "description": "Get a work queue by id.",
-                "operationId": "read_work_queue_work_queues__id__get",
+                "operationId": "read_work_queue",
                 "parameters": [
                     {
                         "name": "id",
@@ -7078,7 +7118,7 @@
                 ],
                 "summary": "Delete Work Queue",
                 "description": "Delete a work queue by id.",
-                "operationId": "delete_work_queue_work_queues__id__delete",
+                "operationId": "delete_work_queue",
                 "parameters": [
                     {
                         "name": "id",
@@ -7126,7 +7166,7 @@
                 ],
                 "summary": "Read Work Queue By Name",
                 "description": "Get a work queue by id.",
-                "operationId": "read_work_queue_by_name_work_queues_name__name__get",
+                "operationId": "read_work_queue_by_name",
                 "parameters": [
                     {
                         "name": "name",
@@ -7180,7 +7220,7 @@
                 ],
                 "summary": "Read Work Queue Runs",
                 "description": "Get flow runs from the work queue.",
-                "operationId": "read_work_queue_runs_work_queues__id__get_runs_post",
+                "operationId": "read_work_queue_runs",
                 "parameters": [
                     {
                         "name": "id",
@@ -7227,7 +7267,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queue_runs_work_queues__id__get_runs_post"
+                                "$ref": "#/components/schemas/Body_read_work_queue_runs"
                             }
                         }
                     }
@@ -7242,7 +7282,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/FlowRunResponse"
                                     },
-                                    "title": "Response Read Work Queue Runs Work Queues  Id  Get Runs Post"
+                                    "title": "Response Read Work Queue Runs"
                                 }
                             }
                         }
@@ -7267,7 +7307,7 @@
                 ],
                 "summary": "Read Work Queues",
                 "description": "Query for work queues.",
-                "operationId": "read_work_queues_work_queues_filter_post",
+                "operationId": "read_work_queues",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7283,7 +7323,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queues_work_queues_filter_post"
+                                "$ref": "#/components/schemas/Body_read_work_queues"
                             }
                         }
                     }
@@ -7298,7 +7338,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/WorkQueueResponse"
                                     },
-                                    "title": "Response Read Work Queues Work Queues Filter Post"
+                                    "title": "Response Read Work Queues"
                                 }
                             }
                         }
@@ -7323,7 +7363,7 @@
                 ],
                 "summary": "Read Work Queue Concurrency Status",
                 "description": "Read concurrency status for a work queue, including paginated flow run\nsummaries. active_slots always reflects the total count.",
-                "operationId": "read_work_queue_concurrency_status_work_queues__id__concurrency_status_post",
+                "operationId": "read_work_queue_concurrency_status",
                 "parameters": [
                     {
                         "name": "id",
@@ -7351,7 +7391,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
+                                "$ref": "#/components/schemas/Body_read_work_queue_concurrency_status"
                             }
                         }
                     }
@@ -7387,7 +7427,7 @@
                 ],
                 "summary": "Read Work Queue Status",
                 "description": "Get the status of a work queue.",
-                "operationId": "read_work_queue_status_work_queues__id__status_get",
+                "operationId": "read_work_queue_status",
                 "parameters": [
                     {
                         "name": "id",
@@ -7442,7 +7482,7 @@
                 ],
                 "summary": "Create Artifact",
                 "description": "Create an artifact.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/artifacts.",
-                "operationId": "create_artifact_artifacts__post",
+                "operationId": "create_artifact",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7495,7 +7535,7 @@
                 ],
                 "summary": "Read Artifact",
                 "description": "Retrieve an artifact from the database.",
-                "operationId": "read_artifact_artifacts__id__get",
+                "operationId": "read_artifact",
                 "parameters": [
                     {
                         "name": "id",
@@ -7548,7 +7588,7 @@
                 ],
                 "summary": "Update Artifact",
                 "description": "Update an artifact in the database.",
-                "operationId": "update_artifact_artifacts__id__patch",
+                "operationId": "update_artifact",
                 "parameters": [
                     {
                         "name": "id",
@@ -7604,7 +7644,7 @@
                 ],
                 "summary": "Delete Artifact",
                 "description": "Delete an artifact from the database.",
-                "operationId": "delete_artifact_artifacts__id__delete",
+                "operationId": "delete_artifact",
                 "parameters": [
                     {
                         "name": "id",
@@ -7652,7 +7692,7 @@
                 ],
                 "summary": "Read Latest Artifact",
                 "description": "Retrieve the latest artifact from the artifact table.",
-                "operationId": "read_latest_artifact_artifacts__key__latest_get",
+                "operationId": "read_latest_artifact",
                 "parameters": [
                     {
                         "name": "key",
@@ -7706,7 +7746,7 @@
                 ],
                 "summary": "Read Artifacts",
                 "description": "Retrieve artifacts from the database.",
-                "operationId": "read_artifacts_artifacts_filter_post",
+                "operationId": "read_artifacts",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7722,7 +7762,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_artifacts_artifacts_filter_post"
+                                "$ref": "#/components/schemas/Body_read_artifacts"
                             }
                         }
                     }
@@ -7737,7 +7777,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Artifact"
                                     },
-                                    "title": "Response Read Artifacts Artifacts Filter Post"
+                                    "title": "Response Read Artifacts"
                                 }
                             }
                         }
@@ -7762,7 +7802,7 @@
                 ],
                 "summary": "Read Latest Artifacts",
                 "description": "Retrieve artifacts from the database.",
-                "operationId": "read_latest_artifacts_artifacts_latest_filter_post",
+                "operationId": "read_latest_artifacts",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7778,7 +7818,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_latest_artifacts_artifacts_latest_filter_post"
+                                "$ref": "#/components/schemas/Body_read_latest_artifacts"
                             }
                         }
                     }
@@ -7793,7 +7833,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/ArtifactCollection"
                                     },
-                                    "title": "Response Read Latest Artifacts Artifacts Latest Filter Post"
+                                    "title": "Response Read Latest Artifacts"
                                 }
                             }
                         }
@@ -7818,7 +7858,7 @@
                 ],
                 "summary": "Count Artifacts",
                 "description": "Count artifacts from the database.",
-                "operationId": "count_artifacts_artifacts_count_post",
+                "operationId": "count_artifacts",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7834,7 +7874,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_artifacts_artifacts_count_post"
+                                "$ref": "#/components/schemas/Body_count_artifacts"
                             }
                         }
                     }
@@ -7846,7 +7886,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Artifacts Artifacts Count Post"
+                                    "title": "Response Count Artifacts"
                                 }
                             }
                         }
@@ -7871,7 +7911,7 @@
                 ],
                 "summary": "Count Latest Artifacts",
                 "description": "Count artifacts from the database.",
-                "operationId": "count_latest_artifacts_artifacts_latest_count_post",
+                "operationId": "count_latest_artifacts",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7887,7 +7927,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_latest_artifacts_artifacts_latest_count_post"
+                                "$ref": "#/components/schemas/Body_count_latest_artifacts"
                             }
                         }
                     }
@@ -7899,7 +7939,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Latest Artifacts Artifacts Latest Count Post"
+                                    "title": "Response Count Latest Artifacts"
                                 }
                             }
                         }
@@ -7924,7 +7964,7 @@
                 ],
                 "summary": "Create Block Schema",
                 "description": "Create a block schema.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
-                "operationId": "create_block_schema_block_schemas__post",
+                "operationId": "create_block_schema",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -7977,7 +8017,7 @@
                 ],
                 "summary": "Delete Block Schema",
                 "description": "Delete a block schema by id.",
-                "operationId": "delete_block_schema_block_schemas__id__delete",
+                "operationId": "delete_block_schema",
                 "parameters": [
                     {
                         "name": "id",
@@ -8023,7 +8063,7 @@
                 ],
                 "summary": "Read Block Schema By Id",
                 "description": "Get a block schema by id.",
-                "operationId": "read_block_schema_by_id_block_schemas__id__get",
+                "operationId": "read_block_schema_by_id",
                 "parameters": [
                     {
                         "name": "id",
@@ -8078,7 +8118,7 @@
                 ],
                 "summary": "Read Block Schemas",
                 "description": "Read all block schemas, optionally filtered by type",
-                "operationId": "read_block_schemas_block_schemas_filter_post",
+                "operationId": "read_block_schemas",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8094,7 +8134,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_block_schemas_block_schemas_filter_post"
+                                "$ref": "#/components/schemas/Body_read_block_schemas"
                             }
                         }
                     }
@@ -8109,7 +8149,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/BlockSchema"
                                     },
-                                    "title": "Response Read Block Schemas Block Schemas Filter Post"
+                                    "title": "Response Read Block Schemas"
                                 }
                             }
                         }
@@ -8133,7 +8173,7 @@
                     "Block schemas"
                 ],
                 "summary": "Read Block Schema By Checksum",
-                "operationId": "read_block_schema_by_checksum_block_schemas_checksum__checksum__get",
+                "operationId": "read_block_schema_by_checksum",
                 "parameters": [
                     {
                         "name": "checksum",
@@ -8205,7 +8245,7 @@
                 ],
                 "summary": "Read Available Block Capabilities",
                 "description": "Get available block capabilities.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/blocks.",
-                "operationId": "read_available_block_capabilities_block_capabilities__get",
+                "operationId": "read_available_block_capabilities",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8227,7 +8267,7 @@
                                     "items": {
                                         "type": "string"
                                     },
-                                    "title": "Response Read Available Block Capabilities Block Capabilities  Get"
+                                    "title": "Response Read Available Block Capabilities"
                                 }
                             }
                         }
@@ -8252,7 +8292,7 @@
                 ],
                 "summary": "Read View Content",
                 "description": "Reads the content of a view from the prefect-collection-registry.",
-                "operationId": "read_view_content_collections_views__view__get",
+                "operationId": "read_view_content",
                 "parameters": [
                     {
                         "name": "view",
@@ -8281,7 +8321,7 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": true,
-                                    "title": "Response Read View Content Collections Views  View  Get"
+                                    "title": "Response Read View Content"
                                 }
                             }
                         }
@@ -8306,7 +8346,7 @@
                 ],
                 "summary": "Create Variable",
                 "description": "Create a variable.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/variables.",
-                "operationId": "create_variable_variables__post",
+                "operationId": "create_variable",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8358,7 +8398,7 @@
                     "Variables"
                 ],
                 "summary": "Read Variable",
-                "operationId": "read_variable_variables__id__get",
+                "operationId": "read_variable",
                 "parameters": [
                     {
                         "name": "id",
@@ -8408,7 +8448,7 @@
                     "Variables"
                 ],
                 "summary": "Update Variable",
-                "operationId": "update_variable_variables__id__patch",
+                "operationId": "update_variable",
                 "parameters": [
                     {
                         "name": "id",
@@ -8461,7 +8501,7 @@
                     "Variables"
                 ],
                 "summary": "Delete Variable",
-                "operationId": "delete_variable_variables__id__delete",
+                "operationId": "delete_variable",
                 "parameters": [
                     {
                         "name": "id",
@@ -8506,7 +8546,7 @@
                     "Variables"
                 ],
                 "summary": "Read Variable By Name",
-                "operationId": "read_variable_by_name_variables_name__name__get",
+                "operationId": "read_variable_by_name",
                 "parameters": [
                     {
                         "name": "name",
@@ -8555,7 +8595,7 @@
                     "Variables"
                 ],
                 "summary": "Update Variable By Name",
-                "operationId": "update_variable_by_name_variables_name__name__patch",
+                "operationId": "update_variable_by_name",
                 "parameters": [
                     {
                         "name": "name",
@@ -8607,7 +8647,7 @@
                     "Variables"
                 ],
                 "summary": "Delete Variable By Name",
-                "operationId": "delete_variable_by_name_variables_name__name__delete",
+                "operationId": "delete_variable_by_name",
                 "parameters": [
                     {
                         "name": "name",
@@ -8651,7 +8691,7 @@
                     "Variables"
                 ],
                 "summary": "Read Variables",
-                "operationId": "read_variables_variables_filter_post",
+                "operationId": "read_variables",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8667,7 +8707,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_variables_variables_filter_post"
+                                "$ref": "#/components/schemas/Body_read_variables"
                             }
                         }
                     }
@@ -8682,7 +8722,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Variable"
                                     },
-                                    "title": "Response Read Variables Variables Filter Post"
+                                    "title": "Response Read Variables"
                                 }
                             }
                         }
@@ -8706,7 +8746,7 @@
                     "Variables"
                 ],
                 "summary": "Count Variables",
-                "operationId": "count_variables_variables_count_post",
+                "operationId": "count_variables",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8722,7 +8762,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_variables_variables_count_post"
+                                "$ref": "#/components/schemas/Body_count_variables"
                             }
                         }
                     }
@@ -8734,7 +8774,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Variables Variables Count Post"
+                                    "title": "Response Count Variables"
                                 }
                             }
                         }
@@ -8756,7 +8796,7 @@
             "get": {
                 "summary": "Create Csrf Token",
                 "description": "Create or update a CSRF token for a client",
-                "operationId": "create_csrf_token_csrf_token_get",
+                "operationId": "create_csrf_token",
                 "parameters": [
                     {
                         "name": "client",
@@ -8810,7 +8850,7 @@
                 ],
                 "summary": "Create Events",
                 "description": "Record a batch of Events.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/events.",
-                "operationId": "create_events_events_post",
+                "operationId": "create_events",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8860,7 +8900,7 @@
                 ],
                 "summary": "Read Events",
                 "description": "Queries for Events matching the given filter criteria in the given Account.  Returns\nthe first page of results, and the URL to request the next page (if there are more\nresults).",
-                "operationId": "read_events_events_filter_post",
+                "operationId": "read_events",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -8876,7 +8916,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_events_events_filter_post"
+                                "$ref": "#/components/schemas/Body_read_events"
                             }
                         }
                     }
@@ -8912,7 +8952,7 @@
                 ],
                 "summary": "Read Account Events Page",
                 "description": "Returns the next page of Events for a previous query against the given Account, and\nthe URL to request the next page (if there are more results).",
-                "operationId": "read_account_events_page_events_filter_next_get",
+                "operationId": "read_account_events_page",
                 "parameters": [
                     {
                         "name": "page-token",
@@ -8964,7 +9004,7 @@
                 ],
                 "summary": "Count Account Events",
                 "description": "Returns distinct objects and the count of events associated with them.  Objects\nthat can be counted include the day the event occurred, the type of event, or\nthe IDs of the resources associated with the event.",
-                "operationId": "count_account_events_events_count_by__countable__post",
+                "operationId": "count_account_events",
                 "parameters": [
                     {
                         "name": "countable",
@@ -8989,7 +9029,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_account_events_events_count_by__countable__post"
+                                "$ref": "#/components/schemas/Body_count_account_events"
                             }
                         }
                     }
@@ -9004,7 +9044,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/EventCount"
                                     },
-                                    "title": "Response Count Account Events Events Count By  Countable  Post"
+                                    "title": "Response Count Account Events"
                                 }
                             }
                         }
@@ -9029,7 +9069,7 @@
                 ],
                 "summary": "Create Automation",
                 "description": "Create an automation.\n\nFor more information, see https://www.prefect.io/docs/v3/concepts/automations.",
-                "operationId": "create_automation_automations__post",
+                "operationId": "create_automation",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9081,7 +9121,7 @@
                     "Automations"
                 ],
                 "summary": "Update Automation",
-                "operationId": "update_automation_automations__id__put",
+                "operationId": "update_automation",
                 "parameters": [
                     {
                         "name": "id",
@@ -9134,7 +9174,7 @@
                     "Automations"
                 ],
                 "summary": "Patch Automation",
-                "operationId": "patch_automation_automations__id__patch",
+                "operationId": "patch_automation",
                 "parameters": [
                     {
                         "name": "id",
@@ -9187,7 +9227,7 @@
                     "Automations"
                 ],
                 "summary": "Delete Automation",
-                "operationId": "delete_automation_automations__id__delete",
+                "operationId": "delete_automation",
                 "parameters": [
                     {
                         "name": "id",
@@ -9230,7 +9270,7 @@
                     "Automations"
                 ],
                 "summary": "Read Automation",
-                "operationId": "read_automation_automations__id__get",
+                "operationId": "read_automation",
                 "parameters": [
                     {
                         "name": "id",
@@ -9282,7 +9322,7 @@
                     "Automations"
                 ],
                 "summary": "Read Automations",
-                "operationId": "read_automations_automations_filter_post",
+                "operationId": "read_automations",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9298,7 +9338,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_read_automations_automations_filter_post"
+                                "$ref": "#/components/schemas/Body_read_automations"
                             }
                         }
                     }
@@ -9313,7 +9353,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Automation"
                                     },
-                                    "title": "Response Read Automations Automations Filter Post"
+                                    "title": "Response Read Automations"
                                 }
                             }
                         }
@@ -9337,7 +9377,7 @@
                     "Automations"
                 ],
                 "summary": "Count Automations",
-                "operationId": "count_automations_automations_count_post",
+                "operationId": "count_automations",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9353,7 +9393,7 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/Body_count_automations_automations_count_post"
+                                "$ref": "#/components/schemas/Body_count_automations"
                             }
                         }
                     }
@@ -9365,7 +9405,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "integer",
-                                    "title": "Response Count Automations Automations Count Post"
+                                    "title": "Response Count Automations"
                                 }
                             }
                         }
@@ -9389,7 +9429,7 @@
                     "Automations"
                 ],
                 "summary": "Read Automations Related To Resource",
-                "operationId": "read_automations_related_to_resource_automations_related_to__resource_id__get",
+                "operationId": "read_automations_related_to_resource",
                 "parameters": [
                     {
                         "name": "resource_id",
@@ -9420,7 +9460,7 @@
                                     "items": {
                                         "$ref": "#/components/schemas/Automation"
                                     },
-                                    "title": "Response Read Automations Related To Resource Automations Related To  Resource Id  Get"
+                                    "title": "Response Read Automations Related To Resource"
                                 }
                             }
                         }
@@ -9444,7 +9484,7 @@
                     "Automations"
                 ],
                 "summary": "Delete Automations Owned By Resource",
-                "operationId": "delete_automations_owned_by_resource_automations_owned_by__resource_id__delete",
+                "operationId": "delete_automations_owned_by_resource",
                 "parameters": [
                     {
                         "name": "resource_id",
@@ -9493,7 +9533,7 @@
                     "Automations"
                 ],
                 "summary": "Validate Template",
-                "operationId": "validate_template_templates_validate_post",
+                "operationId": "validate_template",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9539,7 +9579,7 @@
                     "Automations"
                 ],
                 "summary": "Validate Template",
-                "operationId": "validate_template_automations_templates_validate_post",
+                "operationId": "validate_automation_template",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9586,7 +9626,7 @@
                 ],
                 "summary": "Read Settings",
                 "description": "Get the current Prefect REST API settings.\n\nSecret setting values will be obfuscated.",
-                "operationId": "read_settings_admin_settings_get",
+                "operationId": "read_settings",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9629,7 +9669,7 @@
                 ],
                 "summary": "Read Version",
                 "description": "Returns the Prefect version number",
-                "operationId": "read_version_admin_version_get",
+                "operationId": "read_version",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9648,7 +9688,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "string",
-                                    "title": "Response Read Version Admin Version Get"
+                                    "title": "Response Read Version"
                                 }
                             }
                         }
@@ -9673,7 +9713,7 @@
                 ],
                 "summary": "Read Server Default Result Storage",
                 "description": "Get the configured server default result storage block.",
-                "operationId": "read_server_default_result_storage_admin_storage_get",
+                "operationId": "read_server_default_result_storage",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9714,7 +9754,7 @@
                 ],
                 "summary": "Update Server Default Result Storage",
                 "description": "Set the server default result storage block.",
-                "operationId": "update_server_default_result_storage_admin_storage_put",
+                "operationId": "update_server_default_result_storage",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9765,7 +9805,7 @@
                 ],
                 "summary": "Clear Server Default Result Storage",
                 "description": "Clear the configured server default result storage block.",
-                "operationId": "clear_server_default_result_storage_admin_storage_delete",
+                "operationId": "clear_server_default_result_storage",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9801,7 +9841,7 @@
                 ],
                 "summary": "Hello",
                 "description": "Say hello!",
-                "operationId": "hello_hello_get",
+                "operationId": "hello",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -9820,7 +9860,7 @@
                             "application/json": {
                                 "schema": {
                                     "type": "string",
-                                    "title": "Response Hello Hello Get"
+                                    "title": "Response Hello"
                                 }
                             }
                         }
@@ -9844,7 +9884,7 @@
                     "Root"
                 ],
                 "summary": "Perform Readiness Check",
-                "operationId": "perform_readiness_check_ready_get",
+                "operationId": "perform_readiness_check",
                 "parameters": [
                     {
                         "name": "x-prefect-api-version",
@@ -12796,7 +12836,7 @@
                 "title": "BlockTypeUpdate",
                 "description": "Data used by the Prefect REST API to update a block type."
             },
-            "Body_average_flow_run_lateness_flow_runs_lateness_post": {
+            "Body_average_flow_run_lateness": {
                 "properties": {
                     "flows": {
                         "anyOf": [
@@ -12860,9 +12900,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_average_flow_run_lateness_flow_runs_lateness_post"
+                "title": "Body_average_flow_run_lateness"
             },
-            "Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post": {
+            "Body_bulk_decrement_active_slots": {
                 "properties": {
                     "slots": {
                         "type": "integer",
@@ -12900,9 +12940,9 @@
                     "slots",
                     "names"
                 ],
-                "title": "Body_bulk_decrement_active_slots_v2_concurrency_limits_decrement_post"
+                "title": "Body_bulk_decrement_active_slots"
             },
-            "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post": {
+            "Body_bulk_decrement_active_slots_with_lease": {
                 "properties": {
                     "lease_id": {
                         "type": "string",
@@ -12915,9 +12955,9 @@
                 "required": [
                     "lease_id"
                 ],
-                "title": "Body_bulk_decrement_active_slots_with_lease_v2_concurrency_limits_decrement_with_lease_post"
+                "title": "Body_bulk_decrement_active_slots_with_lease"
             },
-            "Body_bulk_delete_deployments_deployments_bulk_delete_post": {
+            "Body_bulk_delete_deployments": {
                 "properties": {
                     "deployments": {
                         "anyOf": [
@@ -12940,9 +12980,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_bulk_delete_deployments_deployments_bulk_delete_post"
+                "title": "Body_bulk_delete_deployments"
             },
-            "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post": {
+            "Body_bulk_delete_flow_runs": {
                 "properties": {
                     "flow_runs": {
                         "anyOf": [
@@ -12965,9 +13005,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_bulk_delete_flow_runs_flow_runs_bulk_delete_post"
+                "title": "Body_bulk_delete_flow_runs"
             },
-            "Body_bulk_delete_flows_flows_bulk_delete_post": {
+            "Body_bulk_delete_flows": {
                 "properties": {
                     "flows": {
                         "anyOf": [
@@ -12990,9 +13030,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_bulk_delete_flows_flows_bulk_delete_post"
+                "title": "Body_bulk_delete_flows"
             },
-            "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post": {
+            "Body_bulk_increment_active_slots": {
                 "properties": {
                     "slots": {
                         "type": "integer",
@@ -13034,9 +13074,9 @@
                     "slots",
                     "names"
                 ],
-                "title": "Body_bulk_increment_active_slots_v2_concurrency_limits_increment_post"
+                "title": "Body_bulk_increment_active_slots"
             },
-            "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post": {
+            "Body_bulk_increment_active_slots_with_lease": {
                 "properties": {
                     "slots": {
                         "type": "integer",
@@ -13085,9 +13125,9 @@
                     "slots",
                     "names"
                 ],
-                "title": "Body_bulk_increment_active_slots_with_lease_v2_concurrency_limits_increment_with_lease_post"
+                "title": "Body_bulk_increment_active_slots_with_lease"
             },
-            "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post": {
+            "Body_bulk_set_flow_run_state": {
                 "properties": {
                     "flow_runs": {
                         "anyOf": [
@@ -13123,9 +13163,9 @@
                 "required": [
                     "state"
                 ],
-                "title": "Body_bulk_set_flow_run_state_flow_runs_bulk_set_state_post"
+                "title": "Body_bulk_set_flow_run_state"
             },
-            "Body_count_account_events_events_count_by__countable__post": {
+            "Body_count_account_events": {
                 "properties": {
                     "filter": {
                         "$ref": "#/components/schemas/EventFilter"
@@ -13145,9 +13185,9 @@
                 "required": [
                     "filter"
                 ],
-                "title": "Body_count_account_events_events_count_by__countable__post"
+                "title": "Body_count_account_events"
             },
-            "Body_count_artifacts_artifacts_count_post": {
+            "Body_count_artifacts": {
                 "properties": {
                     "artifacts": {
                         "$ref": "#/components/schemas/ArtifactFilter"
@@ -13166,9 +13206,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_artifacts_artifacts_count_post"
+                "title": "Body_count_artifacts"
             },
-            "Body_count_automations_automations_count_post": {
+            "Body_count_automations": {
                 "properties": {
                     "automations": {
                         "anyOf": [
@@ -13182,9 +13222,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_automations_automations_count_post"
+                "title": "Body_count_automations"
             },
-            "Body_count_block_documents_block_documents_count_post": {
+            "Body_count_block_documents": {
                 "properties": {
                     "block_documents": {
                         "anyOf": [
@@ -13218,9 +13258,75 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_block_documents_block_documents_count_post"
+                "title": "Body_count_block_documents"
             },
-            "Body_count_deployments_by_flow_ui_flows_count_deployments_post": {
+            "Body_count_deployments": {
+                "properties": {
+                    "flows": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "flow_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/FlowRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "task_runs": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/TaskRunFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "deployments": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DeploymentFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "work_pools": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkPoolFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "work_pool_queues": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "Body_count_deployments"
+            },
+            "Body_count_deployments_by_flow": {
                 "properties": {
                     "flow_ids": {
                         "items": {
@@ -13236,9 +13342,9 @@
                 "required": [
                     "flow_ids"
                 ],
-                "title": "Body_count_deployments_by_flow_ui_flows_count_deployments_post"
+                "title": "Body_count_deployments_by_flow"
             },
-            "Body_count_deployments_deployments_count_post": {
+            "Body_count_flow_runs": {
                 "properties": {
                     "flows": {
                         "anyOf": [
@@ -13302,75 +13408,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_deployments_deployments_count_post"
+                "title": "Body_count_flow_runs"
             },
-            "Body_count_flow_runs_flow_runs_count_post": {
-                "properties": {
-                    "flows": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/FlowFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "flow_runs": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/FlowRunFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "task_runs": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/TaskRunFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "deployments": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/DeploymentFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "work_pools": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/WorkPoolFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    },
-                    "work_pool_queues": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/WorkQueueFilter"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ]
-                    }
-                },
-                "type": "object",
-                "title": "Body_count_flow_runs_flow_runs_count_post"
-            },
-            "Body_count_flows_flows_count_post": {
+            "Body_count_flows": {
                 "properties": {
                     "flows": {
                         "$ref": "#/components/schemas/FlowFilter"
@@ -13389,9 +13429,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_flows_flows_count_post"
+                "title": "Body_count_flows"
             },
-            "Body_count_latest_artifacts_artifacts_latest_count_post": {
+            "Body_count_latest_artifacts": {
                 "properties": {
                     "artifacts": {
                         "$ref": "#/components/schemas/ArtifactCollectionFilter"
@@ -13410,27 +13450,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_latest_artifacts_artifacts_latest_count_post"
+                "title": "Body_count_latest_artifacts"
             },
-            "Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post": {
-                "properties": {
-                    "flow_run_ids": {
-                        "items": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "type": "array",
-                        "maxItems": 200,
-                        "title": "Flow Run Ids"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "flow_run_ids"
-                ],
-                "title": "Body_count_task_runs_by_flow_run_ui_flow_runs_count_task_runs_post"
-            },
-            "Body_count_task_runs_task_runs_count_post": {
+            "Body_count_task_runs": {
                 "properties": {
                     "flows": {
                         "$ref": "#/components/schemas/FlowFilter"
@@ -13446,9 +13468,27 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_task_runs_task_runs_count_post"
+                "title": "Body_count_task_runs"
             },
-            "Body_count_variables_variables_count_post": {
+            "Body_count_task_runs_by_flow_run": {
+                "properties": {
+                    "flow_run_ids": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "maxItems": 200,
+                        "title": "Flow Run Ids"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "flow_run_ids"
+                ],
+                "title": "Body_count_task_runs_by_flow_run"
+            },
+            "Body_count_variables": {
                 "properties": {
                     "variables": {
                         "anyOf": [
@@ -13462,9 +13502,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_variables_variables_count_post"
+                "title": "Body_count_variables"
             },
-            "Body_count_work_pools_work_pools_count_post": {
+            "Body_count_work_pools": {
                 "properties": {
                     "work_pools": {
                         "anyOf": [
@@ -13478,9 +13518,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_work_pools_work_pools_count_post"
+                "title": "Body_count_work_pools"
             },
-            "Body_create_flow_run_input_flow_runs__id__input_post": {
+            "Body_create_flow_run_input": {
                 "properties": {
                     "key": {
                         "type": "string",
@@ -13511,9 +13551,9 @@
                     "key",
                     "value"
                 ],
-                "title": "Body_create_flow_run_input_flow_runs__id__input_post"
+                "title": "Body_create_flow_run_input"
             },
-            "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post": {
+            "Body_decrement_concurrency_limits_v1": {
                 "properties": {
                     "names": {
                         "items": {
@@ -13535,9 +13575,9 @@
                     "names",
                     "task_run_id"
                 ],
-                "title": "Body_decrement_concurrency_limits_v1_concurrency_limits_decrement_post"
+                "title": "Body_decrement_concurrency_limits_v1"
             },
-            "Body_filter_flow_run_input_flow_runs__id__input_filter_post": {
+            "Body_filter_flow_run_input": {
                 "properties": {
                     "prefix": {
                         "type": "string",
@@ -13564,9 +13604,9 @@
                 "required": [
                     "prefix"
                 ],
-                "title": "Body_filter_flow_run_input_flow_runs__id__input_filter_post"
+                "title": "Body_filter_flow_run_input"
             },
-            "Body_flow_run_history_flow_runs_history_post": {
+            "Body_flow_run_history": {
                 "properties": {
                     "history_start": {
                         "type": "string",
@@ -13653,38 +13693,9 @@
                     "history_end",
                     "history_interval_seconds"
                 ],
-                "title": "Body_flow_run_history_flow_runs_history_post"
+                "title": "Body_flow_run_history"
             },
-            "Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post": {
-                "properties": {
-                    "deployment_ids": {
-                        "items": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "type": "array",
-                        "title": "Deployment Ids",
-                        "description": "The deployment IDs to get scheduled runs for"
-                    },
-                    "scheduled_before": {
-                        "type": "string",
-                        "format": "date-time",
-                        "title": "Scheduled Before",
-                        "description": "The maximum time to look for scheduled flow runs"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "title": "Limit",
-                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "deployment_ids"
-                ],
-                "title": "Body_get_scheduled_flow_runs_for_deployments_deployments_get_scheduled_flow_runs_post"
-            },
-            "Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post": {
+            "Body_get_scheduled_flow_runs": {
                 "properties": {
                     "work_queue_names": {
                         "items": {
@@ -13713,9 +13724,38 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_get_scheduled_flow_runs_work_pools__name__get_scheduled_flow_runs_post"
+                "title": "Body_get_scheduled_flow_runs"
             },
-            "Body_increment_concurrency_limits_v1_concurrency_limits_increment_post": {
+            "Body_get_scheduled_flow_runs_for_deployments": {
+                "properties": {
+                    "deployment_ids": {
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "type": "array",
+                        "title": "Deployment Ids",
+                        "description": "The deployment IDs to get scheduled runs for"
+                    },
+                    "scheduled_before": {
+                        "type": "string",
+                        "format": "date-time",
+                        "title": "Scheduled Before",
+                        "description": "The maximum time to look for scheduled flow runs"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "deployment_ids"
+                ],
+                "title": "Body_get_scheduled_flow_runs_for_deployments"
+            },
+            "Body_increment_concurrency_limits_v1": {
                 "properties": {
                     "names": {
                         "items": {
@@ -13737,9 +13777,9 @@
                     "names",
                     "task_run_id"
                 ],
-                "title": "Body_increment_concurrency_limits_v1_concurrency_limits_increment_post"
+                "title": "Body_increment_concurrency_limits_v1"
             },
-            "Body_next_runs_by_flow_ui_flows_next_runs_post": {
+            "Body_next_runs_by_flow": {
                 "properties": {
                     "flow_ids": {
                         "items": {
@@ -13755,9 +13795,9 @@
                 "required": [
                     "flow_ids"
                 ],
-                "title": "Body_next_runs_by_flow_ui_flows_next_runs_post"
+                "title": "Body_next_runs_by_flow"
             },
-            "Body_paginate_deployments_deployments_paginate_post": {
+            "Body_paginate_deployments": {
                 "properties": {
                     "page": {
                         "type": "integer",
@@ -13836,9 +13876,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_deployments_deployments_paginate_post"
+                "title": "Body_paginate_deployments"
             },
-            "Body_paginate_flow_runs_flow_runs_paginate_post": {
+            "Body_paginate_flow_runs": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/FlowRunSort",
@@ -13917,9 +13957,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_flow_runs_flow_runs_paginate_post"
+                "title": "Body_paginate_flow_runs"
             },
-            "Body_paginate_flows_flows_paginate_post": {
+            "Body_paginate_flows": {
                 "properties": {
                     "page": {
                         "type": "integer",
@@ -13988,9 +14028,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_flows_flows_paginate_post"
+                "title": "Body_paginate_flows"
             },
-            "Body_paginate_task_runs_task_runs_paginate_post": {
+            "Body_paginate_task_runs": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/TaskRunSort",
@@ -14049,9 +14089,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_task_runs_task_runs_paginate_post"
+                "title": "Body_paginate_task_runs"
             },
-            "Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post": {
+            "Body_read_all_concurrency_limits_v2": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14066,9 +14106,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"
+                "title": "Body_read_all_concurrency_limits_v2"
             },
-            "Body_read_artifacts_artifacts_filter_post": {
+            "Body_read_artifacts": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/ArtifactSort",
@@ -14102,9 +14142,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_artifacts_artifacts_filter_post"
+                "title": "Body_read_artifacts"
             },
-            "Body_read_automations_automations_filter_post": {
+            "Body_read_automations": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/AutomationSort",
@@ -14133,9 +14173,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_automations_automations_filter_post"
+                "title": "Body_read_automations"
             },
-            "Body_read_block_documents_block_documents_filter_post": {
+            "Body_read_block_documents": {
                 "properties": {
                     "block_documents": {
                         "anyOf": [
@@ -14197,9 +14237,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_documents_block_documents_filter_post"
+                "title": "Body_read_block_documents"
             },
-            "Body_read_block_schemas_block_schemas_filter_post": {
+            "Body_read_block_schemas": {
                 "properties": {
                     "block_schemas": {
                         "anyOf": [
@@ -14224,9 +14264,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_schemas_block_schemas_filter_post"
+                "title": "Body_read_block_schemas"
             },
-            "Body_read_block_types_block_types_filter_post": {
+            "Body_read_block_types": {
                 "properties": {
                     "block_types": {
                         "anyOf": [
@@ -14261,9 +14301,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_types_block_types_filter_post"
+                "title": "Body_read_block_types"
             },
-            "Body_read_concurrency_limits_concurrency_limits_filter_post": {
+            "Body_read_concurrency_limits": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14278,9 +14318,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_concurrency_limits_concurrency_limits_filter_post"
+                "title": "Body_read_concurrency_limits"
             },
-            "Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post": {
+            "Body_read_dashboard_task_run_counts": {
                 "properties": {
                     "task_runs": {
                         "$ref": "#/components/schemas/TaskRunFilter"
@@ -14340,9 +14380,9 @@
                 "required": [
                     "task_runs"
                 ],
-                "title": "Body_read_dashboard_task_run_counts_ui_task_runs_dashboard_counts_post"
+                "title": "Body_read_dashboard_task_run_counts"
             },
-            "Body_read_deployments_deployments_filter_post": {
+            "Body_read_deployments": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14421,9 +14461,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_deployments_deployments_filter_post"
+                "title": "Body_read_deployments"
             },
-            "Body_read_events_events_filter_post": {
+            "Body_read_events": {
                 "properties": {
                     "filter": {
                         "anyOf": [
@@ -14446,9 +14486,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_events_events_filter_post"
+                "title": "Body_read_events"
             },
-            "Body_read_flow_run_history_ui_flow_runs_history_post": {
+            "Body_read_flow_run_history": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/FlowRunSort",
@@ -14483,9 +14523,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flow_run_history_ui_flow_runs_history_post"
+                "title": "Body_read_flow_run_history"
             },
-            "Body_read_flow_runs_flow_runs_filter_post": {
+            "Body_read_flow_runs": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/FlowRunSort",
@@ -14564,9 +14604,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flow_runs_flow_runs_filter_post"
+                "title": "Body_read_flow_runs"
             },
-            "Body_read_flows_flows_filter_post": {
+            "Body_read_flows": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14600,9 +14640,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flows_flows_filter_post"
+                "title": "Body_read_flows"
             },
-            "Body_read_latest_artifacts_artifacts_latest_filter_post": {
+            "Body_read_latest_artifacts": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/ArtifactCollectionSort",
@@ -14636,9 +14676,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_latest_artifacts_artifacts_latest_filter_post"
+                "title": "Body_read_latest_artifacts"
             },
-            "Body_read_logs_logs_filter_post": {
+            "Body_read_logs": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14667,9 +14707,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_logs_logs_filter_post"
+                "title": "Body_read_logs"
             },
-            "Body_read_saved_searches_saved_searches_filter_post": {
+            "Body_read_saved_searches": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14684,9 +14724,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_saved_searches_saved_searches_filter_post"
+                "title": "Body_read_saved_searches"
             },
-            "Body_read_task_run_counts_by_state_ui_task_runs_count_post": {
+            "Body_read_task_run_counts_by_state": {
                 "properties": {
                     "flows": {
                         "anyOf": [
@@ -14730,9 +14770,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_task_run_counts_by_state_ui_task_runs_count_post"
+                "title": "Body_read_task_run_counts_by_state"
             },
-            "Body_read_task_runs_task_runs_filter_post": {
+            "Body_read_task_runs": {
                 "properties": {
                     "sort": {
                         "$ref": "#/components/schemas/TaskRunSort",
@@ -14791,9 +14831,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_task_runs_task_runs_filter_post"
+                "title": "Body_read_task_runs"
             },
-            "Body_read_task_workers_task_workers_filter_post": {
+            "Body_read_task_workers": {
                 "properties": {
                     "task_worker_filter": {
                         "anyOf": [
@@ -14808,9 +14848,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_task_workers_task_workers_filter_post"
+                "title": "Body_read_task_workers"
             },
-            "Body_read_variables_variables_filter_post": {
+            "Body_read_variables": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14839,9 +14879,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_variables_variables_filter_post"
+                "title": "Body_read_variables"
             },
-            "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post": {
+            "Body_read_work_pool_concurrency_status": {
                 "properties": {
                     "page": {
                         "type": "integer",
@@ -14864,9 +14904,29 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_pool_concurrency_status_work_pools__name__concurrency_status_post"
+                "title": "Body_read_work_pool_concurrency_status"
             },
-            "Body_read_work_pools_work_pools_filter_post": {
+            "Body_read_work_pool_queues": {
+                "properties": {
+                    "work_queues": {
+                        "$ref": "#/components/schemas/WorkQueueFilter"
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Offset",
+                        "default": 0
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "title": "Limit",
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
+                    }
+                },
+                "type": "object",
+                "title": "Body_read_work_pool_queues"
+            },
+            "Body_read_work_pools": {
                 "properties": {
                     "work_pools": {
                         "anyOf": [
@@ -14891,9 +14951,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_pools_work_pools_filter_post"
+                "title": "Body_read_work_pools"
             },
-            "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post": {
+            "Body_read_work_queue_concurrency_status": {
                 "properties": {
                     "page": {
                         "type": "integer",
@@ -14908,9 +14968,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_queue_concurrency_status_work_queues__id__concurrency_status_post"
+                "title": "Body_read_work_queue_concurrency_status"
             },
-            "Body_read_work_queue_runs_work_queues__id__get_runs_post": {
+            "Body_read_work_queue_runs": {
                 "properties": {
                     "scheduled_before": {
                         "type": "string",
@@ -14925,29 +14985,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_queue_runs_work_queues__id__get_runs_post"
+                "title": "Body_read_work_queue_runs"
             },
-            "Body_read_work_queues_work_pools__work_pool_name__queues_filter_post": {
-                "properties": {
-                    "work_queues": {
-                        "$ref": "#/components/schemas/WorkQueueFilter"
-                    },
-                    "offset": {
-                        "type": "integer",
-                        "minimum": 0.0,
-                        "title": "Offset",
-                        "default": 0
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "title": "Limit",
-                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
-                    }
-                },
-                "type": "object",
-                "title": "Body_read_work_queues_work_pools__work_pool_name__queues_filter_post"
-            },
-            "Body_read_work_queues_work_queues_filter_post": {
+            "Body_read_work_queues": {
                 "properties": {
                     "offset": {
                         "type": "integer",
@@ -14972,9 +15012,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_queues_work_queues_filter_post"
+                "title": "Body_read_work_queues"
             },
-            "Body_read_workers_work_pools__work_pool_name__workers_filter_post": {
+            "Body_read_workers": {
                 "properties": {
                     "workers": {
                         "anyOf": [
@@ -14999,9 +15039,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_workers_work_pools__work_pool_name__workers_filter_post"
+                "title": "Body_read_workers"
             },
-            "Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post": {
+            "Body_renew_concurrency_lease": {
                 "properties": {
                     "lease_duration": {
                         "type": "number",
@@ -15013,9 +15053,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_renew_concurrency_lease_v2_concurrency_limits_leases__lease_id__renew_post"
+                "title": "Body_renew_concurrency_lease"
             },
-            "Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post": {
+            "Body_reset_concurrency_limit_by_tag": {
                 "properties": {
                     "slot_override": {
                         "anyOf": [
@@ -15035,9 +15075,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_reset_concurrency_limit_by_tag_concurrency_limits_tag__tag__reset_post"
+                "title": "Body_reset_concurrency_limit_by_tag"
             },
-            "Body_resume_flow_run_flow_runs__id__resume_post": {
+            "Body_resume_flow_run": {
                 "properties": {
                     "run_input": {
                         "anyOf": [
@@ -15053,9 +15093,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_resume_flow_run_flow_runs__id__resume_post"
+                "title": "Body_resume_flow_run"
             },
-            "Body_schedule_deployment_deployments__id__schedule_post": {
+            "Body_schedule_deployment": {
                 "properties": {
                     "start_time": {
                         "type": "string",
@@ -15087,9 +15127,9 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_schedule_deployment_deployments__id__schedule_post"
+                "title": "Body_schedule_deployment"
             },
-            "Body_set_flow_run_state_flow_runs__id__set_state_post": {
+            "Body_set_flow_run_state": {
                 "properties": {
                     "state": {
                         "$ref": "#/components/schemas/StateCreate",
@@ -15106,9 +15146,9 @@
                 "required": [
                     "state"
                 ],
-                "title": "Body_set_flow_run_state_flow_runs__id__set_state_post"
+                "title": "Body_set_flow_run_state"
             },
-            "Body_set_task_run_state_task_runs__id__set_state_post": {
+            "Body_set_task_run_state": {
                 "properties": {
                     "state": {
                         "$ref": "#/components/schemas/StateCreate",
@@ -15125,9 +15165,9 @@
                 "required": [
                     "state"
                 ],
-                "title": "Body_set_task_run_state_task_runs__id__set_state_post"
+                "title": "Body_set_task_run_state"
             },
-            "Body_task_run_history_task_runs_history_post": {
+            "Body_task_run_history": {
                 "properties": {
                     "history_start": {
                         "type": "string",
@@ -15166,9 +15206,9 @@
                     "history_end",
                     "history_interval_seconds"
                 ],
-                "title": "Body_task_run_history_task_runs_history_post"
+                "title": "Body_task_run_history"
             },
-            "Body_validate_obj_ui_schemas_validate_post": {
+            "Body_validate_obj": {
                 "properties": {
                     "schema": {
                         "additionalProperties": true,
@@ -15186,9 +15226,9 @@
                     "schema",
                     "values"
                 ],
-                "title": "Body_validate_obj_ui_schemas_validate_post"
+                "title": "Body_validate_obj"
             },
-            "Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post": {
+            "Body_worker_heartbeat": {
                 "properties": {
                     "name": {
                         "type": "string",
@@ -15206,13 +15246,19 @@
                         ],
                         "title": "Heartbeat Interval Seconds",
                         "description": "The worker's heartbeat interval in seconds"
+                    },
+                    "return_id": {
+                        "type": "boolean",
+                        "title": "Return Id",
+                        "description": "Return the worker ID. Defaults to false.",
+                        "default": false
                     }
                 },
                 "type": "object",
                 "required": [
                     "name"
                 ],
-                "title": "Body_worker_heartbeat_work_pools__work_pool_name__workers_heartbeat_post"
+                "title": "Body_worker_heartbeat"
             },
             "CLISettings": {
                 "properties": {
@@ -15761,6 +15807,7 @@
                     },
                     "concurrency_limit": {
                         "type": "integer",
+                        "minimum": 0.0,
                         "title": "Concurrency Limit",
                         "description": "The concurrency limit."
                     }
@@ -19056,6 +19103,15 @@
                         "supported_environment_variables": [
                             "PREFECT_EXPERIMENTS_WARN",
                             "PREFECT_EXPERIMENTAL_WARN"
+                        ]
+                    },
+                    "aggregate_nested_states": {
+                        "type": "boolean",
+                        "title": "Aggregate Nested States",
+                        "description": "Whether to aggregate nested collections of states when determining a flow or task run's final state. When enabled, returning nested collections of states (for example, the results of several `.map()` calls) aggregates the states at any depth, so a run fails if any nested state failed. When disabled (default), only a single state or a flat collection of states is aggregated and nested collections are treated as plain data, preserving the historical behavior.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_EXPERIMENTS_AGGREGATE_NESTED_STATES"
                         ]
                     }
                 },
@@ -22483,6 +22539,19 @@
                         ],
                         "title": "Task Run Id",
                         "description": "The task run ID associated with the log."
+                    },
+                    "worker_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Worker Id",
+                        "description": "The ID of the worker that wrote the log."
                     }
                 },
                 "type": "object",
@@ -22544,6 +22613,18 @@
                             }
                         ],
                         "title": "Task Run Id"
+                    },
+                    "worker_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Worker Id"
                     }
                 },
                 "additionalProperties": false,
@@ -26153,7 +26234,7 @@
                     "v2_enabled": {
                         "type": "boolean",
                         "title": "V2 Enabled",
-                        "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.",
+                        "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference. Deprecated: the V1 UI will be removed in Prefect 3.10, after which this setting will have no effect.",
                         "default": true,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_V2_ENABLED"

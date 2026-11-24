@@ -264,7 +264,7 @@ The vacuum services schedule independent cleanup tasks:
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
 
-1. **Delete old flow runs**: Selects and deletes a locked batch of top-level terminal flow runs whose end time is older than the configured retention period. It then deletes logs and artifacts by `flow_run_id`, without scanning the log table. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
+1. **Delete old flow runs**: Selects and deletes a locked batch of top-level terminal flow runs whose end time is older than the configured retention period. Terminal runs with no end time, which older Prefect versions left on runs that never entered a running state, are aged by when they entered their terminal state instead. It then deletes logs and artifacts by `flow_run_id`, without scanning the log table. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
 
 ### Orphan reconciliation (when `flow_runs` or `orphans` is enabled)
 

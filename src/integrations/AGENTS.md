@@ -7,7 +7,7 @@ Official integrations extending Prefect with external services and platforms. Ea
 - **All integrations are pre-1.0.** Bump the minor version for breaking changes.
 - **New integrations require discussion first.** Contributors should open an issue before submitting a PR to add a new integration. In general, users should create a separate repo for their integrations.
 - **Released by pushing a tag** in the format `prefect-<name>-<semver>` (e.g., `prefect-dbt-0.7.20`).
-- **Integrations use the latest released `prefect` from PyPI by default.** Only use an editable install of core Prefect when you're actively developing an interface in core that the integration will consume directly.
+- **Default integration tests do not verify the published `prefect` dependency floor.** If the integration declares a local Prefect source in `[tool.uv.sources]`, `uv run` in that directory uses the checkout by default. When changing the floor or using a newer core API, run the affected tests against the exact published minimum from `pyproject.toml`, with the local Prefect override disabled.
 - Use blocks for credentials — never hardcode secrets in flows.
 
 ## Integration Layout

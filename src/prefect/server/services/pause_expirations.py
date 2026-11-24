@@ -24,7 +24,9 @@ async def fail_expired_pause(
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Mark a single expired paused flow run as failed (docket task)."""
-    async with db.session_context(begin_transaction=True) as session:
+    async with db.session_context(
+        begin_transaction=True, with_for_update=True
+    ) as session:
         result = await session.execute(
             sa.select(db.FlowRun).where(db.FlowRun.id == flow_run_id)
         )

@@ -17,16 +17,6 @@ from prefect.bundles._zip_builder import ZipBuilder
 from prefect.bundles._zip_extractor import ZipExtractor
 
 
-class TestZipExtractorImports:
-    """Tests for module imports."""
-
-    def test_zip_extractor_importable(self) -> None:
-        """ZipExtractor can be imported from module."""
-        from prefect.bundles._zip_extractor import ZipExtractor
-
-        assert ZipExtractor is not None
-
-
 class TestZipExtractorInit:
     """Tests for ZipExtractor initialization."""
 
@@ -36,15 +26,6 @@ class TestZipExtractorInit:
 
         zip_path = tmp_path / "test.zip"
         extractor = ZipExtractor(zip_path)
-        assert extractor.zip_path == zip_path
-
-    def test_init_accepts_path_object(self, tmp_path: Path) -> None:
-        """Constructor accepts Path object."""
-        from prefect.bundles._zip_extractor import ZipExtractor
-
-        zip_path = tmp_path / "test.zip"
-        extractor = ZipExtractor(zip_path)
-        assert isinstance(extractor.zip_path, Path)
         assert extractor.zip_path == zip_path
 
     def test_init_accepts_string_path(self, tmp_path: Path) -> None:

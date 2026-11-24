@@ -24,6 +24,7 @@ _TEMPLATE_VALIDATION_RESPONSES: dict[int | str, dict[str, Any]] = {
     "/automations/templates/validate",
     response_class=Response,
     responses=_TEMPLATE_VALIDATION_RESPONSES,
+    operation_id="validate_automation_template",
 )
 @router.post(
     "/templates/validate",

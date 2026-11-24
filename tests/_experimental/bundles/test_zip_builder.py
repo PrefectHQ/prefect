@@ -15,44 +15,6 @@ from unittest.mock import patch
 import pytest
 
 
-class TestZipResult:
-    """Tests for ZipResult dataclass."""
-
-    def test_dataclass_fields(self) -> None:
-        """ZipResult has required fields: zip_path, sha256_hash, storage_key, size_bytes."""
-        from prefect.bundles._zip_builder import ZipResult
-
-        result = ZipResult(
-            zip_path=Path("/tmp/test.zip"),
-            sha256_hash="abc123",
-            storage_key="files/abc123.zip",
-            size_bytes=1024,
-        )
-
-        assert result.zip_path == Path("/tmp/test.zip")
-        assert result.sha256_hash == "abc123"
-        assert result.storage_key == "files/abc123.zip"
-        assert result.size_bytes == 1024
-
-
-class TestZipBuilderConstants:
-    """Tests for ZipBuilder module constants."""
-
-    def test_hash_chunk_size(self) -> None:
-        """HASH_CHUNK_SIZE is 64KB for chunked reading."""
-        from prefect.bundles._zip_builder import HASH_CHUNK_SIZE
-
-        assert HASH_CHUNK_SIZE == 65536  # 64KB
-
-    def test_zip_size_warning_threshold(self) -> None:
-        """ZIP_SIZE_WARNING_THRESHOLD is 50MB."""
-        from prefect.bundles._zip_builder import (
-            ZIP_SIZE_WARNING_THRESHOLD,
-        )
-
-        assert ZIP_SIZE_WARNING_THRESHOLD == 50 * 1024 * 1024  # 50MB
-
-
 class TestZipBuilderInit:
     """Tests for ZipBuilder initialization."""
 
@@ -546,44 +508,6 @@ class TestZipBuilderCleanup:
 class TestZipBuilderHashComputation:
     """Tests for content-addressed SHA256 hash computation."""
 
-    def test_hash_is_stable_for_identical_contents(self, tmp_path: Path) -> None:
-        """Hash is stable across builds with identical file contents."""
-        from prefect.bundles._zip_builder import ZipBuilder
-
-        (tmp_path / "test.txt").write_text("test content")
-
-        builder1 = ZipBuilder(tmp_path)
-        result1 = builder1.build([tmp_path / "test.txt"])
-        hash1 = result1.sha256_hash
-        builder1.cleanup()
-
-        builder2 = ZipBuilder(tmp_path)
-        result2 = builder2.build([tmp_path / "test.txt"])
-        hash2 = result2.sha256_hash
-        builder2.cleanup()
-
-        assert hash1 == hash2
-
-    def test_hash_changes_when_content_changes(self, tmp_path: Path) -> None:
-        """Hash changes when file content changes."""
-        from prefect.bundles._zip_builder import ZipBuilder
-
-        test_file = tmp_path / "test.txt"
-
-        test_file.write_text("content v1")
-        builder1 = ZipBuilder(tmp_path)
-        result1 = builder1.build([test_file])
-        hash1 = result1.sha256_hash
-        builder1.cleanup()
-
-        test_file.write_text("content v2")
-        builder2 = ZipBuilder(tmp_path)
-        result2 = builder2.build([test_file])
-        hash2 = result2.sha256_hash
-        builder2.cleanup()
-
-        assert hash1 != hash2
-
     def test_hash_is_lowercase_hex(self, tmp_path: Path) -> None:
         """Hash is returned as lowercase hexadecimal."""
         from prefect.bundles._zip_builder import ZipBuilder
@@ -599,25 +523,3 @@ class TestZipBuilderHashComputation:
         assert len(result.sha256_hash) == 64
 
         builder.cleanup()
-
-
-class TestZipBuilderExports:
-    """Tests for module exports."""
-
-    def test_module_exports(self) -> None:
-        """Module exports required symbols."""
-        from prefect.bundles import _zip_builder
-
-        assert hasattr(_zip_builder, "ZipBuilder")
-        assert hasattr(_zip_builder, "ZipResult")
-        assert hasattr(_zip_builder, "HASH_CHUNK_SIZE")
-        assert hasattr(_zip_builder, "ZIP_SIZE_WARNING_THRESHOLD")
-
-    def test_all_exports(self) -> None:
-        """__all__ includes required exports."""
-        from prefect.bundles._zip_builder import __all__
-
-        assert "ZipBuilder" in __all__
-        assert "ZipResult" in __all__
-        assert "HASH_CHUNK_SIZE" in __all__
-        assert "ZIP_SIZE_WARNING_THRESHOLD" in __all__

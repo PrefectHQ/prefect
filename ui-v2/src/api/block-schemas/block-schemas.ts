@@ -4,7 +4,7 @@ import { getQueryService } from "@/api/service";
 
 export type BlockSchema = components["schemas"]["BlockSchema"];
 export type BlockSchemaFilter =
-	components["schemas"]["Body_read_block_schemas_block_schemas_filter_post"];
+	components["schemas"]["Body_read_block_schemas"];
 
 /**
  * ```

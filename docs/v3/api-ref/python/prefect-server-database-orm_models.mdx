@@ -230,21 +230,21 @@ job_variables(self) -> Mapped[dict[str, Any]]
 SQLAlchemy model of a logging statement.
 
 
-### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L964" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencyLimit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L965" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `ConcurrencyLimitV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L974" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencyLimitV2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L975" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L987" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L988" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1008" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1009" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockSchemaReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1041" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1052" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocument` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1053" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `decrypt_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1092" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `decrypt_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1093" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 decrypt_data(self, session: AsyncSession) -> dict[str, Any]
@@ -255,7 +255,7 @@ Retrieve decrypted data from the ORM model.
 Note: will only succeed if the caller has sufficient permission.
 
 
-#### `encrypt_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1084" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `encrypt_data` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1085" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 encrypt_data(self, session: AsyncSession, data: dict[str, Any]) -> None
@@ -266,51 +266,51 @@ Store encrypted data on the ORM model
 Note: will only succeed if the caller has sufficient permission.
 
 
-### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BlockDocumentReference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Configuration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SavedSearch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLAlchemy model of a saved search.
 
 
-### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLAlchemy model of a work queue
 
 
-### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLAlchemy model of an worker
 
 
-### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Worker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLAlchemy model of an worker
 
 
-### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Agent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLAlchemy model of an agent
 
 
-### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1257" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Variable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunInput` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CsrfToken` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `sort_expression` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `sort_expression` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]
@@ -319,26 +319,26 @@ sort_expression(cls, value: AutomationSort) -> sa.ColumnExpressionArgument[Any]
 Return an expression used to sort Automations
 
 
-### `AutomationBucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1318" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationBucket` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1319" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `AutomationHeldEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationHeldEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An `expect` event of a proactive trigger with `after` that was evaluated
 before any bucket existed for its key, held for a bucket that opens later.
 
 
-### `AutomationRelatedResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationRelatedResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `CompositeTriggerChildFiring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CompositeTriggerChildFiring` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `AutomationEventFollower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1440" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationEventFollower` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `Event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1462" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1463" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `EventResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1511" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EventResource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1512" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BaseORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1584" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Abstract base class used to inject database-specific ORM configuration into Prefect.
@@ -349,7 +349,7 @@ Use with caution.
 
 **Methods:**
 
-#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
@@ -358,7 +358,7 @@ artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting an ArtifactCollection
 
 
-#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1653" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_document_unique_upsert_columns(self) -> _UpsertColumns
@@ -367,7 +367,7 @@ block_document_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockDocument
 
 
-#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_schema_unique_upsert_columns(self) -> _UpsertColumns
@@ -376,7 +376,7 @@ block_schema_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockSchema
 
 
-#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_type_unique_upsert_columns(self) -> _UpsertColumns
@@ -385,7 +385,7 @@ block_type_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockType
 
 
-#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
@@ -394,7 +394,7 @@ concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a ConcurrencyLimit
 
 
-#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1605" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deployment_unique_upsert_columns(self) -> _UpsertColumns
@@ -403,7 +403,7 @@ deployment_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Deployment
 
 
-#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -412,7 +412,7 @@ flow_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a FlowRun
 
 
-#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1634" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_unique_upsert_columns(self) -> _UpsertColumns
@@ -421,7 +421,7 @@ flow_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Flow
 
 
-#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 saved_search_unique_upsert_columns(self) -> _UpsertColumns
@@ -430,7 +430,7 @@ saved_search_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a SavedSearch
 
 
-#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -439,7 +439,7 @@ task_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a TaskRun
 
 
-#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unique_key(self) -> tuple[Hashable, ...]
@@ -448,7 +448,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -457,7 +457,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-### `AsyncPostgresORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncPostgresORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1659" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Postgres specific orm configuration
@@ -465,7 +465,7 @@ Postgres specific orm configuration
 
 **Methods:**
 
-#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
@@ -474,7 +474,7 @@ artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting an ArtifactCollection
 
 
-#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1653" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_document_unique_upsert_columns(self) -> _UpsertColumns
@@ -483,7 +483,7 @@ block_document_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockDocument
 
 
-#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_schema_unique_upsert_columns(self) -> _UpsertColumns
@@ -492,7 +492,7 @@ block_schema_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockSchema
 
 
-#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_type_unique_upsert_columns(self) -> _UpsertColumns
@@ -501,7 +501,7 @@ block_type_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockType
 
 
-#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
@@ -510,7 +510,7 @@ concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a ConcurrencyLimit
 
 
-#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1605" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deployment_unique_upsert_columns(self) -> _UpsertColumns
@@ -519,7 +519,7 @@ deployment_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Deployment
 
 
-#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -528,7 +528,7 @@ flow_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a FlowRun
 
 
-#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1634" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_unique_upsert_columns(self) -> _UpsertColumns
@@ -537,7 +537,7 @@ flow_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Flow
 
 
-#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 saved_search_unique_upsert_columns(self) -> _UpsertColumns
@@ -546,7 +546,7 @@ saved_search_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a SavedSearch
 
 
-#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -555,7 +555,7 @@ task_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a TaskRun
 
 
-#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unique_key(self) -> tuple[Hashable, ...]
@@ -564,7 +564,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1662" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1663" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -573,7 +573,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -582,7 +582,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-### `AioSqliteORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1674" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AioSqliteORMConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1675" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 SQLite specific orm configuration
@@ -590,7 +590,7 @@ SQLite specific orm configuration
 
 **Methods:**
 
-#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1624" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `artifact_collection_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
@@ -599,7 +599,7 @@ artifact_collection_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting an ArtifactCollection
 
 
-#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1653" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_document_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_document_unique_upsert_columns(self) -> _UpsertColumns
@@ -608,7 +608,7 @@ block_document_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockDocument
 
 
-#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_schema_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_schema_unique_upsert_columns(self) -> _UpsertColumns
@@ -617,7 +617,7 @@ block_schema_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockSchema
 
 
-#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_type_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_type_unique_upsert_columns(self) -> _UpsertColumns
@@ -626,7 +626,7 @@ block_type_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a BlockType
 
 
-#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1609" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `concurrency_limit_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1610" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
@@ -635,7 +635,7 @@ concurrency_limit_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a ConcurrencyLimit
 
 
-#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deployment_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1605" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deployment_unique_upsert_columns(self) -> _UpsertColumns
@@ -644,7 +644,7 @@ deployment_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Deployment
 
 
-#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -653,7 +653,7 @@ flow_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a FlowRun
 
 
-#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1634" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `flow_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 flow_unique_upsert_columns(self) -> _UpsertColumns
@@ -662,7 +662,7 @@ flow_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a Flow
 
 
-#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1639" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `saved_search_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 saved_search_unique_upsert_columns(self) -> _UpsertColumns
@@ -671,7 +671,7 @@ saved_search_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a SavedSearch
 
 
-#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `task_run_unique_upsert_columns` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1645" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task_run_unique_upsert_columns(self) -> _UpsertColumns
@@ -680,7 +680,7 @@ task_run_unique_upsert_columns(self) -> _UpsertColumns
 Unique columns for upserting a TaskRun
 
 
-#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1591" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `unique_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 unique_key(self) -> tuple[Hashable, ...]
@@ -689,7 +689,7 @@ unique_key(self) -> tuple[Hashable, ...]
 Returns a key used to determine whether to instantiate a new DB interface.
 
 
-#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1678" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 versions_dir(self) -> Path
@@ -698,7 +698,7 @@ versions_dir(self) -> Path
 Directory containing migrations
 
 
-#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1599" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `versions_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/orm_models.py#L1600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 versions_dir(self) -> Path

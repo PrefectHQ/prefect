@@ -33,6 +33,9 @@ prefect deployment schedule ls my-flow/my-deployment
 prefect deployment schedule pause my-flow/my-deployment <schedule-id>
 ```
 
+A paused schedule stays paused when you redeploy, unless your deployment configuration sets `active` to `true` for that schedule.
+A schedule without a `slug` stays paused only if its definition and parameters are unchanged.
+
 ### Resume a specific schedule
 
 ```bash

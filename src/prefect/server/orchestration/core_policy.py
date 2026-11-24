@@ -1788,9 +1788,11 @@ class PreventPendingTransitions(GenericOrchestrationRule):
     RUNNING state a worker should not attempt to submit it again unless it has moved
     into a terminal state.
 
-    CANCELLING and CANCELLED runs should not be allowed to transition to PENDING.
-    For re-runs of deployed runs, they should transition to SCHEDULED first.
-    For re-runs of ad-hoc runs, they should transition directly to RUNNING.
+    COMPLETED, CANCELLING, and CANCELLED runs should not be allowed to transition to
+    PENDING. Otherwise, a worker with a stale copy of a run could submit a run that
+    has already finished. For re-runs of deployed runs, they should transition to
+    SCHEDULED first. For re-runs of ad-hoc runs, they should transition directly to
+    RUNNING.
     """
 
     FROM_STATES = {
@@ -1798,6 +1800,7 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         StateType.CANCELLING,
         StateType.RUNNING,
         StateType.CANCELLED,
+        StateType.COMPLETED,
     }
     TO_STATES = {StateType.PENDING}
 
