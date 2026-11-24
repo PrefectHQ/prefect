@@ -27,7 +27,10 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 					id: header,
 					header: () => header,
 					cell: ({ row }) => {
-						const value = Object.hasOwn(row.original, header)
+						const value = Object.prototype.propertyIsEnumerable.call(
+							row.original,
+							header,
+						)
 							? String(row.original[header] ?? "")
 							: "";
 						return (
