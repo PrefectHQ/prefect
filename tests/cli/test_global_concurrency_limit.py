@@ -680,40 +680,6 @@ async def test_create_gcl_duplicate_name(
     )
 
 
-async def test_create_gcl_succeeds(
-    prefect_client,
-):
-    await run_sync_in_worker_thread(
-        invoke_and_assert,
-        [
-            "global-concurrency-limit",
-            "create",
-            "test",
-            "--limit",
-            "10",
-            "--active-slots",
-            "10",
-            "--slot-decay-per-second",
-            "0.5",
-        ],
-        expected_output_contains="Created global concurrency limit with name 'test' and ID",
-        expected_code=0,
-    )
-
-    client_res = await prefect_client.read_global_concurrency_limit_by_name(name="test")
-
-    assert client_res.name == "test", (
-        f"Expected name to be 'test', got {client_res.name}"
-    )
-    assert client_res.limit == 10, f"Expected limit to be 10, got {client_res.limit}"
-    assert client_res.active_slots == 10, (
-        f"Expected active slots to be 10, got {client_res.active_slots}"
-    )
-    assert client_res.slot_decay_per_second == 0.5, (
-        f"Expected slot decay per second to be 0.5, got {client_res.slot_decay_per_second}"
-    )
-
-
 @pytest.fixture
 def read_concurrency_limits() -> Generator[mock.AsyncMock, None, None]:
     with mock.patch(

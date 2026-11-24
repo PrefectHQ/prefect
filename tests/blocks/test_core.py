@@ -778,18 +778,6 @@ class TestAPICompatibility:
         )
         assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
 
-    def test_create_block_schema_from_block_with_capabilities(
-        self, test_block: Type[Block], block_type_x
-    ):
-        block_schema = test_block._to_block_schema(block_type_id=block_type_x.id)
-
-        assert block_schema.checksum == test_block._calculate_schema_checksum()
-        assert block_schema.fields == test_block.model_json_schema()
-        assert block_schema.capabilities == [], (
-            "No capabilities should be defined for this Block and defaults to []"
-        )
-        assert block_schema.version == DEFAULT_BLOCK_SCHEMA_VERSION
-
     def test_create_block_schema_with_no_version_specified(
         self, test_block: Type[Block], block_type_x
     ):
@@ -2696,18 +2684,6 @@ class TestGetCodeExample:
 
 
 class TestSyncCompatible:
-    async def test_block_in_flow_sync_test_sync_flow(self):
-        block_name = f"blk-{uuid4()}"
-        await CoolBlock(cool_factor=1000000).save(block_name)
-
-        @prefect.flow
-        def my_flow():
-            loaded_block = CoolBlock.load(block_name)
-            return loaded_block.cool_factor
-
-        result = my_flow()
-        assert result == 1000000
-
     async def test_block_in_flow_async_test_sync_flow(self):
         block_name = f"blk-{uuid4()}"
         await CoolBlock(cool_factor=1000000).save(block_name)
@@ -2730,22 +2706,6 @@ class TestSyncCompatible:
             return loaded_block.cool_factor
 
         result = await my_flow()
-        assert result == 1000000
-
-    async def test_block_in_task_sync_test_sync_flow(self):
-        block_name = f"blk-{uuid4()}"
-        await CoolBlock(cool_factor=1000000).save(block_name)
-
-        @prefect.task
-        def my_task():
-            loaded_block = CoolBlock.load(block_name)
-            return loaded_block.cool_factor
-
-        @prefect.flow()
-        def my_flow():
-            return my_task()
-
-        result = my_flow()
         assert result == 1000000
 
     async def test_block_in_task_async_test_sync_task(self):

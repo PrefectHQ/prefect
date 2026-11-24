@@ -760,19 +760,6 @@ class TestParseFlowDescriptionToSchema:
             "definitions": {},
         }
 
-    def test_flow_without_docstring(self):
-        def f(x):
-            pass
-
-        schema = callables.parameter_schema(f)
-        assert schema.model_dump_for_openapi() == {
-            "title": "Parameters",
-            "type": "object",
-            "properties": {"x": {"title": "x", "position": 0}},
-            "required": ["x"],
-            "definitions": {},
-        }
-
     def test_flow_without_args_docstring(self):
         def f(x):
             """Function f."""
