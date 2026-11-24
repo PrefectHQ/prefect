@@ -287,6 +287,7 @@ async def test_retries_failed_call_respects_retry_after_header(
     [
         ({"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, 0.0),
         ({"Retry-After": "not-a-number"}, 1.0),
+        ({"Retry-After": ""}, 1.0),
         ({}, 1.0),
     ],
 )
