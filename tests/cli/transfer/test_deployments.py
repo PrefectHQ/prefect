@@ -404,6 +404,7 @@ class TestMigratableDeployment:
 
         # Mock successful creation
         created_deployment_id = uuid.uuid4()
+        mock_client.read_deployments.return_value = []
         mock_client.create_deployment.return_value = created_deployment_id
 
         destination_deployment = DeploymentResponse(
@@ -455,6 +456,7 @@ class TestMigratableDeployment:
 
         # Mock successful creation
         created_deployment_id = uuid.uuid4()
+        mock_client.read_deployments.return_value = []
         mock_client.create_deployment.return_value = created_deployment_id
         mock_client.read_deployment.return_value = MagicMock(id=created_deployment_id)
 
@@ -496,6 +498,7 @@ class TestMigratableDeployment:
 
         # Mock ObjectAlreadyExists exception on create
         mock_http_exc = Exception("Conflict")
+        mock_client.read_deployments.return_value = []
         mock_client.create_deployment.side_effect = ObjectAlreadyExists(mock_http_exc)
 
         # Mock successful read of existing deployment
@@ -548,6 +551,7 @@ class TestMigratableDeployment:
         mock_storage_dependency.destination_id = destination_storage_id
 
         # Mock ObjectLimitReached exception on create
+        mock_client.read_deployments.return_value = []
         mock_client.create_deployment.side_effect = ObjectLimitReached("Limit reached")
 
         migratable = await MigratableDeployment.construct(transfer_deployment)
@@ -629,3 +633,106 @@ class TestMigratableDeployment:
             ValueError, match="Unable to find destination infrastructure document"
         ):
             await migratable.migrate()
+
+    @patch("prefect.cli.transfer._migratable_resources.deployments.get_client")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_migrate_skips_preexisting_deployment_without_upserting(
+        self, mock_get_client: MagicMock, transfer_deployment: DeploymentResponse
+    ):
+        """Test migration skips an existing destination deployment instead of upserting it."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+
+        mock_flow_dependency = MagicMock()
+        destination_flow_id = uuid.uuid4()
+        mock_flow_dependency.destination_id = destination_flow_id
+
+        mock_storage_dependency = MagicMock()
+        mock_storage_dependency.destination_id = uuid.uuid4()
+
+        existing_deployment = DeploymentResponse(
+            id=uuid.uuid4(),
+            name=transfer_deployment.name,
+            flow_id=destination_flow_id,
+            schedules=[],
+            tags=["destination-only"],
+            parameters={"preserved": True},
+        )
+        mock_client.read_deployments.return_value = [existing_deployment]
+
+        migratable = await MigratableDeployment.construct(transfer_deployment)
+        migratable._dependencies[transfer_deployment.flow_id] = mock_flow_dependency
+        migratable._dependencies[transfer_deployment.storage_document_id] = (
+            mock_storage_dependency
+        )
+
+        with pytest.raises(TransferSkipped, match="Already exists"):
+            await migratable.migrate()
+
+        mock_client.read_deployments.assert_awaited_once()
+        mock_client.create_deployment.assert_not_called()
+        assert migratable.destination_deployment == existing_deployment
+        assert migratable.destination_id == existing_deployment.id
+
+    @patch("prefect.cli.transfer._migratable_resources.deployments.get_client")
+    @pytest.mark.filterwarnings("ignore::DeprecationWarning")
+    async def test_rerun_dag_with_existing_pool_and_deployment_skips_without_overwrite(
+        self, mock_get_client: MagicMock, transfer_deployment: DeploymentResponse
+    ):
+        """Re-running transfer when pool and deployment already exist must skip both without calling create_deployment."""
+        from prefect.cli.transfer._dag import NodeState, TransferDAG
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+
+        destination_flow_id = uuid.uuid4()
+        destination_pool_id = uuid.uuid4()
+
+        flow_dep = MagicMock()
+        flow_dep.source_id = transfer_deployment.flow_id
+        flow_dep.destination_id = destination_flow_id
+        flow_dep.migrate = AsyncMock(side_effect=TransferSkipped("Already exists"))
+
+        pool_dep = MagicMock()
+        pool_dep.source_id = uuid.uuid4()
+        pool_dep.destination_id = destination_pool_id
+        pool_dep.migrate = AsyncMock(side_effect=TransferSkipped("Already exists"))
+
+        storage_dep = MagicMock()
+        storage_dep.source_id = transfer_deployment.storage_document_id
+        storage_dep.destination_id = uuid.uuid4()
+        storage_dep.migrate = AsyncMock(side_effect=TransferSkipped("Already exists"))
+
+        existing_deployment = DeploymentResponse(
+            id=uuid.uuid4(),
+            name=transfer_deployment.name,
+            flow_id=destination_flow_id,
+            schedules=[],
+            tags=["keep-me"],
+            parameters={"env": "prod"},
+        )
+        mock_client.read_deployments.return_value = [existing_deployment]
+
+        MigratableDeployment._instances.clear()
+        migratable = await MigratableDeployment.construct(transfer_deployment)
+        migratable._dependencies[flow_dep.source_id] = flow_dep
+        migratable._dependencies[pool_dep.source_id] = pool_dep
+        migratable._dependencies[storage_dep.source_id] = storage_dep
+
+        dag = TransferDAG()
+        for node in (flow_dep, pool_dep, storage_dep, migratable):
+            dag.add_node(node)
+        dag.add_edge(migratable.source_id, flow_dep.source_id)
+        dag.add_edge(migratable.source_id, pool_dep.source_id)
+        dag.add_edge(migratable.source_id, storage_dep.source_id)
+
+        async def process_node(node):
+            await node.migrate()
+
+        results = await dag.execute_concurrent(process_node)
+
+        assert isinstance(results[pool_dep.source_id], TransferSkipped)
+        assert isinstance(results[migratable.source_id], TransferSkipped)
+        assert dag._status[migratable.source_id].state == NodeState.SKIPPED
+        mock_client.create_deployment.assert_not_called()
+        assert migratable.destination_deployment == existing_deployment
