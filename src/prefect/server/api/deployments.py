@@ -598,13 +598,13 @@ async def read_deployment(
 async def read_deployments(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
-    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    sort: Optional[schemas.sorting.DeploymentSort] = Body(
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    work_pools: schemas.filters.WorkPoolFilter | None = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter | None = None,
+    sort: schemas.sorting.DeploymentSort | None = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
     db: PrefectDBInterface = Depends(aprovide_database_interface),

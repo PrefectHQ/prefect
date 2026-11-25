@@ -2,7 +2,7 @@
 Routes for interacting with variable objects
 """
 
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -102,8 +102,8 @@ async def read_variable_by_name(
 async def read_variables(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
-    variables: Optional[filters.VariableFilter] = None,
-    sort: Optional[sorting.VariableSort] = Body(sorting.VariableSort.NAME_ASC),
+    variables: filters.VariableFilter | None = None,
+    sort: sorting.VariableSort | None = Body(sorting.VariableSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[core.Variable]:
     async with db.session_context() as session:
@@ -118,7 +118,7 @@ async def read_variables(
 
 @router.post("/count")
 async def count_variables(
-    variables: Optional[filters.VariableFilter] = Body(None, embed=True),
+    variables: filters.VariableFilter | None = Body(None, embed=True),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     async with db.session_context() as session:

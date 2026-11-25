@@ -233,8 +233,8 @@ async def read_work_queue_runs(
 @router.post("/filter")
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
-    offset: Optional[int] = Body(0, ge=0),
-    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
+    offset: int | None = Body(0, ge=0),
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
     """

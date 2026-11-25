@@ -1,4 +1,4 @@
-from typing import Optional, Sequence
+from typing import Sequence
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path
@@ -178,10 +178,10 @@ async def delete_automation(
 
 @router.post("/filter")
 async def read_automations(
-    sort: Optional[AutomationSort] = Body(AutomationSort.NAME_ASC),
+    sort: AutomationSort | None = Body(AutomationSort.NAME_ASC),
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
-    automations: Optional[AutomationFilter] = None,
+    automations: AutomationFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Sequence[Automation]:
     async with db.session_context() as session:
@@ -198,7 +198,7 @@ async def read_automations(
 async def count_automations(
     # embed keeps the filter under an "automations" key, matching /filter, and
     # keeps bodiless requests on the count-everything path
-    automations: Optional[AutomationFilter] = Body(None, embed=True),
+    automations: AutomationFilter | None = Body(None, embed=True),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     async with db.session_context() as session:

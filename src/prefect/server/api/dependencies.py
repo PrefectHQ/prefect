@@ -120,7 +120,7 @@ def LimitBody() -> Any:
     """
 
     async def get_limit(
-        limit: Optional[int] = Body(
+        limit: int | None = Body(
             None,
             description="Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.",
         ),

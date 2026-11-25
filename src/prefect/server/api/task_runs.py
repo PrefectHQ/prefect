@@ -112,10 +112,10 @@ async def update_task_run(
 @router.post("/count")
 async def count_task_runs(
     db: PrefectDBInterface = Depends(aprovide_database_interface),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
 ) -> int:
     """
     Count task runs.
@@ -143,10 +143,10 @@ async def task_run_history(
         ),
         json_schema_extra={"format": "time-delta"},
     ),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
@@ -193,15 +193,15 @@ async def read_task_run(
 
 @router.post("/filter")
 async def read_task_runs(
-    sort: Optional[schemas.sorting.TaskRunSort] = Body(
+    sort: schemas.sorting.TaskRunSort | None = Body(
         schemas.sorting.TaskRunSort.ID_DESC
     ),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """

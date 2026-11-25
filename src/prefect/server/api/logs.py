@@ -2,7 +2,7 @@
 Routes for interacting with log objects.
 """
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from fastapi import Body, Depends, WebSocket, status
 from pydantic import TypeAdapter
@@ -43,8 +43,8 @@ logs_adapter: TypeAdapter[Sequence[Log]] = TypeAdapter(Sequence[Log])
 @router.post("/filter")
 async def read_logs(
     limit: int = dependencies.LimitBody(),
-    offset: Optional[int] = Body(0, ge=0),
-    logs: Optional[LogFilter] = None,
+    offset: int | None = Body(0, ge=0),
+    logs: LogFilter | None = None,
     sort: LogSort = Body(LogSort.TIMESTAMP_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Sequence[Log]:

@@ -67,11 +67,11 @@ async def update_flow(
 
 @router.post("/count")
 async def count_flows(
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    work_pools: schemas.filters.WorkPoolFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
@@ -126,12 +126,12 @@ async def read_flow(
 async def read_flows(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
-    sort: Optional[schemas.sorting.FlowSort] = Body(schemas.sorting.FlowSort.NAME_ASC),
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    work_pools: schemas.filters.WorkPoolFilter | None = None,
+    sort: schemas.sorting.FlowSort | None = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.Flow]:
     """
