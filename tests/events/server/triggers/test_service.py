@@ -300,6 +300,38 @@ async def test_events_clock_idle_timer_starts_after_reconciling(
         assert await triggers.get_known_events_clock_offset(reconciled_at[0]) is None
 
 
+async def test_events_clock_stays_unknown_while_the_consumer_is_starting(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # Simulate a previous consumer in this process having stopped a while ago
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        pass
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    stopped_for = advance_time(threshold * 2)
+    assert await triggers.get_known_events_clock_offset(stopped_for) is None
+
+    reconciled_at: list[DateTime] = []
+    offsets_while_reconciling: list[float | None] = []
+
+    async def slow_reconcile(force: bool = False) -> bool:
+        reconciled_at.append(advance_time(threshold * 2))
+        offsets_while_reconciling.append(
+            await triggers.get_known_events_clock_offset(reconciled_at[0])
+        )
+        return False
+
+    monkeypatch.setattr(triggers, "reconcile_automations", slow_reconcile)
+
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        assert offsets_while_reconciling == [None]
+        ready = reconciled_at[0]
+        assert await triggers.get_known_events_clock_offset(ready) is None
+        idle = ready + threshold + timedelta(seconds=1)
+        assert await triggers.get_known_events_clock_offset(idle) == 0.0
+
+
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
     open_automations_session: mock.Mock,
     load_automations: mock.AsyncMock,

@@ -525,6 +525,7 @@ __events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
 _events_clock_reset: Optional[float] = None
+_events_clock_paused: bool = False
 
 
 def _events_clock_lock() -> asyncio.Lock:
@@ -586,6 +587,10 @@ async def get_known_events_clock_offset(
         if _events_clock is not None and _events_clock_updated is not None:
             return _events_clock - _events_clock_updated
 
+        # A consumer that isn't polling yet can't tell whether the stream is idle
+        if _events_clock_paused:
+            return None
+
         # A new process starts idling when it first needs the clock rather than at
         # import, since server startup can take a while before any events are consumed
         if _events_clock_reset is None:
@@ -598,12 +603,18 @@ async def get_known_events_clock_offset(
         return None
 
 
-async def reset_events_clock() -> None:
+async def reset_events_clock(paused: bool = False) -> None:
+    """Forget the events clock.  If `paused`, the clock stays unknown until it is reset
+    again, otherwise the idle timer starts now."""
     global _events_clock, _events_clock_updated, _events_clock_reset
+    global _events_clock_paused
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
-        _events_clock_reset = prefect.types._datetime.now("UTC").timestamp()
+        _events_clock_paused = paused
+        _events_clock_reset = (
+            None if paused else prefect.types._datetime.now("UTC").timestamp()
+        )
 
 
 async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
@@ -1423,8 +1434,8 @@ async def consumer(
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
     # The clock only describes the stream while this consumer is handling it, and the
     # consumer may be starting behind the stream, so the clock is unknown until it
-    # handles an event
-    await reset_events_clock()
+    # handles an event or has been polling an idle stream for a while
+    await reset_events_clock(paused=True)
 
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
@@ -1468,7 +1479,7 @@ async def consumer(
     try:
         await reconcile_automations(force=True)
 
-        # Reconciling can be slow, so restart the idle timer now that this consumer is
+        # Reconciling can be slow, so only start the idle timer once this consumer is
         # about to start handling events
         await reset_events_clock()
 
@@ -1484,7 +1495,7 @@ async def consumer(
             task.cancel()
         # Wait for tasks to finish
         await asyncio.gather(*background_tasks, return_exceptions=True)
-        await reset_events_clock()
+        await reset_events_clock(paused=True)
 
 
 async def proactive_evaluation(
