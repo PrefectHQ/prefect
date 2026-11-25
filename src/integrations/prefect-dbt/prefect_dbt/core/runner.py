@@ -259,7 +259,7 @@ class PrefectDbtRunner(DbtHookMixin):
             )
 
     def _get_node_prefect_config(
-        self, manifest_node: ManifestNode | SourceDefinition
+        self, manifest_node: ManifestNode | UnitTestDefinition | SourceDefinition
     ) -> dict[str, dict[str, Any]]:
         if isinstance(manifest_node, SourceDefinition):
             return manifest_node.meta.get("prefect", {})
@@ -407,7 +407,7 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _create_task_options(
         self,
-        manifest_node: ManifestNode | UnitTestDefinition,
+        manifest_node: ManifestNode | UnitTestDefinition | SourceDefinition,
         upstream_assets: list[Asset] | None = None,
     ) -> TaskOptions:
         """Create TaskOptions for a manifest node."""
@@ -419,17 +419,21 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _get_manifest_node_and_config(
         self, node_id: str
-    ) -> tuple[ManifestNode | UnitTestDefinition | None, dict[str, Any]]:
+    ) -> tuple[
+        ManifestNode | UnitTestDefinition | SourceDefinition | None, dict[str, Any]
+    ]:
         """Get manifest node and its prefect config."""
-        manifest_node: ManifestNode | UnitTestDefinition | None = (
+        manifest_node: ManifestNode | UnitTestDefinition | SourceDefinition | None = (
             self.manifest.nodes.get(node_id)
         )
         if manifest_node is None:
             unit_tests = getattr(self.manifest, "unit_tests", {})
             manifest_node = unit_tests.get(node_id)
+        if manifest_node is None:
+            # Sources are executed by `dbt source freshness`
+            manifest_node = self.manifest.sources.get(node_id)
         if manifest_node:
-            prefect_config = manifest_node.config.meta.get("prefect", {})
-            return manifest_node, prefect_config
+            return manifest_node, self._get_node_prefect_config(manifest_node)
         return None, {}
 
     @staticmethod
@@ -514,7 +518,7 @@ class PrefectDbtRunner(DbtHookMixin):
     def _call_task(
         self,
         task_state: NodeTaskTracker,
-        manifest_node: ManifestNode | UnitTestDefinition,
+        manifest_node: ManifestNode | UnitTestDefinition | SourceDefinition,
         context: dict[str, Any],
         enable_assets: bool,
     ):
@@ -523,8 +527,12 @@ class PrefectDbtRunner(DbtHookMixin):
         if not adapter_type:
             raise ValueError("Adapter type not found in manifest")
 
-        upstream_manifest_nodes = self._get_upstream_manifest_nodes_and_configs(
-            manifest_node
+        # Sources only run during `dbt source freshness`, where they are
+        # independent of each other, so they have no upstream nodes.
+        upstream_manifest_nodes = (
+            []
+            if manifest_node.resource_type == NodeType.Source
+            else self._get_upstream_manifest_nodes_and_configs(manifest_node)
         )
 
         # Only create assets for materialization nodes that have a relation_name.

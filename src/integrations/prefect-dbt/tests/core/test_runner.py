@@ -973,6 +973,39 @@ class TestPrefectDbtRunnerCallbackCreation:
             True,
         )
 
+    def test_unified_callback_creates_task_for_source_freshness(
+        self, mock_task_state, mock_source_definition, mock_manifest
+    ):
+        """`dbt source freshness` emits NodeStart for sources, which live in
+        `manifest.sources` rather than `manifest.nodes`."""
+        mock_manifest.sources = {
+            mock_source_definition.unique_id: mock_source_definition
+        }
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        context = {"test": "context"}
+
+        with patch.object(runner, "_call_task") as mock_call_task:
+            callback = runner._create_unified_callback(
+                mock_task_state, EventLevel.INFO, context
+            )
+
+            start_event = Mock(spec=EventMsg)
+            start_event.info = Mock()
+            start_event.info.name = "NodeStart"
+            start_event.data = Mock()
+            start_event.data.node_info = Mock()
+            start_event.data.node_info.unique_id = mock_source_definition.unique_id
+
+            callback(start_event)
+
+            if runner._event_queue:
+                runner._event_queue.join()
+                runner._stop_callback_processor()
+
+        mock_call_task.assert_called_once_with(
+            mock_task_state, mock_source_definition, context, True
+        )
+
     def test_unified_callback_tracks_microbatch_model_as_single_node(
         self, mock_manifest_node, mock_manifest
     ):
@@ -1375,6 +1408,27 @@ class TestPrefectDbtRunnerTaskCreation:
             )
 
             mock_task_class.assert_called_once()
+
+    def test_call_task_for_source_creates_independent_regular_task(
+        self, mock_task_state, mock_source_definition, mock_manifest
+    ):
+        """Sources get a plain task (no assets) and no upstream dependencies."""
+        mock_source_definition.depends_on_nodes = ["model.test_project.other"]
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+
+        with (
+            patch("prefect_dbt.core.runner.Task") as mock_task_class,
+            patch("prefect_dbt.core.runner.MaterializingTask") as mock_mat_task,
+        ):
+            runner._call_task(
+                mock_task_state, mock_source_definition, {}, enable_assets=True
+            )
+
+        mock_task_class.assert_called_once()
+        mock_mat_task.assert_not_called()
+        mock_task_state.set_node_dependencies.assert_called_once_with(
+            mock_source_definition.unique_id, []
+        )
 
     def test_call_task_handles_missing_adapter_type(
         self, mock_task_state, mock_manifest_node, mock_manifest
