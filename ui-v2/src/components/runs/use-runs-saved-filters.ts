@@ -280,7 +280,8 @@ export function useRunsSavedFilters(): UseRunsSavedFiltersReturn {
 
 /**
  * Search params that apply the default filter to a runs page URL with no
- * filters, or undefined when the URL already filters the page.
+ * filters, or undefined when the URL already filters the page or the saved
+ * default has no active filters.
  *
  * Filter priority:
  * 1. User-set default filter (if one is set in localStorage)
@@ -294,8 +295,11 @@ export function defaultFilterSearch(
 	search: Parameters<typeof urlParamsToFilterValues>[0],
 ) {
 	if (Object.keys(urlParamsToFilterValues(search)).length > 0) return undefined;
+	const defaults = filterValuesToUrlParams(readDefaultFilter().filters);
+	if (Object.keys(urlParamsToFilterValues(defaults)).length === 0)
+		return undefined;
 	return {
-		...filterValuesToUrlParams(readDefaultFilter().filters),
+		...defaults,
 		page: 1,
 		"task-runs-page": 1,
 	};

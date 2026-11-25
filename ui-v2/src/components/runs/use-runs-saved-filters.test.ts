@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { expect, it, vi } from "vitest";
 import {
 	defaultFilterSearch,
@@ -25,7 +24,7 @@ const withStoredFilters = (
 	savedFilters: unknown[],
 	check: () => void,
 ) =>
-	vi.mocked(localStorage.getItem).withImplementation(
+	vi.spyOn(localStorage, "getItem").withImplementation(
 		(key) =>
 			({
 				"prefect-ui-v2-default-filter-id": JSON.stringify(defaultFilterId),
@@ -64,4 +63,17 @@ it("leaves a runs URL that already filters the page", () => {
 	expect(
 		defaultFilterSearch({ start: "2026-11-01T00:00:00Z" }),
 	).toBeUndefined();
+});
+
+it.each([
+	{},
+	{ state: [], stateTypes: [], flows: [], tags: [], start: "", end: "" },
+])("does not redirect for an empty saved default: %j", (filters) => {
+	withStoredFilters(
+		"all-runs",
+		[{ id: "all-runs", name: "All runs", filters }],
+		() => {
+			expect(defaultFilterSearch({})).toBeUndefined();
+		},
+	);
 });

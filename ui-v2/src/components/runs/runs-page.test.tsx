@@ -1,10 +1,11 @@
-import { RouterProvider } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
+import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
-import { router } from "@/router";
+import { describe, expect, it, vi } from "vitest";
+import { createAppRouter, router } from "@/router";
 
 const renderRunsPage = async () => {
 	const user = userEvent.setup();
@@ -61,6 +62,31 @@ const setupFlowRunsHandlers = (
 };
 
 describe("Runs page", () => {
+	it("opens without filters when the user's saved default is empty", async () => {
+		setupFlowRunsHandlers();
+		const queryClient = new QueryClient();
+		const testRouter = createAppRouter({
+			queryClient,
+			history: createMemoryHistory({ initialEntries: ["/runs"] }),
+		});
+		await vi.spyOn(localStorage, "getItem").withImplementation(
+			(key) =>
+				({
+					"prefect-ui-v2-default-filter-id": JSON.stringify("all-runs"),
+					"prefect-ui-v2-saved-filters": JSON.stringify([
+						{ id: "all-runs", name: "All runs", filters: {} },
+					]),
+				})[key] ?? null,
+			async () => {
+				render(<RouterProvider router={testRouter} />, {
+					wrapper: createWrapper({ queryClient }),
+				});
+				expect(await screen.findByText("test-flow-run-1")).toBeVisible();
+				expect(testRouter.state.location.search.range).toBeUndefined();
+			},
+		);
+	});
+
 	it("requests run history within the default filter's date range from the first request", async () => {
 		setupFlowRunsHandlers();
 		const historyStarts: (string | undefined)[] = [];
