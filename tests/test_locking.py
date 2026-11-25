@@ -1,6 +1,7 @@
 import asyncio
 import multiprocessing
 import queue
+import sys
 import threading
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta
@@ -255,6 +256,27 @@ class TestMemoryLockManager:
         assert manager.is_lock_holder(key=key, holder="c")
         assert not fake.locked()
 
+    class _SignallingLock:
+        """A real lock that signals when a waiter enters its ``acquire``.
+
+        Arguments are forwarded unchanged, so a caller that passes the
+        unsupported ``timeout=None`` still hits the ``_thread.lock`` TypeError.
+        """
+
+        def __init__(self, lock):
+            self._lock = lock
+            self.entered = threading.Event()
+
+        def acquire(self, blocking=True, timeout=-1):
+            self.entered.set()
+            return self._lock.acquire(blocking, timeout)
+
+        def release(self):
+            self._lock.release()
+
+        def locked(self):
+            return self._lock.locked()
+
     def test_acquire_lock_without_timeout_waits_until_release(self):
         """The default no-timeout acquire must block until release, not raise:
         `_thread.lock.acquire` rejects `timeout=None` with a TypeError
@@ -262,6 +284,8 @@ class TestMemoryLockManager:
         key = str(uuid4())
         manager = MemoryLockManager()
         assert manager.acquire_lock(key=key, holder="a")
+        held = self._SignallingLock(manager._locks[key]["lock"])
+        manager._locks[key]["lock"] = held
 
         result = {}
 
@@ -270,8 +294,10 @@ class TestMemoryLockManager:
 
         thread = threading.Thread(target=waiter)
         thread.start()
-        sleep(0.05)  # the waiter is parked on the held lock
-        assert thread.is_alive()
+        # handshake: the waiter is inside the held lock's acquire(), so it has
+        # observed the held entry and cannot take the free-key fast path once
+        # the holder is released
+        assert held.entered.wait(timeout=5)
         manager.release_lock(key=key, holder="a")
         thread.join(timeout=5)
         # the waiter was released off the stale object, retried on the fresh
@@ -286,14 +312,181 @@ class TestMemoryLockManager:
         key = str(uuid4())
         manager = MemoryLockManager()
         assert await manager.aacquire_lock(key=key, holder="a")
+        held = self._SignallingLock(manager._locks[key]["lock"])
+        manager._locks[key]["lock"] = held
 
         waiter_task = asyncio.create_task(manager.aacquire_lock(key=key, holder="b"))
-        await asyncio.sleep(0.05)  # the waiter is parked in to_thread
-        assert not waiter_task.done()
+        # handshake: the waiter's acquire() is running in the to_thread worker
+        while not held.entered.is_set():
+            await asyncio.sleep(0.01)
         manager.release_lock(key=key, holder="a")
         assert await asyncio.wait_for(waiter_task, timeout=5) is True
         assert manager.is_lock_holder(key=key, holder="b")
         manager.release_lock(key=key, holder="b")
+
+    def test_acquire_lock_keeps_retrying_a_replaced_entry_without_recursing(self):
+        """A waiter that keeps losing the race to a replacement holder must
+        keep waiting instead of exhausting the stack (#23789 review)."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        replacements = sys.getrecursionlimit() + 100
+
+        class _AlwaysReplacedLock:
+            """Each acquire() succeeds, but only after moving the entry to a
+            fresh holder, so the waiter always ends up on a stale object."""
+
+            def __init__(self, left: int):
+                self._left = left
+                self._locked = True
+
+            def acquire(self, timeout=None):
+                if self._left > 0:
+                    with manager._locks_dict_lock:
+                        manager._locks[key] = {
+                            "holder": "other",
+                            "lock": _AlwaysReplacedLock(self._left - 1),
+                            "expiration_timer": None,
+                        }
+                return True
+
+            def release(self):
+                self._locked = False
+
+            def locked(self):
+                return self._locked
+
+        manager._locks[key] = {
+            "holder": "a",
+            "lock": _AlwaysReplacedLock(replacements),
+            "expiration_timer": None,
+        }
+
+        assert manager.acquire_lock(key=key, holder="b") is True
+        assert manager.is_lock_holder(key=key, holder="b")
+
+    async def test_aacquire_lock_keeps_retrying_a_replaced_entry_without_recursing(
+        self,
+    ):
+        """The async waiter iterates too: each retry is not another coroutine
+        frame on the stack."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+        replacements = sys.getrecursionlimit() + 100
+
+        class _AlwaysReplacedLock:
+            def __init__(self, left: int):
+                self._left = left
+                self._locked = True
+
+            def acquire(self, timeout=None):
+                if self._left > 0:
+                    with manager._locks_dict_lock:
+                        manager._locks[key] = {
+                            "holder": "other",
+                            "lock": _AlwaysReplacedLock(self._left - 1),
+                            "expiration_timer": None,
+                        }
+                return True
+
+            def release(self):
+                self._locked = False
+
+            def locked(self):
+                return self._locked
+
+        manager._locks[key] = {
+            "holder": "a",
+            "lock": _AlwaysReplacedLock(replacements),
+            "expiration_timer": None,
+        }
+
+        assert await manager.aacquire_lock(key=key, holder="b") is True
+        assert manager.is_lock_holder(key=key, holder="b")
+
+    def test_acquire_lock_stale_retry_does_not_claim_a_key_freed_late(
+        self, monkeypatch
+    ):
+        """A key that comes free only after the caller's deadline is not
+        claimed by the stale-entry retry (#23789 review)."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+
+        class _Clock:
+            now = 1000.0
+
+            @classmethod
+            def monotonic(cls) -> float:
+                return cls.now
+
+        monkeypatch.setattr("prefect.locking.memory.time", _Clock)
+
+        class _FreedAfterTheDeadlineLock:
+            """Its acquire() succeeds with the clock past the caller's
+            deadline and the entry already gone."""
+
+            def __init__(self):
+                self._locked = True
+
+            def acquire(self, timeout=None):
+                _Clock.now += 10
+                del manager._locks[key]
+                return True
+
+            def release(self):
+                self._locked = False
+
+            def locked(self):
+                return self._locked
+
+        manager._locks[key] = {
+            "holder": "a",
+            "lock": _FreedAfterTheDeadlineLock(),
+            "expiration_timer": None,
+        }
+
+        assert manager.acquire_lock(key=key, holder="b", acquire_timeout=0.5) is False
+        assert not manager.is_locked(key=key)
+
+    async def test_aacquire_lock_stale_retry_does_not_claim_a_key_freed_late(
+        self, monkeypatch
+    ):
+        """The async stale-entry retry honours the carried deadline too."""
+        key = str(uuid4())
+        manager = MemoryLockManager()
+
+        class _Clock:
+            now = 1000.0
+
+            @classmethod
+            def monotonic(cls) -> float:
+                return cls.now
+
+        monkeypatch.setattr("prefect.locking.memory.time", _Clock)
+
+        class _FreedAfterTheDeadlineLock:
+            def __init__(self):
+                self._locked = True
+
+            def acquire(self, timeout=None):
+                _Clock.now += 10
+                del manager._locks[key]
+                return True
+
+            def release(self):
+                self._locked = False
+
+            def locked(self):
+                return self._locked
+
+        manager._locks[key] = {
+            "holder": "a",
+            "lock": _FreedAfterTheDeadlineLock(),
+            "expiration_timer": None,
+        }
+
+        acquired = await manager.aacquire_lock(key=key, holder="b", acquire_timeout=0.5)
+        assert acquired is False
+        assert not manager.is_locked(key=key)
 
     def test_raises_if_releasing_with_wrong_holder(self):
         key = str(uuid4())

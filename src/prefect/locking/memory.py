@@ -90,58 +90,66 @@ class MemoryLockManager(LockManager):
         deadline: float | None,
         hold_timeout: float | None,
     ) -> bool:
-        with self._locks_dict_lock:
-            if key not in self._locks:
-                lock = threading.Lock()
-                lock.acquire()
-                expiration_timer = None
-                if hold_timeout is not None:
-                    expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(key,)
+        # set once a wait turned out to be on a stale lock object
+        is_retry = False
+        while True:
+            with self._locks_dict_lock:
+                if is_retry and deadline is not None and time.monotonic() >= deadline:
+                    # The stale wait ended and the key is free only now:
+                    # it did not become available within ``acquire_timeout``.
+                    return False
+                if key not in self._locks:
+                    lock = threading.Lock()
+                    lock.acquire()
+                    expiration_timer = None
+                    if hold_timeout is not None:
+                        expiration_timer = threading.Timer(
+                            hold_timeout, self._expire_lock, args=(key,)
+                        )
+                        expiration_timer.start()
+                    self._locks[key] = _LockInfo(
+                        holder=holder, lock=lock, expiration_timer=expiration_timer
                     )
-                    expiration_timer.start()
-                self._locks[key] = _LockInfo(
-                    holder=holder, lock=lock, expiration_timer=expiration_timer
-                )
-                return True
-            elif self._locks[key]["holder"] == holder:
-                return True
+                    return True
+                elif self._locks[key]["holder"] == holder:
+                    return True
+                else:
+                    existing_lock_info = self._locks[key]
+
+            # wait at most until the caller's deadline (no deadline: forever)
+            remaining: float | None = None
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+            if remaining is None:
+                # acquire() blocks indefinitely; passing timeout=None to
+                # _thread.lock.acquire raises TypeError, so the documented
+                # no-timeout default must keep the argument-free call
+                existing_lock_acquired = existing_lock_info["lock"].acquire()
             else:
-                existing_lock_info = self._locks[key]
+                existing_lock_acquired = existing_lock_info["lock"].acquire(
+                    timeout=remaining
+                )
 
-        # wait at most until the caller's deadline (no deadline: forever)
-        remaining: float | None = None
-        if deadline is not None:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
+            if not existing_lock_acquired:
                 return False
-        if remaining is None:
-            # acquire() blocks indefinitely; passing timeout=None to
-            # _thread.lock.acquire raises TypeError, so the documented
-            # no-timeout default must keep the argument-free call
-            existing_lock_acquired = existing_lock_info["lock"].acquire()
-        else:
-            existing_lock_acquired = existing_lock_info["lock"].acquire(
-                timeout=remaining
-            )
 
-        if existing_lock_acquired:
-            stale_lock = False
             with self._locks_dict_lock:
                 current_lock_info = self._locks.get(key)
                 if (
                     current_lock_info is None
                     or current_lock_info["lock"] is not existing_lock_info["lock"]
                 ):
-                    # The entry we waited on expired (its hold timeout
-                    # elapsed, force-releasing this lock object and dropping
-                    # the entry) and the key was re-acquired on a fresh lock
-                    # object. Our acquire() returned True on the stale
-                    # object; overwriting the entry here would silently
-                    # revoke the new holder. Clean up below and retry the
-                    # whole acquisition against the current entry (the retry
-                    # itself must run outside `_locks_dict_lock`).
-                    stale_lock = True
+                    # Our acquire() returned True on a stale object: the
+                    # entry we waited on expired (its hold timeout elapsed,
+                    # force-releasing this lock object and dropping the
+                    # entry) and the key was since re-acquired on a fresh
+                    # lock object, or freed. Overwriting the entry would
+                    # silently revoke a new holder, so release the stale
+                    # object below and retry the whole acquisition against
+                    # the current entry (the retry itself must run outside
+                    # `_locks_dict_lock`).
                     if (
                         expiration_timer := existing_lock_info["expiration_timer"]
                     ) is not None:
@@ -164,11 +172,11 @@ class MemoryLockManager(LockManager):
                     )
                     return True
 
-            if stale_lock:
-                if existing_lock_info["lock"].locked():
-                    existing_lock_info["lock"].release()
-                return self._acquire_lock(key, holder, deadline, hold_timeout)
-        return False
+            # Retry by iterating rather than recursing, so that a hot
+            # key that keeps replacing its holder cannot exhaust the stack.
+            if existing_lock_info["lock"].locked():
+                existing_lock_info["lock"].release()
+            is_retry = True
 
     async def aacquire_lock(
         self,
@@ -190,56 +198,67 @@ class MemoryLockManager(LockManager):
         deadline: float | None,
         hold_timeout: float | None,
     ) -> bool:
-        with self._locks_dict_lock:
-            if key not in self._locks:
-                lock = threading.Lock()
-                lock.acquire()
-                expiration_timer = None
-                if hold_timeout is not None:
-                    expiration_timer = threading.Timer(
-                        hold_timeout, self._expire_lock, args=(key,)
+        # set once a wait turned out to be on a stale lock object
+        is_retry = False
+        while True:
+            with self._locks_dict_lock:
+                if is_retry and deadline is not None and time.monotonic() >= deadline:
+                    # The stale wait ended and the key is free only now:
+                    # it did not become available within ``acquire_timeout``.
+                    return False
+                if key not in self._locks:
+                    lock = threading.Lock()
+                    lock.acquire()
+                    expiration_timer = None
+                    if hold_timeout is not None:
+                        expiration_timer = threading.Timer(
+                            hold_timeout, self._expire_lock, args=(key,)
+                        )
+                        expiration_timer.start()
+                    self._locks[key] = _LockInfo(
+                        holder=holder, lock=lock, expiration_timer=expiration_timer
                     )
-                    expiration_timer.start()
-                self._locks[key] = _LockInfo(
-                    holder=holder, lock=lock, expiration_timer=expiration_timer
+                    return True
+                elif self._locks[key]["holder"] == holder:
+                    return True
+                else:
+                    existing_lock_info = self._locks[key]
+
+            # wait at most until the caller's deadline (no deadline: forever)
+            remaining: float | None = None
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+            if remaining is None:
+                # same no-timeout caveat as the sync path: to_thread must not
+                # forward timeout=None to _thread.lock.acquire (TypeError)
+                existing_lock_acquired = await asyncio.to_thread(
+                    existing_lock_info["lock"].acquire
                 )
-                return True
-            elif self._locks[key]["holder"] == holder:
-                return True
             else:
-                existing_lock_info = self._locks[key]
+                existing_lock_acquired = await asyncio.to_thread(
+                    existing_lock_info["lock"].acquire, timeout=remaining
+                )
 
-        # wait at most until the caller's deadline (no deadline: forever)
-        remaining: float | None = None
-        if deadline is not None:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
+            if not existing_lock_acquired:
                 return False
-        if remaining is None:
-            # same no-timeout caveat as the sync path: to_thread must not
-            # forward timeout=None to _thread.lock.acquire (TypeError)
-            existing_lock_acquired = await asyncio.to_thread(
-                existing_lock_info["lock"].acquire
-            )
-        else:
-            existing_lock_acquired = await asyncio.to_thread(
-                existing_lock_info["lock"].acquire, timeout=remaining
-            )
 
-        if existing_lock_acquired:
-            stale_lock = False
             with self._locks_dict_lock:
                 current_lock_info = self._locks.get(key)
                 if (
                     current_lock_info is None
                     or current_lock_info["lock"] is not existing_lock_info["lock"]
                 ):
-                    # Same stale-object race as acquire_lock: the awaited
-                    # entry expired and the key was re-acquired on a fresh
-                    # lock object while we were blocked in to_thread. Clean
-                    # up below and retry outside the dict lock rather than
-                    # revoking the new holder.
-                    stale_lock = True
+                    # Our acquire() returned True on a stale object: the
+                    # entry we waited on expired (its hold timeout elapsed,
+                    # force-releasing this lock object and dropping the
+                    # entry) and the key was since re-acquired on a fresh
+                    # lock object, or freed. Overwriting the entry would
+                    # silently revoke a new holder, so release the stale
+                    # object below and retry the whole acquisition against
+                    # the current entry (the retry itself must run outside
+                    # `_locks_dict_lock`).
                     if (
                         expiration_timer := existing_lock_info["expiration_timer"]
                     ) is not None:
@@ -262,11 +281,11 @@ class MemoryLockManager(LockManager):
                     )
                     return True
 
-            if stale_lock:
-                if existing_lock_info["lock"].locked():
-                    existing_lock_info["lock"].release()
-                return await self._aacquire_lock(key, holder, deadline, hold_timeout)
-        return False
+            # Retry by iterating rather than recursing, so that a hot
+            # key that keeps replacing its holder cannot exhaust the stack.
+            if existing_lock_info["lock"].locked():
+                existing_lock_info["lock"].release()
+            is_retry = True
 
     def release_lock(self, key: str, holder: str) -> None:
         with self._locks_dict_lock:
