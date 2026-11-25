@@ -42,6 +42,11 @@ Let's get the shell-abration started!
 
 The Python code below has shell commands embedded in a Prefect flow:
 
+Use `run()` when the next step should wait for the commands to finish. Use
+`trigger()` inside a context manager when you need a process handle before
+the commands finish, so the flow can do other work before waiting for the
+process. The choice does not depend on how long the commands take.
+
 ```python
 from prefect import flow
 from datetime import datetime
@@ -52,8 +57,7 @@ from prefect_shell import ShellOperation
 def download_data():
     today = datetime.today().strftime("%Y%m%d")
 
-    # for short running operations, you can use the `run` method
-    # which automatically manages the context
+    # Create the directories and wait before starting the download.
     ShellOperation(
         commands=[
             "mkdir -p data",
@@ -62,7 +66,7 @@ def download_data():
         env={"today": today}
     ).run()
 
-    # for long running operations, you can use a context manager
+    # Keep the process available while the flow does other work.
     with ShellOperation(
         commands=[
             "curl -O https://masie_web.apps.nsidc.org/pub/DATASETS/NOAA/G02135/north/daily/data/N_seaice_extent_daily_v3.0.csv",
