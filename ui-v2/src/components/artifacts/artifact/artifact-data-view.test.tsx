@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it } from "vitest";
 import { createFakeArtifact } from "@/mocks";
@@ -55,6 +61,32 @@ describe("ArtifactDataView", () => {
 
 		expect(screen.getByText("metric")).toBeInTheDocument();
 		expect(screen.getByText("throughput")).toBeInTheDocument();
+	});
+
+	it.each([
+		["JSON string", JSON.stringify([["x"], { length: "total" }])],
+		["array", [["x"], { length: "total" }]],
+	])("ignores array metadata in mixed table rows with %s data", (_, data) => {
+		render(
+			<ArtifactDataView
+				artifact={createFakeArtifact({ type: "table", data })}
+			/>,
+		);
+
+		expect(
+			screen.getAllByRole("columnheader").map((header) => header.textContent),
+		).toEqual(["0", "length"]);
+		const tableRows = screen.getAllByRole("row");
+		expect(
+			within(tableRows[1])
+				.getAllByRole("cell")
+				.map((cell) => cell.textContent),
+		).toEqual(["x", ""]);
+		expect(
+			within(tableRows[2])
+				.getAllByRole("cell")
+				.map((cell) => cell.textContent),
+		).toEqual(["", "total"]);
 	});
 
 	it("falls back for table artifacts with malformed JSON", () => {
