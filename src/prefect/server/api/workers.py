@@ -1037,9 +1037,9 @@ async def read_work_queue(
 @router.post("/{work_pool_name}/queues/filter", operation_id="read_work_pool_queues")
 async def read_work_queues(
     work_pool_name: str = Path(..., description="The work pool name"),
-    work_queues: schemas.filters.WorkQueueFilter = None,
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
     limit: int = dependencies.LimitBody(),
-    offset: int = Body(0, ge=0),
+    offset: int | None = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
@@ -1056,7 +1056,7 @@ async def read_work_queues(
             work_pool_id=work_pool_id,
             work_queue_filter=work_queues,
             limit=limit,
-            offset=offset,
+            offset=offset or 0,
         )
 
         ret = [
@@ -1328,9 +1328,9 @@ async def worker_heartbeat(
 @router.post("/{work_pool_name}/workers/filter")
 async def read_workers(
     work_pool_name: str = Path(..., description="The work pool name"),
-    workers: Optional[schemas.filters.WorkerFilter] = None,
+    workers: schemas.filters.WorkerFilter | None = None,
     limit: int = dependencies.LimitBody(),
-    offset: int = Body(0, ge=0),
+    offset: int | None = Body(0, ge=0),
     worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkerResponse]:
@@ -1346,7 +1346,7 @@ async def read_workers(
             work_pool_id=work_pool_id,
             worker_filter=workers,
             limit=limit,
-            offset=offset,
+            offset=offset or 0,
         )
 
 

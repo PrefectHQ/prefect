@@ -120,13 +120,14 @@ def LimitBody() -> Any:
     """
 
     async def get_limit(
-        limit: int = Body(
+        limit: int | None = Body(
             None,
             description="Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.",
         ),
     ):
         default_limit = PREFECT_SERVER_API_DEFAULT_LIMIT.value()
-        limit = limit if limit is not None else default_limit
+        if limit is None:
+            limit = default_limit
         if not limit >= 0:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

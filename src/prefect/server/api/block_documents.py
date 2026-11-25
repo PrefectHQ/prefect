@@ -2,7 +2,7 @@
 Routes for interacting with block objects.
 """
 
-from typing import List, Optional
+from typing import List
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, Path, Query, status
@@ -56,16 +56,16 @@ async def create_block_document(
 @router.post("/filter")
 async def read_block_documents(
     limit: int = dependencies.LimitBody(),
-    block_documents: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
-    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
+    block_documents: schemas.filters.BlockDocumentFilter | None = None,
+    block_types: schemas.filters.BlockTypeFilter | None = None,
+    block_schemas: schemas.filters.BlockSchemaFilter | None = None,
     include_secrets: bool = Body(
         False, description="Whether to include sensitive values in the block document."
     ),
-    sort: Optional[schemas.sorting.BlockDocumentSort] = Body(
+    sort: schemas.sorting.BlockDocumentSort | None = Body(
         schemas.sorting.BlockDocumentSort.NAME_ASC
     ),
-    offset: int = Body(0, ge=0),
+    offset: int | None = Body(0, ge=0),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.BlockDocument]:
     """
@@ -78,8 +78,8 @@ async def read_block_documents(
             block_type_filter=block_types,
             block_schema_filter=block_schemas,
             include_secrets=include_secrets,
-            sort=sort,
-            offset=offset,
+            sort=sort or schemas.sorting.BlockDocumentSort.NAME_ASC,
+            offset=offset or 0,
             limit=limit,
         )
 
@@ -88,9 +88,9 @@ async def read_block_documents(
 
 @router.post("/count")
 async def count_block_documents(
-    block_documents: Optional[schemas.filters.BlockDocumentFilter] = None,
-    block_types: Optional[schemas.filters.BlockTypeFilter] = None,
-    block_schemas: Optional[schemas.filters.BlockSchemaFilter] = None,
+    block_documents: schemas.filters.BlockDocumentFilter | None = None,
+    block_types: schemas.filters.BlockTypeFilter | None = None,
+    block_schemas: schemas.filters.BlockSchemaFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """

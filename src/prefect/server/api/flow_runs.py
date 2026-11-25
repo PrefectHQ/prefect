@@ -605,15 +605,17 @@ async def resume_flow_run(
 
 @router.post("/filter")
 async def read_flow_runs(
-    sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
+    sort: schemas.sorting.FlowRunSort | None = Body(
+        schemas.sorting.FlowRunSort.ID_DESC
+    ),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
-    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    work_pools: schemas.filters.WorkPoolFilter | None = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.FlowRunResponse]:
     """
@@ -630,7 +632,7 @@ async def read_flow_runs(
             work_queue_filter=work_pool_queues,
             offset=offset,
             limit=limit,
-            sort=sort,
+            sort=sort or schemas.sorting.FlowRunSort.ID_DESC,
         )
 
         # Instead of relying on fastapi.encoders.jsonable_encoder to convert the
