@@ -1,4 +1,6 @@
+import uuid
 from collections import deque
+from copy import deepcopy
 from typing import Any, List, Optional, Union
 
 import jsonschema
@@ -1834,9 +1836,205 @@ class TestPreprocessSchemaBlockTypes:
         # This should not raise RuntimeError: dictionary changed size during iteration
         result = preprocess_schema(schema)
 
-        # The schema should be transformed to include oneOf for block reference
-        assert "Secret" in result["definitions"]
-        assert "oneOf" in result["definitions"]["Secret"]
+        # The referenced definition should allow a block reference
+        assert "Secret" not in result["definitions"]
+        assert "anyOf" in result["definitions"]["prefect__blocks__system__Secret"]
+        assert is_valid(
+            {"my_block": {"$ref": {"block_document_id": str(uuid.uuid4())}}}, schema
+        )
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    def test_block_type_definitions_accept_block_references(self, definitions_key: str):
+        schema = {
+            "type": "object",
+            "properties": {
+                "registry_credentials": {
+                    "anyOf": [
+                        {"$ref": f"#/{definitions_key}/DockerRegistryCredentials"},
+                        {"type": "null"},
+                    ],
+                    "default": None,
+                }
+            },
+            definitions_key: {
+                "DockerRegistryCredentials": {
+                    "title": "DockerRegistryCredentials",
+                    "block_type_slug": "docker-registry-credentials",
+                    "block_schema_references": {},
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                        "registry_url": {"type": "string"},
+                    },
+                    "required": ["username", "password", "registry_url"],
+                }
+            },
+        }
+
+        result = preprocess_schema(schema)
+        assert "anyOf" in result[definitions_key]["DockerRegistryCredentials"]
+
+        block_document_id = str(uuid.uuid4())
+        for ref in [block_document_id, {"block_document_id": block_document_id}]:
+            assert is_valid({"registry_credentials": {"$ref": ref}}, schema)
+
+        assert is_valid(
+            {
+                "registry_credentials": {
+                    "username": "user",
+                    "password": "pass",
+                    "registry_url": "index.docker.io",
+                }
+            },
+            schema,
+        )
+        assert not is_valid({"registry_credentials": "not-an-object"}, schema)
+        assert not is_valid({"registry_credentials": {"$ref": {}}}, schema)
+        assert not is_valid({"registry_credentials": {"username": "user"}}, schema)
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    def test_block_type_without_required_fields_accepts_block_references(
+        self, definitions_key: str
+    ):
+        schema = {
+            "type": "object",
+            "properties": {
+                "aws_credentials": {"$ref": f"#/{definitions_key}/AwsCredentials"}
+            },
+            definitions_key: {
+                "AwsCredentials": {
+                    "title": "AwsCredentials",
+                    "block_type_slug": "aws-credentials",
+                    "block_schema_references": {},
+                    "type": "object",
+                    "properties": {
+                        "aws_access_key_id": {"type": "string"},
+                        "region_name": {"type": "string"},
+                    },
+                }
+            },
+        }
+
+        assert is_valid(
+            {"aws_credentials": {"$ref": {"block_document_id": str(uuid.uuid4())}}},
+            schema,
+        )
+        assert is_valid({"aws_credentials": {"region_name": "us-east-1"}}, schema)
+        assert not is_valid({"aws_credentials": "not-an-object"}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": "not-a-uuid"}}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": {}}}, schema)
+
+    def test_boolean_defs_are_left_unchanged(self):
+        schema = {
+            "type": "object",
+            "properties": {"forbidden": {"$ref": "#/$defs/Forbidden"}},
+            "$defs": {"Forbidden": False},
+        }
+
+        assert preprocess_schema(schema)["$defs"] == {"Forbidden": False}
+        assert is_valid({}, schema)
+        assert not is_valid({"forbidden": 1}, schema)
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    @pytest.mark.parametrize("ignore_required", [False, True])
+    def test_ignore_required_for_block_definitions(
+        self, definitions_key: str, ignore_required: bool
+    ):
+        schema = {
+            "type": "object",
+            "properties": {"credentials": {"$ref": f"#/{definitions_key}/Credentials"}},
+            definitions_key: {
+                "Credentials": {
+                    "type": "object",
+                    "title": "Credentials",
+                    "block_type_slug": "credentials",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                    },
+                    "required": ["username", "password"],
+                }
+            },
+        }
+        original_schema = deepcopy(schema)
+
+        for partial in [{}, {"username": "user"}]:
+            errors = validate(
+                {"credentials": partial}, schema, ignore_required=ignore_required
+            )
+            assert bool(errors) is not ignore_required
+
+        reference = {"$ref": {"block_document_id": str(uuid.uuid4())}}
+        assert not validate(
+            {"credentials": reference}, schema, ignore_required=ignore_required
+        )
+        for invalid in [
+            {"username": 123},
+            {"username": None},
+            {"$ref": {}},
+            {"$ref": "not-a-uuid"},
+        ]:
+            assert validate(
+                {"credentials": invalid}, schema, ignore_required=ignore_required
+            )
+        assert schema == original_schema
+
+    @pytest.mark.parametrize("definitions_key", [None, "definitions", "$defs"])
+    @pytest.mark.parametrize("nested", [False, True])
+    @pytest.mark.parametrize("property_schema", [False, True])
+    def test_boolean_property_schemas(
+        self, definitions_key: str | None, nested: bool, property_schema: bool
+    ):
+        schema = {"type": "object", "properties": {"value": property_schema}}
+        values = {"value": 42}
+        if nested:
+            schema = {
+                "type": "object",
+                "properties": {"nested": schema},
+                "required": ["nested"],
+            }
+            values = {"nested": values}
+        if definitions_key:
+            schema = {
+                "type": "object",
+                "properties": {"model": {"$ref": f"#/{definitions_key}/Model"}},
+                definitions_key: {"Model": schema},
+            }
+            values = {"model": values}
+        original_schema = deepcopy(schema)
+
+        assert bool(validate(values, schema)) is not property_schema
+        assert schema == original_schema
+
+    def test_defs_properties_are_preprocessed(self):
+        schema = {
+            "type": "object",
+            "properties": {"param": {"$ref": "#/$defs/MyModel"}},
+            "required": ["param"],
+            "$defs": {
+                "MyModel": {
+                    "title": "MyModel",
+                    "type": "object",
+                    "properties": {
+                        "optional_int": {"type": "integer"},
+                        "tuple_items": {
+                            "type": "array",
+                            "items": [{"type": "string"}, {"type": "integer"}],
+                        },
+                    },
+                }
+            },
+        }
+
+        result = preprocess_schema(schema)
+        assert result["$defs"]["MyModel"]["properties"] == {
+            "optional_int": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+            "tuple_items": {
+                "anyOf": [{"type": "array"}, {"type": "null"}],
+                "prefixItems": [{"type": "string"}, {"type": "integer"}],
+            },
+        }
 
 
 class TestPreprocessSchemaPydanticV2Tuples:
