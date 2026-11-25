@@ -524,7 +524,7 @@ async def act(firing: Firing) -> None:
 __events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
-_events_clock_reset: float = prefect.types._datetime.now("UTC").timestamp()
+_events_clock_reset: Optional[float] = None
 
 
 def _events_clock_lock() -> asyncio.Lock:
@@ -580,9 +580,16 @@ async def get_known_events_clock_offset(
     event stream it is, so the clock is only trusted once the process has been idle
     long enough to assume that it is caught up.  The offset is read under the same
     lock as the check, so a concurrent reset can't swap in an unknown clock's offset."""
+    global _events_clock_reset
+
     async with _events_clock_lock():
         if _events_clock is not None and _events_clock_updated is not None:
             return _events_clock - _events_clock_updated
+
+        # A new process starts idling when it first needs the clock rather than at
+        # import, since server startup can take a while before any events are consumed
+        if _events_clock_reset is None:
+            _events_clock_reset = now.timestamp()
 
         idle = now.timestamp() - _events_clock_reset
         if idle >= EVENTS_CLOCK_IDLE_THRESHOLD.total_seconds():

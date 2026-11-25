@@ -665,6 +665,26 @@ async def test_events_clock_is_known_after_being_idle(frozen_time: DateTime):
     assert await triggers.get_known_events_clock_offset(frozen_time + threshold) == 0.0
 
 
+async def test_events_clock_starts_idling_when_first_checked(
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # A new process that took a long time to start up hasn't been idle
+    monkeypatch.setattr(triggers, "_events_clock", None)
+    monkeypatch.setattr(triggers, "_events_clock_updated", None)
+    monkeypatch.setattr(triggers, "_events_clock_reset", None)
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
+    assert (
+        await triggers.get_known_events_clock_offset(
+            frozen_time + threshold - timedelta(seconds=1)
+        )
+        is None
+    )
+    assert await triggers.get_known_events_clock_offset(frozen_time + threshold) == 0.0
+
+
 async def test_proactive_triggers_wait_for_the_events_clock(
     advance_time: Callable[[timedelta], DateTime],
     monkeypatch: pytest.MonkeyPatch,
