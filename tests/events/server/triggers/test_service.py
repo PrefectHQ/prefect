@@ -288,14 +288,16 @@ async def test_events_clock_idle_timer_starts_after_reconciling(
     advance_time: Callable[[timedelta], DateTime],
     monkeypatch: pytest.MonkeyPatch,
 ):
+    reconciled_at: list[DateTime] = []
+
     async def slow_reconcile(force: bool = False) -> bool:
-        advance_time(triggers.EVENTS_CLOCK_IDLE_THRESHOLD * 2)
+        reconciled_at.append(advance_time(triggers.EVENTS_CLOCK_IDLE_THRESHOLD * 2))
         return False
 
     monkeypatch.setattr(triggers, "reconcile_automations", slow_reconcile)
 
     async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
-        assert await triggers.get_known_events_clock_offset(now("UTC")) is None
+        assert await triggers.get_known_events_clock_offset(reconciled_at[0]) is None
 
 
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
