@@ -82,14 +82,11 @@ def validate(
     allow_none_with_default: bool = False,
 ) -> list[JSONSchemaValidationError]:
     if preprocess:
-        schema = _preprocess_schema(schema, allow_none_with_default)
-
-    if ignore_required:
+        schema = _preprocess_schema(
+            schema, allow_none_with_default, ignore_required=ignore_required
+        )
+    elif ignore_required:
         schema = remove_nested_keys(["required"], schema)
-
-    if preprocess:
-        # Preserve synthetic reference requirements when ignoring user requirements.
-        _add_block_reference_schemas(schema)
 
     if raise_on_error:
         try:
@@ -268,16 +265,16 @@ def preprocess_schema(
     schema: ObjectSchema,
     allow_none_with_default: bool = False,
 ) -> ObjectSchema:
-    schema = _preprocess_schema(schema, allow_none_with_default)
-    _add_block_reference_schemas(schema)
-    return schema
+    return _preprocess_schema(schema, allow_none_with_default)
 
 
 def _preprocess_schema(
     schema: ObjectSchema,
     allow_none_with_default: bool = False,
+    *,
+    ignore_required: bool = False,
 ) -> ObjectSchema:
-    """Apply compatibility fixes using the schema's original required fields."""
+    """Apply compatibility fixes and requirement removal before adding block references."""
     schema = deepcopy(schema)
 
     if "properties" in schema:
@@ -300,14 +297,13 @@ def _preprocess_schema(
                     definition["properties"], required_fields, allow_none_with_default
                 )
 
-    return schema
+    if ignore_required:
+        # Preserve synthetic reference requirements by adding them after removal.
+        schema = remove_nested_keys(["required"], schema)
 
-
-def _add_block_reference_schemas(schema: ObjectSchema) -> None:
-    """Allow block-document references in reusable block schemas."""
     for definitions_key in ("definitions", "$defs"):
         definitions = cast(dict[str, Any], schema.get(definitions_key, {}))
-        for name, definition in list(definitions.items()):
+        for name, definition in definitions.items():
             if not isinstance(definition, dict):
                 continue
             # Allow block types to be referenced by their id. The block value
@@ -342,3 +338,5 @@ def _add_block_reference_schemas(schema: ObjectSchema) -> None:
                         },
                     ]
                 }
+
+    return schema
