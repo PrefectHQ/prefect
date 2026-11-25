@@ -275,13 +275,13 @@ async def test_resets_the_events_clock_at_startup_and_shutdown(
         periodic_granularity=timedelta(seconds=0.0001),
     ):
         assert await triggers.get_events_clock() is None
-        assert not await triggers.events_clock_is_known(frozen_time)
+        assert await triggers.get_known_events_clock_offset(frozen_time) is None
 
         await triggers.update_events_clock(event)
-        assert await triggers.events_clock_is_known(frozen_time)
+        assert await triggers.get_known_events_clock_offset(frozen_time) is not None
 
     assert await triggers.get_events_clock() is None
-    assert not await triggers.events_clock_is_known(frozen_time)
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
 
 
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
@@ -640,7 +640,7 @@ async def test_events_clock_is_unknown_until_an_event_is_handled(
     frozen_time: DateTime,
 ):
     await triggers.reset_events_clock()
-    assert not await triggers.events_clock_is_known(frozen_time)
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
 
     event = ReceivedEvent(
         occurred=frozen_time - timedelta(hours=2),
@@ -649,17 +649,20 @@ async def test_events_clock_is_unknown_until_an_event_is_handled(
         id=uuid4(),
     )
     await triggers.update_events_clock(event)
-    assert await triggers.events_clock_is_known(frozen_time)
+    assert await triggers.get_known_events_clock_offset(frozen_time) is not None
 
 
 async def test_events_clock_is_known_after_being_idle(frozen_time: DateTime):
     await triggers.reset_events_clock()
 
     threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
-    assert not await triggers.events_clock_is_known(
-        frozen_time + threshold - timedelta(seconds=1)
+    assert (
+        await triggers.get_known_events_clock_offset(
+            frozen_time + threshold - timedelta(seconds=1)
+        )
+        is None
     )
-    assert await triggers.events_clock_is_known(frozen_time + threshold)
+    assert await triggers.get_known_events_clock_offset(frozen_time + threshold) == 0.0
 
 
 async def test_proactive_triggers_wait_for_the_events_clock(
@@ -692,6 +695,53 @@ async def test_proactive_triggers_wait_for_the_events_clock(
     )
     await triggers.evaluate_proactive_triggers()
     proactive_evaluation.assert_awaited_once()
+
+
+async def test_proactive_triggers_use_the_offset_they_checked(
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    proactive_evaluation = mock.AsyncMock(spec=triggers.proactive_evaluation)
+    proactive_evaluation.return_value = frozen_time + timedelta(minutes=10)
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.proactive_evaluation", proactive_evaluation
+    )
+
+    automation = Automation(
+        name="proactive",
+        trigger=EventTrigger(
+            expect={"things.happened"},
+            posture=Posture.Proactive,
+            threshold=1,
+            within=timedelta(minutes=10),
+        ),
+        actions=[actions.DoNothing()],
+    )
+    triggers.load_automation(automation)
+
+    await triggers.update_events_clock(
+        ReceivedEvent(
+            occurred=frozen_time - timedelta(hours=2),
+            event="things.happened",
+            resource={"prefect.resource.id": "something"},
+            id=uuid4(),
+        )
+    )
+
+    original_get_offset = triggers.get_known_events_clock_offset
+
+    async def reset_after_checking(now: DateTime) -> float | None:
+        offset = await original_get_offset(now)
+        # Consumer shutdown can reset the clock right after the check.
+        await triggers.reset_events_clock()
+        return offset
+
+    monkeypatch.setattr(triggers, "get_known_events_clock_offset", reset_after_checking)
+    await triggers.evaluate_proactive_triggers()
+
+    proactive_evaluation.assert_awaited_once_with(
+        triggers.triggers[automation.trigger.id], frozen_time, offset=-7200.0
+    )
 
 
 async def test_reactive_triggers_service_can_stop_while_loading_automations(

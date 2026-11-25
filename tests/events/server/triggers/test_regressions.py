@@ -1189,6 +1189,59 @@ async def test_restarting_while_behind_keeps_buckets_open_in_event_time(
     assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
 
 
+async def test_periodic_evaluation_uses_the_offset_it_checked(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23942, where a
+    reset between checking the clock and reading its offset swept with wall time"""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="no heartbeat for 10 minutes",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "some.*"},
+                after={"heartbeat"},
+                expect={"heartbeat"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    # The consumer is 2 hours behind and handles a heartbeat.
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time - timedelta(hours=2),
+            event="heartbeat",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    original_get_offset = triggers.get_known_events_clock_offset
+
+    async def reset_after_checking(now: DateTime) -> float | None:
+        offset = await original_get_offset(now)
+        # Consumer shutdown can reset the clock right after the check.
+        await triggers.reset_events_clock()
+        return offset
+
+    monkeypatch.setattr(triggers, "get_known_events_clock_offset", reset_after_checking)
+    await triggers.periodic_evaluation(frozen_time)
+
+    trigger = triggers.triggers[automation.trigger.id]
+    assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
+
+
 async def test_lost_followers_on_restart_do_not_sweep_buckets_open_in_event_time(
     cleared_buckets: None,
     cleared_automations: None,
@@ -1286,8 +1339,10 @@ async def test_proactive_batch_waits_when_the_events_clock_is_reset(
     await triggers.reactive_evaluation(event)
     original_evaluation = triggers.proactive_evaluation
 
-    async def reset_after_first(trigger: EventTrigger, as_of: DateTime) -> DateTime:
-        run_again_at = await original_evaluation(trigger, as_of)
+    async def reset_after_first(
+        trigger: EventTrigger, as_of: DateTime, offset: float | None = None
+    ) -> DateTime:
+        run_again_at = await original_evaluation(trigger, as_of, offset)
         if trigger.id == loaded[0].trigger.id:
             # Consumer shutdown can reset the clock during a proactive batch.
             await triggers.reset_events_clock()

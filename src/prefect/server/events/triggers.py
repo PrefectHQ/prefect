@@ -572,17 +572,23 @@ async def get_events_clock_offset() -> float:
         return _events_clock - _events_clock_updated
 
 
-async def events_clock_is_known(now: prefect.types._datetime.DateTime) -> bool:
-    """Whether the events clock can be trusted as of `now`.  Until this process has
-    handled an event, it can't tell how far behind the event stream it is, so the
-    clock is only trusted once the process has been idle long enough to assume that
-    it is caught up."""
+async def get_known_events_clock_offset(
+    now: prefect.types._datetime.DateTime,
+) -> Optional[float]:
+    """The current clock offset, or `None` if the events clock can't be trusted as of
+    `now`.  Until this process has handled an event, it can't tell how far behind the
+    event stream it is, so the clock is only trusted once the process has been idle
+    long enough to assume that it is caught up.  The offset is read under the same
+    lock as the check, so a concurrent reset can't swap in an unknown clock's offset."""
     async with _events_clock_lock():
-        if _events_clock is not None:
-            return True
+        if _events_clock is not None and _events_clock_updated is not None:
+            return _events_clock - _events_clock_updated
 
         idle = now.timestamp() - _events_clock_reset
-        return idle >= EVENTS_CLOCK_IDLE_THRESHOLD.total_seconds()
+        if idle >= EVENTS_CLOCK_IDLE_THRESHOLD.total_seconds():
+            return 0.0
+
+        return None
 
 
 async def reset_events_clock() -> None:
@@ -734,12 +740,10 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
     # Until the events clock is known, buckets that look expired by wall time may still
     # be open in event time.  This is checked before any events are evaluated below so
-    # that `as_of` always reflects a known clock.
-    clock_is_known = await events_clock_is_known(now)
-    offset = await get_events_clock_offset()
-    as_of = now + timedelta(seconds=offset)
+    # that the sweep only uses an offset from a known clock.
+    offset = await get_known_events_clock_offset(now)
 
-    logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
+    logger.debug("Running periodic evaluation at %s (offset %ss)", now, offset)
 
     # Held events are bounded only by this sweep, so a failure in the steps below
     # must not skip it.
@@ -758,10 +762,11 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     for event in await get_lost_followers():
         await reactive_evaluation(event)
 
-    if not clock_is_known:
+    if offset is None:
         logger.debug("Skipping sweep of closed buckets until the events clock is known")
         return
 
+    as_of = now + timedelta(seconds=offset)
     async with automations_session() as session:
         await sweep_closed_buckets(
             session,
@@ -1472,13 +1477,16 @@ async def consumer(
 
 
 async def proactive_evaluation(
-    trigger: EventTrigger, as_of: prefect.types._datetime.DateTime
+    trigger: EventTrigger,
+    as_of: prefect.types._datetime.DateTime,
+    offset: Optional[float] = None,
 ) -> prefect.types._datetime.DateTime:
     """The core proactive evaluation operation for a single Automation"""
     assert isinstance(trigger, EventTrigger), repr(trigger)
     automation = trigger.automation
 
-    offset = await get_events_clock_offset()
+    if offset is None:
+        offset = await get_events_clock_offset()
     as_of += timedelta(seconds=offset)
 
     logger.debug(
@@ -1537,14 +1545,15 @@ async def evaluate_proactive_triggers() -> None:
             continue
 
         # The consumer can reset the clock while a previous trigger is evaluated.
-        if not await events_clock_is_known(now):
+        offset = await get_known_events_clock_offset(now)
+        if offset is None:
             logger.debug(
                 "Skipping proactive evaluation until the events clock is known"
             )
             return
 
         try:
-            run_again_at = await proactive_evaluation(trigger, now)
+            run_again_at = await proactive_evaluation(trigger, now, offset=offset)
             logger.debug(
                 "Automation %s trigger %s will run again at %s",
                 trigger.automation.id,
