@@ -129,6 +129,31 @@ def confirmation(transaction):
 ```
 </Tip>
 
+## Share task data with transaction hooks
+
+Each task already runs in a transaction. To pass data from a task to its
+`on_commit` and `on_rollback` hooks, store it on the task's current
+transaction with `get_transaction()`:
+
+```python
+from prefect import task
+from prefect.transactions import get_transaction
+
+
+@task
+def stage_data():
+    get_transaction().set("record_id", "example-123")
+
+
+@stage_data.on_commit
+def confirm_record(txn):
+    print(txn.get("record_id"))
+```
+
+A `with transaction()` block **inside** the task creates a child
+transaction. A child can read values from its parent, but values stored
+only in the child are not visible to the task's hooks.
+
 ## Configure commit timing
 
 The `commit_mode` parameter controls when a transaction commits its staged result and runs its
