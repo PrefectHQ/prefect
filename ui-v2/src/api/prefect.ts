@@ -8656,7 +8656,7 @@ export interface components {
          */
         "IntervalSchedule-Output": {
             /** Interval */
-            interval: number | string;
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time
