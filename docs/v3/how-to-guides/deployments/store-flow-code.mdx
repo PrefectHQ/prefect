@@ -643,8 +643,7 @@ You can do any of the following to make the library available:
 
 </Note>
 
-The examples below show how to create a deployment with flow code in a cloud provider storage location.
-For each example, we show how to access code that is publicly available.
+The cloud provider examples below show how to access code that is publicly available.
 The `prefect.yaml` example includes an additional line to reference a credentials block if authenticating to a private storage location through that option. 
 
 We also include Python code that shows how to use an existing storage block and an example of that creates, but doesn't save, a storage block that references an existing nested credentials block.
@@ -739,6 +738,81 @@ We also include Python code that shows how to use an existing storage block and 
     1. Create an [`AWSCredentials` block](/integrations/prefect-aws/index#save-credentials-to-an-aws-credentials-block) in code or the Prefect UI. In addition to the block name, most users will fill in the *AWS Access Key ID* and *AWS Access Key Secret* fields.
     1. Reference the block as shown above.
     
+
+  </Tab>
+  <Tab title="MinIO">
+
+    Use an existing MinIO bucket and an endpoint that both your deployment environment and your flow run environment can reach. Install `prefect-aws` in both environments and replace `my-process-pool` with the name of your Process work pool.
+
+    Save a `MinIOCredentials` block with your MinIO access key and secret key. Set the endpoint to the MinIO S3 API URL, not the web console URL.
+
+    {/* pmd-metadata: notest */}
+    ```python save_minio_credentials.py
+    import os
+
+    from prefect_aws import AwsClientParameters, MinIOCredentials
+
+    MinIOCredentials(
+        minio_root_user=os.environ["MINIO_ACCESS_KEY"],
+        minio_root_password=os.environ["MINIO_SECRET_KEY"],
+        aws_client_parameters=AwsClientParameters(
+            endpoint_url="https://minio.example.com",
+        ),
+    ).save("minio-code-storage")
+    ```
+
+    For a Python deployment, upload your flow code to the bucket folder before running the script. Save the `S3Bucket` block so Prefect can load it at run time.
+
+    For a CLI deployment, run `prefect deploy --name my-minio-deployment` from your project directory. The push step uploads your project files, and the pull step retrieves them when a flow run starts. Both steps use the endpoint from the credentials block.
+
+    <CodeGroup>
+
+    {/* pmd-metadata: notest */}
+    ```python deploy_minio.py
+    from prefect import flow
+    from prefect_aws import MinIOCredentials, S3Bucket
+
+    if __name__ == "__main__":
+        storage = S3Bucket(
+            bucket_name="my-bucket",
+            bucket_folder="my-folder",
+            credentials=MinIOCredentials.load("minio-code-storage"),
+        )
+        storage.save("minio-flow-code", overwrite=True)
+
+        flow.from_source(
+            source=storage,
+            entrypoint="my_file.py:my_flow",
+        ).deploy(
+            name="my-minio-deployment",
+            work_pool_name="my-process-pool",
+        )
+    ```
+
+    ```yaml prefect.yaml
+    push:
+      - prefect_aws.deployments.steps.push_to_s3:
+          id: push_code
+          requires: prefect-aws
+          bucket: my-bucket
+          folder: my-folder
+          credentials: "{{ prefect.blocks.minio-credentials.minio-code-storage }}"
+
+    pull:
+      - prefect_aws.deployments.steps.pull_from_s3:
+          requires: prefect-aws
+          bucket: "{{ push_code.bucket }}"
+          folder: "{{ push_code.folder }}"
+          credentials: "{{ prefect.blocks.minio-credentials.minio-code-storage }}"
+
+    deployments:
+      - name: my-minio-deployment
+        entrypoint: my_file.py:my_flow
+        work_pool:
+          name: my-process-pool
+    ```
+
+    </CodeGroup>
 
   </Tab>
   <Tab title="Azure Blob Storage container">

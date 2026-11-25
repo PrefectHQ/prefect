@@ -40,7 +40,11 @@ async def ls(
     *,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of flows to list."),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of flows to list.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     output: Annotated[
         Optional[str],

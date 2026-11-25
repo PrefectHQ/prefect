@@ -1,3 +1,4 @@
+import type { TestInfo } from "@playwright/test";
 import {
 	cleanupGlobalConcurrencyLimits,
 	cleanupTaskRunConcurrencyLimits,
@@ -10,23 +11,37 @@ import {
 
 const TEST_PREFIX = "e2e-test-";
 
+/**
+ * Build a name prefix that belongs to a single test.
+ *
+ * Playwright runs the tests in this file in parallel, so cleanup that deletes
+ * every limit with the shared prefix also deletes the limits that another
+ * running test still uses.
+ */
+function testPrefix(testInfo: TestInfo): string {
+	return `${TEST_PREFIX}${testInfo.testId}-`;
+}
+
 test.describe("Concurrency Limits Page", () => {
 	test.beforeAll(async ({ apiClient }) => {
 		await waitForServerHealth(apiClient);
 	});
 
-	test.beforeEach(async ({ apiClient }) => {
-		await cleanupGlobalConcurrencyLimits(apiClient, TEST_PREFIX);
-		await cleanupTaskRunConcurrencyLimits(apiClient, TEST_PREFIX);
+	test.beforeEach(async ({ apiClient }, testInfo) => {
+		await cleanupGlobalConcurrencyLimits(apiClient, testPrefix(testInfo));
+		await cleanupTaskRunConcurrencyLimits(apiClient, testPrefix(testInfo));
 	});
 
-	test.afterEach(async ({ apiClient }) => {
-		await cleanupGlobalConcurrencyLimits(apiClient, TEST_PREFIX);
-		await cleanupTaskRunConcurrencyLimits(apiClient, TEST_PREFIX);
+	test.afterEach(async ({ apiClient }, testInfo) => {
+		await cleanupGlobalConcurrencyLimits(apiClient, testPrefix(testInfo));
+		await cleanupTaskRunConcurrencyLimits(apiClient, testPrefix(testInfo));
 	});
 
-	test("Global Concurrency Limits - CRUD flow", async ({ page, apiClient }) => {
-		const limitName = `${TEST_PREFIX}global-limit-${Date.now()}`;
+	test("Global Concurrency Limits - CRUD flow", async ({
+		page,
+		apiClient,
+	}, testInfo) => {
+		const limitName = `${testPrefix(testInfo)}global-limit-${Date.now()}`;
 
 		await page.goto("/concurrency-limits?tab=global");
 
@@ -125,8 +140,8 @@ test.describe("Concurrency Limits Page", () => {
 	test("Task Run Concurrency Limits - CRUD flow", async ({
 		page,
 		apiClient,
-	}) => {
-		const tagName = `${TEST_PREFIX}task-tag-${Date.now()}`;
+	}, testInfo) => {
+		const tagName = `${testPrefix(testInfo)}task-tag-${Date.now()}`;
 
 		await page.goto("/concurrency-limits?tab=task-run");
 

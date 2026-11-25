@@ -1,4 +1,6 @@
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from email.utils import format_datetime
@@ -6,6 +8,7 @@ from typing import Any, AsyncGenerator, Dict, Generator, List, Tuple
 from unittest import mock
 from unittest.mock import AsyncMock
 
+import anyio
 import httpx
 import pytest
 import respx
@@ -1091,6 +1094,358 @@ class TestCsrfSupport:
             assert client.enable_csrf_support is True
             await client.post(url="fake.url/fake/route")
             assert client.enable_csrf_support is False
+
+
+CSRF_TEST_API_URL = "http://prefect.test/api"
+CSRF_TOKEN_URL = f"{CSRF_TEST_API_URL}/csrf-token"
+CHANGE_REQUEST_URL = f"{CSRF_TEST_API_URL}/flows/filter"
+
+# Upper bound for the handoffs between threads in the sync CSRF tests. Reaching it
+# means the test has already failed, so it only has to be shorter than the session's
+# pytest-timeout.
+WAIT_TIMEOUT = 30
+
+
+class CsrfTokenServer:
+    """
+    A fake Prefect server with CSRF protection enabled. Like the real server, it
+    issues a new token for every token request, replacing the client's previous
+    token, and accepts change requests only with the latest token.
+    """
+
+    def __init__(self, token: str | None = None) -> None:
+        self.token = token
+        self.token_requests = 0
+        self.rejected_tokens: list[str | None] = []
+        self._lock = threading.Lock()
+
+    def issue_token(self, request: Request) -> Response:
+        with self._lock:
+            self.token_requests += 1
+            self.token = f"token-{self.token_requests}"
+            return Response(
+                status.HTTP_200_OK,
+                json=CsrfToken(
+                    client=request.url.params["client"],
+                    token=self.token,
+                    expiration=now + timedelta(days=1),
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+
+    def handle_change(self, request: Request) -> Response:
+        with self._lock:
+            sent_token = request.headers.get("Prefect-Csrf-Token")
+            if sent_token != self.token:
+                self.rejected_tokens.append(sent_token)
+                return Response(
+                    status.HTTP_403_FORBIDDEN,
+                    json={"detail": "Invalid CSRF token or client identifier."},
+                )
+            return Response(status.HTTP_200_OK, json=[])
+
+
+def csrf_async_client() -> PrefectHttpxAsyncClient:
+    return PrefectHttpxAsyncClient(base_url=CSRF_TEST_API_URL, enable_csrf_support=True)
+
+
+def csrf_sync_client() -> PrefectHttpxSyncClient:
+    return PrefectHttpxSyncClient(base_url=CSRF_TEST_API_URL, enable_csrf_support=True)
+
+
+@pytest.mark.usefixtures("mock_anyio_sleep")
+class TestSharedCsrfToken:
+    """
+    Change requests sent concurrently through one client share its CSRF token, and
+    every refresh replaces the token the other requests are sending.
+    """
+
+    async def test_concurrent_requests_refresh_an_expired_token_once(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer()
+        refresh_started = anyio.Event()
+        refresh_released = anyio.Event()
+
+        async def issue_token(request: Request) -> Response:
+            refresh_started.set()
+            await refresh_released.wait()
+            return server.issue_token(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=server.handle_change)
+
+        async with csrf_async_client() as client:
+            client.csrf_token = "expired-token"
+            client.csrf_token_expiration = now - timedelta(days=1)
+
+            async with anyio.create_task_group() as tg:
+                for _ in range(5):
+                    tg.start_soon(client.post, "/flows/filter")
+                # The other requests run before this task resumes, so each of them
+                # finds the token expired while the first refresh is in flight
+                await refresh_started.wait()
+                refresh_released.set()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == []
+
+    async def test_requests_rejected_together_refresh_the_token_once(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        in_flight = 0
+        all_in_flight = anyio.Event()
+        responses_released = anyio.Event()
+
+        async def handle_change(request: Request) -> Response:
+            nonlocal in_flight
+            if not responses_released.is_set():
+                in_flight += 1
+                if in_flight == 5:
+                    all_in_flight.set()
+                await responses_released.wait()
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        async with csrf_async_client() as client:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            async with anyio.create_task_group() as tg:
+                for _ in range(5):
+                    tg.start_soon(client.post, "/flows/filter")
+                await all_in_flight.wait()
+                # The server no longer accepts the token they carry, as when the token
+                # expires on the server before the client notices
+                server.token = None
+                responses_released.set()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == ["token-0"] * 5
+
+    async def test_retries_with_the_current_token_after_a_403_for_a_replaced_token(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        first_request_arrived = anyio.Event()
+        first_request_released = anyio.Event()
+
+        async def handle_change(request: Request) -> Response:
+            if not first_request_arrived.is_set():
+                first_request_arrived.set()
+                await first_request_released.wait()
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        async with csrf_async_client() as client:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(client.post, "/flows/filter")
+                await first_request_arrived.wait()
+                # While the first request is in flight, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                await client.post("/flows/filter")
+                first_request_released.set()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == ["token-0"]
+        assert client.csrf_token == "token-1"
+
+    async def test_retry_after_a_503_sends_the_token_refreshed_in_the_meantime(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        first_request_arrived = anyio.Event()
+        first_request_released = anyio.Event()
+
+        async def handle_change(request: Request) -> Response:
+            if not first_request_arrived.is_set():
+                first_request_arrived.set()
+                await first_request_released.wait()
+                return Response(status.HTTP_503_SERVICE_UNAVAILABLE)
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        async with csrf_async_client() as client:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(client.post, "/flows/filter")
+                await first_request_arrived.wait()
+                # Before the first request retries, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                await client.post("/flows/filter")
+                first_request_released.set()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == []
+
+    async def test_requests_waiting_for_a_refresh_send_no_token_once_csrf_is_disabled(
+        self, respx_mock: respx.MockRouter
+    ):
+        refresh_started = anyio.Event()
+        refresh_released = anyio.Event()
+
+        async def reject_token_request(request: Request) -> Response:
+            refresh_started.set()
+            await refresh_released.wait()
+            return Response(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                json={"detail": "CSRF protection is disabled."},
+            )
+
+        token_route = respx_mock.get(CSRF_TOKEN_URL).mock(
+            side_effect=reject_token_request
+        )
+        change_route = respx_mock.post(CHANGE_REQUEST_URL).mock(
+            side_effect=lambda request: Response(status.HTTP_200_OK, json=[])
+        )
+
+        async with csrf_async_client() as client, anyio.create_task_group() as tg:
+            for _ in range(5):
+                tg.start_soon(client.post, "/flows/filter")
+            await refresh_started.wait()
+            refresh_released.set()
+
+        assert token_route.call_count == 1
+        assert [
+            call.request.headers.get("Prefect-Csrf-Token")
+            for call in change_route.calls
+        ] == [None] * 5
+        assert client.enable_csrf_support is False
+
+
+class TestSyncClientSharedCsrfToken:
+    """
+    Threads sending change requests through one sync client share its CSRF token,
+    and every refresh replaces the token the other threads are sending.
+    """
+
+    @pytest.fixture(autouse=True)
+    def mock_time_sleep(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("prefect.client.base.time.sleep", lambda _: None)
+
+    def test_requests_rejected_together_refresh_the_token_once(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        # Passed by the five requests in flight and by the test
+        all_in_flight = threading.Barrier(6)
+        responses_released = threading.Event()
+
+        def handle_change(request: Request) -> Response:
+            if not responses_released.is_set():
+                all_in_flight.wait(WAIT_TIMEOUT)
+                responses_released.wait(WAIT_TIMEOUT)
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        with csrf_sync_client() as client, ThreadPoolExecutor(5) as executor:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            futures = [executor.submit(client.post, "/flows/filter") for _ in range(5)]
+            try:
+                all_in_flight.wait(WAIT_TIMEOUT)
+                # The server no longer accepts the token they carry, as when the token
+                # expires on the server before the client notices
+                server.token = None
+            finally:
+                # Release the parked threads even on failure, so the executor can
+                # shut down instead of hanging the session
+                responses_released.set()
+            for future in futures:
+                future.result()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == ["token-0"] * 5
+
+    def test_retries_with_the_current_token_after_a_403_for_a_replaced_token(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        first_request_arrived = threading.Event()
+        first_request_released = threading.Event()
+
+        def handle_change(request: Request) -> Response:
+            if not first_request_arrived.is_set():
+                first_request_arrived.set()
+                first_request_released.wait(WAIT_TIMEOUT)
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        with csrf_sync_client() as client, ThreadPoolExecutor(1) as executor:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            future = executor.submit(client.post, "/flows/filter")
+            try:
+                assert first_request_arrived.wait(WAIT_TIMEOUT)
+                # While the first request is in flight, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                client.post("/flows/filter")
+            finally:
+                # Release the parked thread even on failure, so the executor can
+                # shut down instead of hanging the session
+                first_request_released.set()
+            future.result()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == ["token-0"]
+        assert client.csrf_token == "token-1"
+
+    def test_retry_after_a_503_sends_the_token_refreshed_in_the_meantime(
+        self, respx_mock: respx.MockRouter
+    ):
+        server = CsrfTokenServer(token="token-0")
+        first_request_arrived = threading.Event()
+        first_request_released = threading.Event()
+
+        def handle_change(request: Request) -> Response:
+            if not first_request_arrived.is_set():
+                first_request_arrived.set()
+                first_request_released.wait(WAIT_TIMEOUT)
+                return Response(status.HTTP_503_SERVICE_UNAVAILABLE)
+            return server.handle_change(request)
+
+        respx_mock.get(CSRF_TOKEN_URL).mock(side_effect=server.issue_token)
+        respx_mock.post(CHANGE_REQUEST_URL).mock(side_effect=handle_change)
+
+        with csrf_sync_client() as client, ThreadPoolExecutor(1) as executor:
+            client.csrf_token = "token-0"
+            client.csrf_token_expiration = now + timedelta(days=1)
+
+            future = executor.submit(client.post, "/flows/filter")
+            try:
+                assert first_request_arrived.wait(WAIT_TIMEOUT)
+                # Before the first request retries, its token expires and another
+                # request replaces it
+                client.csrf_token_expiration = now - timedelta(days=1)
+                client.post("/flows/filter")
+            finally:
+                # Release the parked thread even on failure, so the executor can
+                # shut down instead of hanging the session
+                first_request_released.set()
+            future.result()
+
+        assert server.token_requests == 1
+        assert server.rejected_tokens == []
 
 
 class TestUserAgent:

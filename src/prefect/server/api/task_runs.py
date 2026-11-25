@@ -26,7 +26,7 @@ import prefect.server.schemas as schemas
 from prefect._internal.compatibility.starlette import status
 from prefect.logging import get_logger
 from prefect.server.api.run_history import run_history
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.orchestration import dependencies as orchestration_dependencies
 from prefect.server.orchestration.core_policy import CoreTaskPolicy
 from prefect.server.orchestration.policies import TaskRunOrchestrationPolicy
@@ -52,7 +52,7 @@ router: PrefectRouter = PrefectRouter(prefix="/task_runs", tags=["Task Runs"])
 async def create_task_run(
     task_run: schemas.actions.TaskRunCreate,
     response: Response,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     orchestration_parameters: Dict[str, Any] = Depends(
         orchestration_dependencies.provide_task_orchestration_parameters
     ),
@@ -96,7 +96,7 @@ async def create_task_run(
 async def update_task_run(
     task_run: schemas.actions.TaskRunUpdate,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Updates a task run.
@@ -111,11 +111,11 @@ async def update_task_run(
 
 @router.post("/count")
 async def count_task_runs(
-    db: PrefectDBInterface = Depends(provide_database_interface),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
 ) -> int:
     """
     Count task runs.
@@ -143,11 +143,11 @@ async def task_run_history(
         ),
         json_schema_extra={"format": "time-delta"},
     ),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
     Query for task run history data across a given range and interval.
@@ -177,7 +177,7 @@ async def task_run_history(
 @router.get("/{id:uuid}")
 async def read_task_run(
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.TaskRun:
     """
     Get a task run by id.
@@ -193,14 +193,16 @@ async def read_task_run(
 
 @router.post("/filter")
 async def read_task_runs(
-    sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
+    sort: schemas.sorting.TaskRunSort | None = Body(
+        schemas.sorting.TaskRunSort.ID_DESC
+    ),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.TaskRun]:
     """
     Query for task runs.
@@ -214,7 +216,7 @@ async def read_task_runs(
             deployment_filter=deployments,
             offset=offset,
             limit=limit,
-            sort=sort,
+            sort=sort or schemas.sorting.TaskRunSort.ID_DESC,
         )
 
 
@@ -227,7 +229,7 @@ async def paginate_task_runs(
     flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> TaskRunPaginationResponse:
     """
     Pagination query for task runs.
@@ -274,7 +276,7 @@ async def paginate_task_runs(
 async def delete_task_run(
     docket: dependencies.Docket,
     task_run_id: UUID = Path(..., description="The task run id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a task run by id.
@@ -293,7 +295,7 @@ async def delete_task_run(
 
 async def delete_task_run_logs(
     *,
-    db: PrefectDBInterface = DocketDepends(provide_database_interface),
+    db: PrefectDBInterface = DocketDepends(aprovide_database_interface),
     task_run_id: UUID,
     retry: Retry = Retry(attempts=5, delay=datetime.timedelta(seconds=0.5)),
 ) -> None:
@@ -317,7 +319,7 @@ async def set_task_run_state(
             " the state transition. If True, orchestration rules are not applied."
         ),
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
     response: Response = None,
     task_policy: TaskRunOrchestrationPolicy = Depends(
         orchestration_dependencies.provide_task_policy

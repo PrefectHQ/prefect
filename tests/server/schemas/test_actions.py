@@ -541,6 +541,31 @@ class TestRRuleTimezoneValidationOnWrite:
         assert legacy.timezone == "UTC+2"
 
 
+class TestRRuleIntervalValidationOnWrite:
+    @pytest.mark.parametrize(
+        "schema_type",
+        [DeploymentScheduleCreate, DeploymentScheduleUpdate],
+    )
+    @pytest.mark.parametrize(
+        "rrule",
+        [
+            "FREQ=MINUTELY;INTERVAL=0",
+            "FREQ=DAILY;INTERVAL=0",
+            "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY;INTERVAL=0",
+            "DTSTART:20261110T080000\nRRULE:FREQ=DAILY\nEXRULE:FREQ=HOURLY;INTERVAL=0",
+        ],
+    )
+    def test_zero_interval_is_rejected(self, schema_type, rrule: str):
+        with pytest.raises(ValidationError, match="INTERVAL must be at least 1"):
+            schema_type(schedule=RRuleSchedule(rrule=rrule))
+
+    def test_rrule_schedule_constructed_directly_keeps_zero_interval(self):
+        # Schedules stored with a zero interval are read back through
+        # `RRuleSchedule` directly and must stay loadable.
+        rrule = "DTSTART:20261110T080000\nRRULE:FREQ=MINUTELY;INTERVAL=0"
+        assert RRuleSchedule(rrule=rrule).rrule == rrule
+
+
 class TestRRuleNormalizationOnWrite:
     """Regression tests for #21362.
 

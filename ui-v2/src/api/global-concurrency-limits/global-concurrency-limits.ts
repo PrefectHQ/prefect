@@ -10,7 +10,7 @@ import { getQueryService } from "@/api/service";
 export type GlobalConcurrencyLimit =
 	components["schemas"]["GlobalConcurrencyLimitResponse"];
 export type GlobalConcurrencyLimitsFilter =
-	components["schemas"]["Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+	components["schemas"]["Body_read_all_concurrency_limits_v2"];
 
 /**
  * ```

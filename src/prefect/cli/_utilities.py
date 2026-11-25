@@ -104,9 +104,8 @@ def load_json_key_values(
             raise exc
 
     for spec in cli_input:
-        try:
-            key, _, value = spec.partition("=")
-        except ValueError:
+        key, separator, value = spec.partition("=")
+        if not separator or not key:
             exit_with_error(
                 f"Invalid {display_name} option {spec!r}. Expected format 'key=value'."
             )

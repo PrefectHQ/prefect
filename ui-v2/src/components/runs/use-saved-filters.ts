@@ -366,3 +366,32 @@ export function useSavedFilters(): UseSavedFiltersReturn {
 		isDefaultFilter,
 	};
 }
+
+const readStoredJson = <T>(key: string, fallback: T): T => {
+	try {
+		const item = localStorage.getItem(key);
+		return item ? ((JSON.parse(item) as T) ?? fallback) : fallback;
+	} catch {
+		return fallback;
+	}
+};
+
+/**
+ * The filter the runs page applies when it opens without filters: the user's
+ * default saved filter if it still exists, otherwise the system default.
+ * Reads localStorage directly so the route can apply it before loading.
+ */
+export function readDefaultFilter(): SavedFilter {
+	const defaultFilterId = readStoredJson<string | null>(
+		DEFAULT_FILTER_ID_STORAGE_KEY,
+		null,
+	);
+	const savedFilters = [
+		...SYSTEM_FILTERS,
+		...readStoredJson<SavedFilter[]>(SAVED_FILTERS_STORAGE_KEY, []),
+	];
+	return (
+		savedFilters.find((filter) => filter.id === defaultFilterId) ??
+		SYSTEM_DEFAULT_FILTER
+	);
+}

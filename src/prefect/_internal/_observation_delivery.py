@@ -25,10 +25,11 @@ Lifecycle state machine (`_DeliveryState` selects the active phase in `_run`;
 
 Additional transitions and guards:
 
+* STARTING -> RECONCILING when setup succeeds and the caller requested reconciliation.
 * CONNECTING -> POLLING when setup fails and the poller is still running.
 * RECONCILING -> RECONCILING when a state check fails: retain the consumer,
   wait with jittered backoff, then retry the check.
-* RECONCILING -> POLLING when the consumer ends and the poller is still running.
+* RECONCILING -> POLLING when the consumer ends and polling has not failed.
 * POLLING or CONNECTING -> FAILED when polling ends without an established
   consumer. A completed successful setup wins over simultaneous poll failure.
 * RECONCILING -> FAILED only when its consumer ends and polling has also ended.
@@ -39,12 +40,12 @@ Additional transitions and guards:
 
 Phase ownership and invariants:
 
-* STARTING owns bounded setup; initial success needs no recovery reconciliation.
+* STARTING owns bounded setup; callers resuming pending work can request reconciliation.
 * POLLING owns the fallback poller and reconnect delay; CONNECTING keeps that
   same poller while owning a bounded setup attempt.
 * RECONCILING owns a live consumer and a state check or retry delay. The poller
-  may still be running or may have exhausted its policy; a live consumer keeps
-  delivery available in either case.
+  may be absent, running, or have exhausted its policy; a live consumer keeps
+  delivery available in each case.
 * RECONCILING -> STREAMING requires a successful current-state check and a
   running consumer, followed by cancelling and awaiting any live poller.
 * STREAMING owns only the consumer. A quiet stream has no idle deadline.
@@ -133,15 +134,17 @@ class ObservationDelivery:
         self._tasks: set[asyncio.Task[Any]] = set()
         self._supervisor: asyncio.Task[None] | None = None
 
-    async def start(self) -> None:
-        """Attempt the initial connection and begin streaming or polling."""
+    async def start(self, *, reconcile: bool = False) -> None:
+        """Connect and begin delivery, optionally checking state after setup."""
         assert self._state is _DeliveryState.STOPPED
         self._state = _DeliveryState.STARTING
         consumer: asyncio.Task[None] | None = None
         error = await self._connect()
         if error is None:
             consumer = self._spawn(self._consume())
-            self._state = _DeliveryState.STREAMING
+            self._state = (
+                _DeliveryState.RECONCILING if reconcile else _DeliveryState.STREAMING
+            )
         else:
             self._state = _DeliveryState.POLLING
             self._logger.warning(
@@ -249,18 +252,19 @@ class ObservationDelivery:
                         self._state = _DeliveryState.RECONCILING
 
                 case _DeliveryState.RECONCILING:
-                    assert consumer is not None and poller is not None
+                    assert consumer is not None
                     reconcile = self._spawn(self._check_current_state())
                     await asyncio.wait(
                         [consumer, reconcile], return_when=asyncio.FIRST_COMPLETED
                     )
                     if not consumer.done():
                         if (error := reconcile.exception()) is None:
-                            if poller.done():
-                                _polling_error(poller)
-                            else:
-                                poller.cancel()
-                                await asyncio.wait([poller])
+                            if poller is not None:
+                                if poller.done():
+                                    _polling_error(poller)
+                                else:
+                                    poller.cancel()
+                                    await asyncio.wait([poller])
                             self._logger.info(
                                 "%s reconnected to the events stream and stopped"
                                 " polling.",
@@ -297,7 +301,7 @@ class ObservationDelivery:
                     )
                     await self._disconnect()
                     consumer = None
-                    if poller.done():
+                    if poller is not None and poller.done():
                         return _polling_error(poller)
                     self._state = _DeliveryState.POLLING
 

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, MutableMapping, Optional, Set, Union
 from uuid import UUID
@@ -6,6 +7,7 @@ from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.uuid7 import uuid7
+from prefect.logging import get_logger
 from prefect.server import models, schemas
 from prefect.server.database.orm_models import (
     ORMDeployment,
@@ -20,9 +22,14 @@ from prefect.server.database.orm_models import (
 from prefect.server.events.schemas.events import Event
 from prefect.server.models import deployments
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL
+from prefect.settings import (
+    PREFECT_API_EVENTS_RELATED_RESOURCE_CACHE_TTL,
+    get_current_settings,
+)
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.text import truncated_to
+
+logger: logging.Logger = get_logger(__name__)
 
 ResourceData = Dict[str, Dict[str, Any]]
 RelatedResourceList = List[Dict[str, str]]
@@ -116,10 +123,27 @@ async def _flow_run_related_resources_from_orm(
         )
         _flow_run_resource_data_cache[flow_run.id] = resource_data
 
-    return _resource_data_as_related_resources(
+    related = _resource_data_as_related_resources(
         resource_data,
         excluded_kinds=["flow-run"],
-    ) + _provenance_as_related_resources(flow_run.created_by)
+    )
+    provenance = _provenance_as_related_resources(flow_run.created_by)
+
+    # Tags come last, so staying within the maximum that Event validation enforces
+    # leaves out tags before the run's other related resources.
+    maximum = get_current_settings().server.events.maximum_related_resources
+    room = max(maximum - len(provenance), 0)
+    if len(related) > room:
+        logger.warning(
+            "Leaving %s related resources of flow run %s out of its state change "
+            "event, which can have at most %s related resources",
+            len(related) - room,
+            flow_run.id,
+            maximum,
+        )
+        related = related[:room]
+
+    return related + provenance
 
 
 def _as_resource_data(

@@ -241,6 +241,7 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         self.csrf_token: Optional[str] = None
         self.csrf_token_expiration: Optional[datetime] = None
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
+        self._csrf_token_lock: anyio.Lock = anyio.Lock()
         self.raise_on_all_errors: bool = raise_on_all_errors
         # Track whether we've successfully connected to the server.
         # Used to determine retry behavior for ConnectError.
@@ -303,12 +304,14 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
 
         is_change_request = request.method.lower() in {"post", "put", "patch", "delete"}
 
-        if self.enable_csrf_support and is_change_request:
-            await self._add_csrf_headers(request=request)
-
         while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
             retry_seconds = None
             exc_info = None
+
+            # Attach the client's current token to every attempt, since another
+            # request may have refreshed it while this one waited to retry
+            if self.enable_csrf_support and is_change_request:
+                await self._add_csrf_headers(request=request)
 
             try:
                 response = await send(request, *send_args, **send_kwargs)
@@ -325,12 +328,14 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
                 # We got a response; check if it's a CSRF error, otherwise
                 # return immediately if it is not retryable
                 if (
-                    response.status_code == status.HTTP_403_FORBIDDEN
+                    is_change_request
+                    and response.status_code == status.HTTP_403_FORBIDDEN
                     and "Invalid CSRF token" in response.text
                 ):
-                    # We got a CSRF error, clear the token and try again
-                    self.csrf_token = None
-                    await self._add_csrf_headers(request)
+                    # Discard the token only if this request sent it; otherwise
+                    # another request has already replaced it
+                    if self.csrf_token == request.headers.get("Prefect-Csrf-Token"):
+                        self.csrf_token = None
                 elif response.status_code not in retry_codes:
                     return response
 
@@ -454,42 +459,69 @@ class PrefectHttpxAsyncClient(httpx.AsyncClient):
         return response
 
     async def _add_csrf_headers(self, request: Request):
-        now = datetime.now(timezone.utc)
-
         if not self.enable_csrf_support:
             return
 
-        if not self.csrf_token or (
-            self.csrf_token_expiration and now > self.csrf_token_expiration
-        ):
-            token_request = self.build_request(
-                "GET", f"/csrf-token?client={self.csrf_client_id}"
+        csrf_token = self._get_usable_csrf_token()
+        if csrf_token is None:
+            # The server replaces this client's token on every refresh, so refresh
+            # one request at a time and let waiting requests reuse the new token.
+            # If a refresh fails, the next waiting request tries its own rather than
+            # raising the same error. Requests then recover as soon as the server
+            # does, at the cost of failing one refresh at a time while it is down.
+            async with self._csrf_token_lock:
+                csrf_token = self._get_usable_csrf_token()
+                if csrf_token is None and self.enable_csrf_support:
+                    csrf_token = await self._refresh_csrf_token()
+
+            # The server does not issue CSRF tokens
+            if csrf_token is None:
+                return
+
+        request.headers["Prefect-Csrf-Token"] = csrf_token
+        request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
+
+    async def _refresh_csrf_token(self) -> str | None:
+        """
+        Request a new CSRF token and return it, or disable CSRF support and return
+        `None` if the server does not issue tokens.
+        """
+        token_request = self.build_request(
+            "GET", f"/csrf-token?client={self.csrf_client_id}"
+        )
+
+        try:
+            token_response = await self.send(token_request)
+        except PrefectHTTPStatusError as exc:
+            old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
+            unconfigured_server = (
+                exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+                and "CSRF protection is disabled." in exc.response.text
             )
 
-            try:
-                token_response = await self.send(token_request)
-            except PrefectHTTPStatusError as exc:
-                old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
-                unconfigured_server = (
-                    exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-                    and "CSRF protection is disabled." in exc.response.text
-                )
+            if old_server or unconfigured_server:
+                # The token endpoint is either unavailable, suggesting an
+                # older server, or CSRF protection is disabled. In either
+                # case we should disable CSRF support.
+                self.enable_csrf_support = False
+                return None
 
-                if old_server or unconfigured_server:
-                    # The token endpoint is either unavailable, suggesting an
-                    # older server, or CSRF protection is disabled. In either
-                    # case we should disable CSRF support.
-                    self.enable_csrf_support = False
-                    return
+            raise
 
-                raise
+        token: CsrfToken = CsrfToken.model_validate(token_response.json())
+        self.csrf_token = token.token
+        self.csrf_token_expiration = token.expiration
+        return token.token
 
-            token: CsrfToken = CsrfToken.model_validate(token_response.json())
-            self.csrf_token = token.token
-            self.csrf_token_expiration = token.expiration
-
-        request.headers["Prefect-Csrf-Token"] = self.csrf_token
-        request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
+    def _get_usable_csrf_token(self) -> str | None:
+        """Return the client's CSRF token, or `None` if it is missing or expired."""
+        csrf_token = self.csrf_token
+        if csrf_token and not (
+            self.csrf_token_expiration
+            and datetime.now(timezone.utc) > self.csrf_token_expiration
+        ):
+            return csrf_token
+        return None
 
 
 class PrefectHttpxSyncClient(httpx.Client):
@@ -514,6 +546,11 @@ class PrefectHttpxSyncClient(httpx.Client):
         self.csrf_token: Optional[str] = None
         self.csrf_token_expiration: Optional[datetime] = None
         self.csrf_client_id: uuid.UUID = uuid.uuid4()
+        # Reentrant as a safeguard. The token request is sent while this lock is
+        # held and, being a GET, never reaches the CSRF handling that takes it; if
+        # it ever did, a `threading.Lock` would hang the thread silently, whereas
+        # the async client's `anyio.Lock` raises on re-entry.
+        self._csrf_token_lock: threading.RLock = threading.RLock()
         self.raise_on_all_errors: bool = raise_on_all_errors
         # Track whether we've successfully connected to the server.
         # Used to determine retry behavior for ConnectError.
@@ -576,12 +613,14 @@ class PrefectHttpxSyncClient(httpx.Client):
 
         is_change_request = request.method.lower() in {"post", "put", "patch", "delete"}
 
-        if self.enable_csrf_support and is_change_request:
-            self._add_csrf_headers(request=request)
-
         while try_count <= PREFECT_CLIENT_MAX_RETRIES.value():
             retry_seconds = None
             exc_info = None
+
+            # Attach the client's current token to every attempt, since another
+            # request may have refreshed it while this one waited to retry
+            if self.enable_csrf_support and is_change_request:
+                self._add_csrf_headers(request=request)
 
             try:
                 response = send(request, *send_args, **send_kwargs)
@@ -598,12 +637,16 @@ class PrefectHttpxSyncClient(httpx.Client):
                 # We got a response; check if it's a CSRF error, otherwise
                 # return immediately if it is not retryable
                 if (
-                    response.status_code == status.HTTP_403_FORBIDDEN
+                    is_change_request
+                    and response.status_code == status.HTTP_403_FORBIDDEN
                     and "Invalid CSRF token" in response.text
                 ):
-                    # We got a CSRF error, clear the token and try again
-                    self.csrf_token = None
-                    self._add_csrf_headers(request)
+                    # Discard the token only if this request sent it; otherwise
+                    # another request has already replaced it. Compare under the
+                    # lock so a refresh in another thread cannot land in between.
+                    with self._csrf_token_lock:
+                        if self.csrf_token == request.headers.get("Prefect-Csrf-Token"):
+                            self.csrf_token = None
                 elif response.status_code not in retry_codes:
                     return response
 
@@ -727,42 +770,69 @@ class PrefectHttpxSyncClient(httpx.Client):
         return response
 
     def _add_csrf_headers(self, request: Request):
-        now = datetime.now(timezone.utc)
-
         if not self.enable_csrf_support:
             return
 
-        if not self.csrf_token or (
-            self.csrf_token_expiration and now > self.csrf_token_expiration
-        ):
-            token_request = self.build_request(
-                "GET", f"/csrf-token?client={self.csrf_client_id}"
+        csrf_token = self._get_usable_csrf_token()
+        if csrf_token is None:
+            # The server replaces this client's token on every refresh, so refresh
+            # one request at a time and let waiting requests reuse the new token.
+            # If a refresh fails, the next waiting request tries its own rather than
+            # raising the same error. Requests then recover as soon as the server
+            # does, at the cost of failing one refresh at a time while it is down.
+            with self._csrf_token_lock:
+                csrf_token = self._get_usable_csrf_token()
+                if csrf_token is None and self.enable_csrf_support:
+                    csrf_token = self._refresh_csrf_token()
+
+            # The server does not issue CSRF tokens
+            if csrf_token is None:
+                return
+
+        request.headers["Prefect-Csrf-Token"] = csrf_token
+        request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
+
+    def _refresh_csrf_token(self) -> str | None:
+        """
+        Request a new CSRF token and return it, or disable CSRF support and return
+        `None` if the server does not issue tokens.
+        """
+        token_request = self.build_request(
+            "GET", f"/csrf-token?client={self.csrf_client_id}"
+        )
+
+        try:
+            token_response = self.send(token_request)
+        except PrefectHTTPStatusError as exc:
+            old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
+            unconfigured_server = (
+                exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+                and "CSRF protection is disabled." in exc.response.text
             )
 
-            try:
-                token_response = self.send(token_request)
-            except PrefectHTTPStatusError as exc:
-                old_server = exc.response.status_code == status.HTTP_404_NOT_FOUND
-                unconfigured_server = (
-                    exc.response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
-                    and "CSRF protection is disabled." in exc.response.text
-                )
+            if old_server or unconfigured_server:
+                # The token endpoint is either unavailable, suggesting an
+                # older server, or CSRF protection is disabled. In either
+                # case we should disable CSRF support.
+                self.enable_csrf_support = False
+                return None
 
-                if old_server or unconfigured_server:
-                    # The token endpoint is either unavailable, suggesting an
-                    # older server, or CSRF protection is disabled. In either
-                    # case we should disable CSRF support.
-                    self.enable_csrf_support = False
-                    return
+            raise
 
-                raise
+        token: CsrfToken = CsrfToken.model_validate(token_response.json())
+        self.csrf_token = token.token
+        self.csrf_token_expiration = token.expiration
+        return token.token
 
-            token: CsrfToken = CsrfToken.model_validate(token_response.json())
-            self.csrf_token = token.token
-            self.csrf_token_expiration = token.expiration
-
-        request.headers["Prefect-Csrf-Token"] = self.csrf_token
-        request.headers["Prefect-Csrf-Client"] = str(self.csrf_client_id)
+    def _get_usable_csrf_token(self) -> str | None:
+        """Return the client's CSRF token, or `None` if it is missing or expired."""
+        csrf_token = self.csrf_token
+        if csrf_token and not (
+            self.csrf_token_expiration
+            and datetime.now(timezone.utc) > self.csrf_token_expiration
+        ):
+            return csrf_token
+        return None
 
 
 class ServerType(AutoEnum):

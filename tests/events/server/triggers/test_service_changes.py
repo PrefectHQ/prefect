@@ -225,8 +225,15 @@ async def test_removes_existing_automations_on_changes(
 
 
 async def test_gracefully_handles_errors_during_changes(
-    starting_automations, automations_session: AsyncSession
+    starting_automations,
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    # The periodic evaluation reconciles the loaded automations with the database,
+    # which would (correctly) drop the deleted automation that the failed change
+    # left loaded if its first run is slow enough to finish after the delete
+    monkeypatch.setattr(triggers, "periodic_evaluation", mock.AsyncMock())
+
     async with triggers.consumer():
         await asyncio.sleep(0.1)
 
@@ -337,6 +344,55 @@ async def test_reconcile_keeps_automations_loaded_while_reading(
         assert await reload is True
 
     assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [expected]
+
+
+async def test_failed_reconciliation_restores_name_matches(
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    automation = Automation(
+        name="Named deployment",
+        trigger=EventTrigger(
+            expect={"prefect.flow-run.Completed"},
+            match_related={"prefect.resource.name": "deployment-0"},
+            posture=Posture.Reactive,
+            threshold=1,
+        ),
+        actions=[actions.DoNothing()],
+    )
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="prefect.flow-run.Completed",
+        resource={"prefect.resource.id": "prefect.flow-run.example"},
+        related=[
+            {
+                "prefect.resource.id": "prefect.deployment.example",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "deployment-0",
+            }
+        ],
+        id=uuid4(),
+    )
+    triggers.load_automation(automation)
+    previous_snapshot = triggers.automation_state_snapshot
+    replacement = Automation.model_validate({**automation.model_dump(), "id": uuid4()})
+    replacement.trigger.reset_ids()
+    monkeypatch.setattr(automations, "_notify", mock.AsyncMock())
+    await automations.create_automation(automations_session, replacement)
+    await automations_session.commit()
+    load_automation = triggers.load_automation
+
+    def fail_after_loading(automation: Automation) -> None:
+        load_automation(automation)
+        raise RuntimeError("Loading failed")
+
+    monkeypatch.setattr(triggers, "load_automation", fail_after_loading)
+
+    with pytest.raises(RuntimeError, match="Loading failed"):
+        await triggers.reconcile_automations(force=True)
+
+    assert triggers.find_interested_triggers(event) == [automation.trigger]
+    assert triggers.automation_state_snapshot == previous_snapshot
 
 
 async def test_automation_update_keeps_automation_loaded_while_reading(

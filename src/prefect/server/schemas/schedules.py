@@ -19,6 +19,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    TypeVar,
     Union,
 )
 from zoneinfo import ZoneInfo
@@ -28,7 +29,7 @@ import dateutil.rrule
 import whenever
 from pydantic import ConfigDict, Field, field_validator, model_validator
 from typing_extensions import TypeAlias
-from whenever import Instant
+from whenever import Instant, ZonedDateTime
 
 from prefect._internal.schemas.validators import (
     default_timezone,
@@ -97,50 +98,75 @@ def _prepare_scheduling_start_and_end(
     return start, end
 
 
+_SeekDateTime = TypeVar("_SeekDateTime", datetime.datetime, ZonedDateTime)
+
+
 def _seek_calendar_interval(
-    anchor: datetime.datetime,
-    start: datetime.datetime,
+    anchor: _SeekDateTime,
+    start: _SeekDateTime,
     timezone: str,
     *,
     days: int = 0,
     months: int = 0,
-    advance: Callable[[datetime.datetime, int, int | None], datetime.datetime],
-) -> datetime.datetime:
-    """Seek pure calendar intervals without replaying their historical occurrences.
+    seconds: float = 0,
+    advance: Callable[[_SeekDateTime, int, int | None], _SeekDateTime],
+) -> _SeekDateTime:
+    """Seek calendar intervals without replaying their historical occurrences.
 
-    A calendar addition can permanently normalize the series at a timezone gap.
-    Jump only within transition-free segments, and let the caller's datetime
-    library advance across each boundary to preserve its gap/fold policy.
+    A calendar addition can permanently normalize the series at a timezone gap,
+    and the exact `seconds` of a mixed day-and-time interval shift its local
+    time at every transition it crosses. Jump only within transition-free
+    segments, and let the caller's datetime library advance across each
+    boundary to preserve its gap/fold policy.
     Month-end clamping is cumulative and repeats within 400 Gregorian years.
     Work depends on timezone transitions, not the number of elapsed days.
+    `ZonedDateTime` values are advanced as-is, so the seek keeps their
+    nanosecond precision; stdlib views are only used to plan each jump.
     """
+
+    def as_stdlib(dt: _SeekDateTime) -> datetime.datetime:
+        return dt if isinstance(dt, datetime.datetime) else _whenever_to_stdlib(dt)
+
+    def is_before(a: _SeekDateTime, b: _SeekDateTime) -> bool:
+        # Same-zone stdlib comparisons ignore `fold`, so compare instants.
+        if isinstance(a, datetime.datetime):
+            return a.timestamp() < b.timestamp()
+        return a < b
+
+    start_dt = as_stdlib(start)
     current = anchor
-    while current.timestamp() < start.timestamp():
+    while is_before(current, start):
+        current_dt = as_stdlib(current)
         transition = (
-            Instant.from_timestamp(current.timestamp())
+            Instant.from_timestamp(current_dt.timestamp())
             .to_tz(timezone)
             .next_transition()
         )
-        boundary = start
+        boundary = start_dt
         if transition is not None:
             transition_dt = _whenever_to_stdlib(transition)
-            if transition_dt.timestamp() < start.timestamp():
+            if transition_dt.timestamp() < start_dt.timestamp():
                 boundary = transition_dt
 
         # Leave at least one occurrence before the boundary. Stepping across it
         # normally also handles intervals that skip over several transitions.
-        if months:
+        if seconds:
+            elapsed = boundary.timestamp() - current_dt.timestamp()
+            count = max(1, int(elapsed // (days * 86400 + seconds)) - 1)
+        elif months:
             distance = (
-                (boundary.year - current.year) * 12 + boundary.month - current.month
+                (boundary.year - current_dt.year) * 12
+                + boundary.month
+                - current_dt.month
             )
             count = max(1, distance // months - 1)
         else:
-            count = max(1, (boundary.date() - current.date()).days // days - 1)
+            count = max(1, (boundary.date() - current_dt.date()).days // days - 1)
 
         clamped_day = None
-        if months and count > 1 and current.day > 28:
-            clamped_day = current.day
-            month_index = current.year * 12 + current.month - 1
+        if months and count > 1 and current_dt.day > 28:
+            clamped_day = current_dt.day
+            month_index = current_dt.year * 12 + current_dt.month - 1
             # Stop at 28: no later month can shorten the day further. For steps
             # that never visit February, inspect at most one Gregorian cycle.
             for step in range(1, min(count, 4800 // gcd(months, 4800)) + 1):
@@ -249,7 +275,7 @@ class IntervalSchedule(PrefectBaseModel):
 
         if sys.version_info >= (3, 13):
             # `pendulum` is not supported in Python 3.13, so we use `whenever` instead
-            from whenever import PlainDateTime, ZonedDateTime
+            from whenever import PlainDateTime
 
             if start is None:
                 _zdt = ZonedDateTime.now("UTC")
@@ -297,7 +323,7 @@ class IntervalSchedule(PrefectBaseModel):
                 # the initial offset jump.
                 if _ItemizedDelta is None:
                     _months, _days, _secs, _nanos = interval.in_months_days_secs_nanos()
-                    _interval_seconds = _secs + _nanos / 1e9
+                    _interval_nanos = _secs * 1_000_000_000 + _nanos
                 else:  # ItemizedDelta (whenever >= 0.10.0)
                     _date, _time = interval.date_and_time_parts()
                     _months = (
@@ -310,7 +336,7 @@ class IntervalSchedule(PrefectBaseModel):
                         if _date
                         else 0
                     )
-                    _interval_seconds = _time.total("seconds") if _time else 0
+                    _interval_nanos = int(_time.total("nanoseconds")) if _time else 0
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                     return zdt.add(interval, **_CALENDAR_DISAMBIGUATION)
@@ -321,28 +347,33 @@ class IntervalSchedule(PrefectBaseModel):
                 # days are provided, but not if we add `total seconds`.
                 _months = 0
                 _days = interval.days
-                _interval_seconds = interval.total_seconds() - (_days * 24 * 60 * 60)
+                _interval_nanos = (
+                    interval.seconds * 1_000_000 + interval.microseconds
+                ) * 1000
 
                 def _advance(zdt: ZonedDateTime) -> ZonedDateTime:
                     return zdt.add(
                         days=_days,
-                        seconds=_interval_seconds,
+                        nanoseconds=_interval_nanos,
                         **_CALENDAR_DISAMBIGUATION,
                     )
+
+            # Steps add exact nanoseconds, so n steps equal one n-fold addition.
+            _interval_seconds = _interval_nanos / 1e9
 
             approx_total_seconds = (
                 _months * 30 * 86400 + _days * 86400 + _interval_seconds
             )
 
             # A direct jump is exact for pure seconds and UTC calendar days.
-            # Mixed intervals retain the existing elapsed-time estimate;
-            # local calendar days and months advance sequentially below.
+            # Other intervals seek from the anchor below; the elapsed-time
+            # estimate is only used for mixed intervals before the anchor.
             if _months == 0 and (_days == 0 or _interval_seconds == 0):
 
                 def _jump(intervals: int) -> ZonedDateTime:
                     return anchor_zdt.add(
                         days=_days * intervals,
-                        seconds=_interval_seconds * intervals,
+                        nanoseconds=_interval_nanos * intervals,
                         **_CALENDAR_DISAMBIGUATION,
                     )
 
@@ -379,39 +410,40 @@ class IntervalSchedule(PrefectBaseModel):
 
             if local_start >= anchor_zdt and (
                 _months != 0
-                or (_days != 0 and _interval_seconds == 0 and target_timezone != "UTC")
+                or (_days != 0 and (_interval_seconds != 0 or target_timezone != "UTC"))
             ):
                 # Repeated calendar additions may clamp a month-end date or
-                # normalize a nonexistent local time. A direct jump loses that
-                # change for all subsequent dates in the series.
-                if _interval_seconds == 0 and not (_months and _days):
+                # normalize a nonexistent local time, and the exact time of a
+                # mixed interval shifts its local time at each DST change. A
+                # direct jump loses that change for all subsequent dates.
+                if not _months or not (_days or _interval_seconds):
 
                     def advance_calendar(
-                        dt: datetime.datetime, count: int, clamped_day: int | None
-                    ) -> datetime.datetime:
-                        result = _zdt_from_dt(dt).add(
+                        zdt: ZonedDateTime, count: int, clamped_day: int | None
+                    ) -> ZonedDateTime:
+                        result = zdt.add(
                             months=_months * count,
                             days=_days * count,
+                            nanoseconds=_interval_nanos * count,
                             **_CALENDAR_DISAMBIGUATION,
                         )
                         if clamped_day is not None:
                             result = result.replace(
                                 day=clamped_day, **_CALENDAR_DISAMBIGUATION
                             )
-                        return _whenever_to_stdlib(result)
+                        return result
 
-                    next_date = _zdt_from_dt(
-                        _seek_calendar_interval(
-                            _whenever_to_stdlib(anchor_zdt),
-                            _whenever_to_stdlib(local_start),
-                            target_timezone,
-                            days=_days,
-                            months=_months,
-                            advance=advance_calendar,
-                        )
+                    next_date = _seek_calendar_interval(
+                        anchor_zdt,
+                        local_start,
+                        target_timezone,
+                        days=_days,
+                        months=_months,
+                        seconds=_interval_seconds,
+                        advance=advance_calendar,
                     )
                 else:
-                    # Mixed month/day/time intervals retain sequential semantics.
+                    # Mixed month and day/time intervals retain sequential semantics.
                     next_date = anchor_zdt
             else:
                 offset = int(_diff_secs / approx_total_seconds)
@@ -469,8 +501,8 @@ class IntervalSchedule(PrefectBaseModel):
             )
 
             # A direct jump is exact for pure seconds and UTC calendar days.
-            # Mixed intervals retain the existing elapsed-time estimate;
-            # local calendar days advance sequentially below.
+            # Other intervals seek from the anchor below; the elapsed-time
+            # estimate is only used for mixed intervals before the anchor.
             if interval_days == 0 or interval_seconds == 0:
 
                 def _jump(intervals: int) -> DateTime:
@@ -494,18 +526,22 @@ class IntervalSchedule(PrefectBaseModel):
             if (
                 start >= anchor_tz
                 and interval_days != 0
-                and interval_seconds == 0
-                and self.timezone != "UTC"
+                and (interval_seconds != 0 or self.timezone != "UTC")
             ):
-                # A skipped local time can change the hour of every subsequent
-                # occurrence, so advance from the anchor through that date.
+                # A skipped local time or the exact time of a mixed interval
+                # crossing a DST change can shift every subsequent occurrence,
+                # so advance from the anchor through that date.
                 next_date = _seek_calendar_interval(
                     anchor_tz,
                     start,
                     self.timezone or "UTC",
                     days=interval_days,
+                    seconds=interval_seconds,
                     advance=lambda dt, count, _day: _pendulum_call(
-                        dt, "add", days=interval_days * count
+                        dt,
+                        "add",
+                        days=interval_days * count,
+                        seconds=interval_seconds * count,
                     ),
                 )
             else:
@@ -534,8 +570,10 @@ class IntervalSchedule(PrefectBaseModel):
                 )
 
             # daylight saving time boundaries can create a situation where the next
-            # date is before the start date, so we advance it if necessary
-            while next_date < start:
+            # date is before the start date, so we advance it if necessary.
+            # Compare instants: same-zone comparisons ignore `fold` in a
+            # repeated hour.
+            while next_date.timestamp() < start.timestamp():
                 next_date = _next_date(next_date)
 
             counter = 0
@@ -543,7 +581,7 @@ class IntervalSchedule(PrefectBaseModel):
 
             while True:
                 # if the end date was exceeded, exit
-                if end and next_date > end:
+                if end and next_date.timestamp() > end.timestamp():
                     break
 
                 # ensure no duplicates; weird things can happen with DST

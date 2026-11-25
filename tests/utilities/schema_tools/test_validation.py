@@ -1,4 +1,6 @@
+import uuid
 from collections import deque
+from copy import deepcopy
 from typing import Any, List, Optional, Union
 
 import jsonschema
@@ -100,6 +102,19 @@ async def test_ignore_required():
     assert len(res) == 0
 
 
+def test_is_valid():
+    schema = {
+        "title": "Parameters",
+        "type": "object",
+        "properties": {"param": {"title": "param", "position": 0, "type": "integer"}},
+        "required": ["param"],
+    }
+
+    assert is_valid({"param": 10}, schema)
+    assert not is_valid({"param": "not an integer"}, schema)
+    assert not is_valid({}, schema)
+
+
 class TestNumber:
     @pytest.fixture
     def schema(self) -> dict:
@@ -113,18 +128,6 @@ class TestNumber:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": 10}, True),  # Valid integer
-            ({"param": "not an integer"}, False),  # Invalid type
-            ({}, False),  # Missing required field
-            ({"param": None}, False),  # Null value
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": 10}, []),  # Valid integer
@@ -133,6 +136,7 @@ class TestNumber:
                 ["'not an integer' is not of type 'integer'"],
             ),  # Invalid type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'integer'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -153,19 +157,6 @@ class TestBoolean:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": True}, True),
-            ({"param": False}, True),
-            ({"param": "not a boolean"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": True}, []),  # Valid boolean (True)
@@ -175,6 +166,7 @@ class TestBoolean:
                 ["'not a boolean' is not of type 'boolean'"],
             ),  # Invalid type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'boolean'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -195,23 +187,12 @@ class TestString:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": "test string"}, True),
-            ({"param": 123}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": "test string"}, []),  # Valid string
             ({"param": 123}, ["123 is not of type 'string'"]),  # Incorrect type
             ({}, ["'param' is a required property"]),  # Missing required field
+            ({"param": None}, ["None is not of type 'string'"]),  # Null value
         ],
     )
     def test_validate(self, schema, obj, expected_errors):
@@ -235,19 +216,6 @@ class TestDate:
             },
             "required": ["value"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"value": "2023-01-01"}, True),
-            ({"value": "not a date"}, False),
-            ({"value": 123}, False),
-            ({}, False),
-            ({"value": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -282,19 +250,6 @@ class TestDateTime:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": "2023-01-01T12:00:00Z"}, True),
-            ({"param": "not a datetime"}, False),
-            ({"param": 123}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": "2023-01-01T12:00:00Z"}, []),
@@ -320,18 +275,6 @@ class TestDict:
             },
             "required": ["param"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": {"key": "value"}}, True),
-            ({"param": "not a dict"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -373,19 +316,6 @@ class TestObject:
                 }
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": {"population": 1, "name": "string"}}, True),
-            ({"param": {"population": "not an integer", "name": "string"}}, False),
-            ({"param": {"population": 1}}, False),  # Missing required field 'name'
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -432,27 +362,6 @@ class TestObjectOptionalParameters:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            (
-                {"param": {"population": 100000, "name": "Example City"}},
-                True,
-            ),  # Both optional properties provided
-            ({"param": {"population": 100000}}, True),  # Only population provided
-            ({"param": {"name": "Example City"}}, True),  # Only name provided
-            ({"param": {}}, True),  # Neither optional property provided
-            (
-                {"param": {"population": "not an integer", "name": "Example City"}},
-                False,
-            ),  # Invalid type for population
-            ({}, False),  # Missing required 'param'
-            ({"param": None}, False),  # 'param' is null
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": {"population": 100000, "name": "Example City"}}, []),
@@ -485,18 +394,6 @@ class TestArray:
         }
 
     @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": [1, 2, 3]}, True),
-            ({"param": "not an array"}, False),
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
-
-    @pytest.mark.parametrize(
         "obj, expected_errors",
         [
             ({"param": [1, 2, 3]}, []),
@@ -526,18 +423,6 @@ class TestArrayOfStrings:
             },
             "required": ["param"],
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": ["str1", "str2"]}, True),
-            ({"param": [1, 2, 3]}, False),  # Invalid item type
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -587,23 +472,6 @@ class TestArrayOfObjects:
                 }
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            ({"param": [{"population": 1, "name": "string"}]}, True),
-            ({"param": [{"population": 1}]}, False),  # Missing required field 'name'
-            (
-                {"param": [{"population": "string", "name": 1}]},
-                False,
-            ),  # Invalid item type
-            ({"param": [1]}, False),  # Invalid type
-            ({}, False),
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -660,46 +528,6 @@ class TestNestedObject:
                 },
             },
         }
-
-    @pytest.mark.parametrize(
-        "obj, expected",
-        [
-            (
-                {
-                    "param": {
-                        "population": 100000,
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota", "bird": "Blue Jay"},
-                    }
-                },
-                True,
-            ),
-            (
-                {
-                    "param": {
-                        "population": "not an integer",
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota", "bird": "Blue Jay"},
-                    }
-                },
-                False,
-            ),
-            (
-                {
-                    "param": {
-                        "population": 100000,
-                        "name": "Raccoon City",
-                        "state": {"name": "South Dakota"},
-                    }
-                },
-                False,
-            ),  # Missing required state property 'bird'
-            ({}, False),  # Missing required 'param'
-            ({"param": None}, False),
-        ],
-    )
-    def test_is_valid(self, schema, obj, expected):
-        assert is_valid(obj, schema) == expected
 
     @pytest.mark.parametrize(
         "obj, expected_errors",
@@ -2008,9 +1836,205 @@ class TestPreprocessSchemaBlockTypes:
         # This should not raise RuntimeError: dictionary changed size during iteration
         result = preprocess_schema(schema)
 
-        # The schema should be transformed to include oneOf for block reference
-        assert "Secret" in result["definitions"]
-        assert "oneOf" in result["definitions"]["Secret"]
+        # The referenced definition should allow a block reference
+        assert "Secret" not in result["definitions"]
+        assert "anyOf" in result["definitions"]["prefect__blocks__system__Secret"]
+        assert is_valid(
+            {"my_block": {"$ref": {"block_document_id": str(uuid.uuid4())}}}, schema
+        )
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    def test_block_type_definitions_accept_block_references(self, definitions_key: str):
+        schema = {
+            "type": "object",
+            "properties": {
+                "registry_credentials": {
+                    "anyOf": [
+                        {"$ref": f"#/{definitions_key}/DockerRegistryCredentials"},
+                        {"type": "null"},
+                    ],
+                    "default": None,
+                }
+            },
+            definitions_key: {
+                "DockerRegistryCredentials": {
+                    "title": "DockerRegistryCredentials",
+                    "block_type_slug": "docker-registry-credentials",
+                    "block_schema_references": {},
+                    "type": "object",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                        "registry_url": {"type": "string"},
+                    },
+                    "required": ["username", "password", "registry_url"],
+                }
+            },
+        }
+
+        result = preprocess_schema(schema)
+        assert "anyOf" in result[definitions_key]["DockerRegistryCredentials"]
+
+        block_document_id = str(uuid.uuid4())
+        for ref in [block_document_id, {"block_document_id": block_document_id}]:
+            assert is_valid({"registry_credentials": {"$ref": ref}}, schema)
+
+        assert is_valid(
+            {
+                "registry_credentials": {
+                    "username": "user",
+                    "password": "pass",
+                    "registry_url": "index.docker.io",
+                }
+            },
+            schema,
+        )
+        assert not is_valid({"registry_credentials": "not-an-object"}, schema)
+        assert not is_valid({"registry_credentials": {"$ref": {}}}, schema)
+        assert not is_valid({"registry_credentials": {"username": "user"}}, schema)
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    def test_block_type_without_required_fields_accepts_block_references(
+        self, definitions_key: str
+    ):
+        schema = {
+            "type": "object",
+            "properties": {
+                "aws_credentials": {"$ref": f"#/{definitions_key}/AwsCredentials"}
+            },
+            definitions_key: {
+                "AwsCredentials": {
+                    "title": "AwsCredentials",
+                    "block_type_slug": "aws-credentials",
+                    "block_schema_references": {},
+                    "type": "object",
+                    "properties": {
+                        "aws_access_key_id": {"type": "string"},
+                        "region_name": {"type": "string"},
+                    },
+                }
+            },
+        }
+
+        assert is_valid(
+            {"aws_credentials": {"$ref": {"block_document_id": str(uuid.uuid4())}}},
+            schema,
+        )
+        assert is_valid({"aws_credentials": {"region_name": "us-east-1"}}, schema)
+        assert not is_valid({"aws_credentials": "not-an-object"}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": "not-a-uuid"}}, schema)
+        assert not is_valid({"aws_credentials": {"$ref": {}}}, schema)
+
+    def test_boolean_defs_are_left_unchanged(self):
+        schema = {
+            "type": "object",
+            "properties": {"forbidden": {"$ref": "#/$defs/Forbidden"}},
+            "$defs": {"Forbidden": False},
+        }
+
+        assert preprocess_schema(schema)["$defs"] == {"Forbidden": False}
+        assert is_valid({}, schema)
+        assert not is_valid({"forbidden": 1}, schema)
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    @pytest.mark.parametrize("ignore_required", [False, True])
+    def test_ignore_required_for_block_definitions(
+        self, definitions_key: str, ignore_required: bool
+    ):
+        schema = {
+            "type": "object",
+            "properties": {"credentials": {"$ref": f"#/{definitions_key}/Credentials"}},
+            definitions_key: {
+                "Credentials": {
+                    "type": "object",
+                    "title": "Credentials",
+                    "block_type_slug": "credentials",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                    },
+                    "required": ["username", "password"],
+                }
+            },
+        }
+        original_schema = deepcopy(schema)
+
+        for partial in [{}, {"username": "user"}]:
+            errors = validate(
+                {"credentials": partial}, schema, ignore_required=ignore_required
+            )
+            assert bool(errors) is not ignore_required
+
+        reference = {"$ref": {"block_document_id": str(uuid.uuid4())}}
+        assert not validate(
+            {"credentials": reference}, schema, ignore_required=ignore_required
+        )
+        for invalid in [
+            {"username": 123},
+            {"username": None},
+            {"$ref": {}},
+            {"$ref": "not-a-uuid"},
+        ]:
+            assert validate(
+                {"credentials": invalid}, schema, ignore_required=ignore_required
+            )
+        assert schema == original_schema
+
+    @pytest.mark.parametrize("definitions_key", [None, "definitions", "$defs"])
+    @pytest.mark.parametrize("nested", [False, True])
+    @pytest.mark.parametrize("property_schema", [False, True])
+    def test_boolean_property_schemas(
+        self, definitions_key: str | None, nested: bool, property_schema: bool
+    ):
+        schema = {"type": "object", "properties": {"value": property_schema}}
+        values = {"value": 42}
+        if nested:
+            schema = {
+                "type": "object",
+                "properties": {"nested": schema},
+                "required": ["nested"],
+            }
+            values = {"nested": values}
+        if definitions_key:
+            schema = {
+                "type": "object",
+                "properties": {"model": {"$ref": f"#/{definitions_key}/Model"}},
+                definitions_key: {"Model": schema},
+            }
+            values = {"model": values}
+        original_schema = deepcopy(schema)
+
+        assert bool(validate(values, schema)) is not property_schema
+        assert schema == original_schema
+
+    def test_defs_properties_are_preprocessed(self):
+        schema = {
+            "type": "object",
+            "properties": {"param": {"$ref": "#/$defs/MyModel"}},
+            "required": ["param"],
+            "$defs": {
+                "MyModel": {
+                    "title": "MyModel",
+                    "type": "object",
+                    "properties": {
+                        "optional_int": {"type": "integer"},
+                        "tuple_items": {
+                            "type": "array",
+                            "items": [{"type": "string"}, {"type": "integer"}],
+                        },
+                    },
+                }
+            },
+        }
+
+        result = preprocess_schema(schema)
+        assert result["$defs"]["MyModel"]["properties"] == {
+            "optional_int": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+            "tuple_items": {
+                "anyOf": [{"type": "array"}, {"type": "null"}],
+                "prefixItems": [{"type": "string"}, {"type": "integer"}],
+            },
+        }
 
 
 class TestPreprocessSchemaPydanticV2Tuples:

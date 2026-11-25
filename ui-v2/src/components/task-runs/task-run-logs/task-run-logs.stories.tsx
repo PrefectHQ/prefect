@@ -48,7 +48,7 @@ const ALL_MOCK_LOGS = [
 	}),
 ].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-type LogsFilterBody = components["schemas"]["Body_read_logs_logs_filter_post"];
+type LogsFilterBody = components["schemas"]["Body_read_logs"];
 
 export default {
 	title: "Components/TaskRuns/TaskRunLogs",

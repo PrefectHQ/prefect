@@ -14,6 +14,7 @@ from typing import (
     cast,
     overload,
 )
+from uuid import UUID
 
 import prefect.exceptions
 from prefect.client.utilities import inject_client
@@ -70,6 +71,20 @@ def determine_placeholder_type(name: str) -> PlaceholderType:
         return PlaceholderType.ENV_VAR
     else:
         return PlaceholderType.STANDARD
+
+
+def _substitute_placeholders(template: str, replacements: dict[str, str]) -> str:
+    """
+    Replaces placeholders in `template` with their values from `replacements`,
+    leaving placeholders without a replacement intact.
+
+    Substitution happens in a single pass over the original template so that
+    inserted values are never themselves treated as placeholders.
+    """
+    return PLACEHOLDER_CAPTURE_REGEX.sub(
+        lambda match: replacements.get(match.group(1), match.group(1)),
+        template,
+    )
 
 
 def find_placeholders(template: T) -> set[Placeholder]:
@@ -222,12 +237,7 @@ def apply_values(
                 else:
                     replacements[full_match] = str(value)
 
-            # Substitute in a single pass over the original template so that
-            # inserted values are never themselves treated as placeholders.
-            return PLACEHOLDER_CAPTURE_REGEX.sub(
-                lambda match: replacements.get(match.group(1), match.group(1)),
-                template,
-            )
+            return _substitute_placeholders(template, replacements)
     elif isinstance(template, dict):
         updated_template: dict[str, Any] = {}
         for key, value in template.items():
@@ -261,6 +271,23 @@ def apply_values(
         return cast(T, updated_list)
     else:
         raise ValueError(f"Unexpected template type {type(template).__name__!r}")
+
+
+def _get_block_document_id_from_ref(ref: Any) -> Any:
+    """
+    Return the block document ID from a `$ref` value, which may be a UUID or a
+    dictionary containing `block_document_id`.
+    """
+    if isinstance(ref, dict):
+        return cast(dict[str, Any], ref).get("block_document_id")
+    if isinstance(ref, UUID):
+        return ref
+    if isinstance(ref, str):
+        try:
+            return UUID(ref)
+        except ValueError:
+            return None
+    return None
 
 
 @inject_client
@@ -439,7 +466,7 @@ async def resolve_block_document_references(
 
     async def _resolve(tmpl: T) -> Union[T, dict[str, Any]]:
         if isinstance(tmpl, dict):
-            block_document_id = tmpl.get("$ref", {}).get("block_document_id")
+            block_document_id = _get_block_document_id_from_ref(tmpl.get("$ref"))
             if block_document_id:
                 block_document = await _read_block_document_by_id(block_document_id)
                 return deepcopy(block_document.data)
@@ -467,7 +494,7 @@ async def resolve_block_document_references(
             else:
                 # Inline substitution: replace each block placeholder with its resolved value.
                 # Any non-block placeholders are left intact for later resolution.
-                result = tmpl
+                replacements: dict[str, str] = {}
                 for placeholder in placeholders:
                     if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
                         continue
@@ -479,9 +506,9 @@ async def resolve_block_document_references(
                             " which cannot be used for inline string substitution."
                             " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
                         )
-                    result = result.replace(placeholder.full_match, str(value))
+                    replacements[placeholder.full_match] = str(value)
 
-                return cast(T, result)
+                return cast(T, _substitute_placeholders(tmpl, replacements))
 
         return tmpl
 
@@ -545,14 +572,14 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                 else:
                     return cast(T, value)
             else:
+                replacements: dict[str, str] = {}
                 for full_match, name, placeholder_type in placeholders:
                     if placeholder_type is PlaceholderType.VARIABLE:
                         value = await _read_variable(name)
-                        if value is _MISSING:
-                            tmpl = tmpl.replace(full_match, "")
-                        else:
-                            tmpl = tmpl.replace(full_match, str(value))
-                return tmpl
+                        replacements[full_match] = (
+                            "" if value is _MISSING else str(value)
+                        )
+                return cast(T, _substitute_placeholders(tmpl, replacements))
         elif isinstance(tmpl, dict):
             return {key: await _resolve(value) for key, value in tmpl.items()}
         elif isinstance(tmpl, list):

@@ -8,6 +8,13 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add worker ID to logs
+SQLite: `80b8c25269b8`
+Postgres: `eabe8d83132d`
+
+Adds a nullable `log.worker_id` column. Existing logs have no worker ID;
+downgrading removes worker attribution but keeps the log entries.
+
 # Add observed state covering indexes
 SQLite: `27d8f4e1a6c9`
 Postgres: `91e2b8f3d6a4`

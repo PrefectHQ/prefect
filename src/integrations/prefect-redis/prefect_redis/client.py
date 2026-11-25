@@ -185,8 +185,15 @@ def close_all_cached_connections() -> None:
 
 
 async def clear_cached_clients() -> None:
-    """Clear cached Redis clients and the messaging URL lookup."""
+    """Clear cached Redis clients and the cached messaging settings.
+
+    The messaging URL and the publisher defaults are read again on next use.
+    """
+    # Deferred because `prefect_redis.messaging` imports this module.
+    from prefect_redis.messaging import _get_publisher_settings
+
     _get_redis_messaging_url.cache_clear()
+    _get_publisher_settings.cache_clear()
     _client_cache.clear()
 
 

@@ -968,10 +968,22 @@ class CloudRunWorkerV2(
         job = _get_job()
 
         while not job.is_ready():
-            if not (ready_condition := job.get_ready_condition()):
-                ready_condition = "waiting for condition update"
+            ready_condition = job.get_ready_condition()
 
-            logger.info(f"Current Job Condition: {ready_condition}")
+            if ready_condition.get("state") == "CONDITION_FAILED":
+                # `CONDITION_FAILED` is a terminal state: the job will not
+                # become ready, so there is nothing left to wait for.
+                reason = ready_condition.get("reason", "unknown reason")
+                message = ready_condition.get("message", "no details provided")
+                raise RuntimeError(
+                    f"Cloud Run JobV2 {configuration.job_name} failed to become"
+                    f" ready ({reason}): {message}"
+                )
+
+            logger.info(
+                "Current Job Condition: "
+                f"{ready_condition or 'waiting for condition update'}"
+            )
 
             job = _get_job()
 

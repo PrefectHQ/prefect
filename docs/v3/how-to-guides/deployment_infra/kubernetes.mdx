@@ -228,6 +228,29 @@ Select from the dropdown options to specify when to pull the image.
 When using the `IfNotPresent` policy, make sure to use unique image tags, or
 old images may get cached on your nodes.
 
+**Registry Credentials**
+
+Select a `DockerRegistryCredentials` block to pull the image from a private registry.
+For each flow run, the worker stores the credentials in an image pull Secret,
+adds it to the pod's `imagePullSecrets`, and makes the Job its owner, so Kubernetes
+deletes the Secret together with the Job.
+The worker needs [permission to manage Secrets](#secret-management-permissions).
+You can override the credentials on each deployment through `job_variables`, for example
+`{"registry_credentials": "{{ prefect.blocks.docker-registry-credentials.my-registry }}"}`.
+
+A work pool keeps the base job template it was created with, so a pool created before
+`registry_credentials` existed ignores the variable, even if its template was never customized.
+To use it, refresh the pool's template with the current default. The command reads the default
+from the installed `prefect-kubernetes`, so run it where a version with `registry_credentials` is installed:
+
+```bash
+prefect work-pool get-default-base-job-template --type kubernetes --file template.json
+prefect work-pool update my-pool --base-job-template template.json
+```
+
+If the pool's template is customized, add a `registry_credentials` variable
+and `"registry_credentials": "{{ registry_credentials }}"` to its `job_configuration` instead.
+
 **Finished Job TTL**
 
 Number of seconds before finished jobs are automatically cleaned up by the Kubernetes
@@ -492,7 +515,8 @@ add secret permissions to the Role:
 If you enable the worker to store generated flow-run environment variables in a
 per-job Kubernetes secret instead of embedding them directly in the Job manifest
 (by setting `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_STORE_ENV_AS_SECRET=true`),
-add `create`, `patch`, and `delete` permissions on secrets to the Role:
+or set the `registry_credentials` job variable so the worker creates a per-job
+image pull secret, add `create`, `patch`, and `delete` permissions on secrets to the Role:
 
 {/* pmd-metadata: notest */}
 ```yaml
@@ -500,6 +524,20 @@ add `create`, `patch`, and `delete` permissions on secrets to the Role:
     resources: ["secrets"]
     verbs: ["create", "patch", "delete"]
 ```
+
+Kubernetes adds a ServiceAccount's `imagePullSecrets` only to pods that list none,
+so with `registry_credentials` the worker lists them in the pod itself.
+To let it read them, add `get` on serviceaccounts to the Role:
+
+{/* pmd-metadata: notest */}
+```yaml
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+```
+
+Without it, the worker logs a warning and the pod gets only the image pull secret
+for `registry_credentials`.
 
 ### Observer permissions
 

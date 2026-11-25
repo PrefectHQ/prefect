@@ -156,6 +156,9 @@ if __name__ == "__main__":
     configure_from_env()
 
     with handle_engine_signals(flow_run_id):
+        from prefect._flow_run_suspension import (
+            prestart_flow_run_suspension_observer,
+        )
         from prefect._internal.metrics import RunMetrics
         from prefect.flow_engine import (
             flow_run_logger,
@@ -164,27 +167,33 @@ if __name__ == "__main__":
             run_flow,
         )
 
-        flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
-        run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
+        stop_suspension_observer: Callable[[], None]
+        with prestart_flow_run_suspension_observer(
+            flow_run_id
+        ) as stop_suspension_observer:
+            flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
+            if not flow_run.deployment_id:
+                stop_suspension_observer()
+            run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
 
-        try:
-            flow: "Flow[..., Any]" = load_flow(flow_run)
-        except Exception:
-            run_logger.error(
-                "Unexpected exception encountered when trying to load flow",
-                exc_info=True,
-            )
-            raise
+            try:
+                flow: "Flow[..., Any]" = load_flow(flow_run)
+            except Exception:
+                run_logger.error(
+                    "Unexpected exception encountered when trying to load flow",
+                    exc_info=True,
+                )
+                raise
 
-        # Run async flows on a main-thread event loop in this subprocess so
-        # `capture_sigterm()` can install Prefect's SIGTERM bridge. Using the
-        # shared run-sync loop here moves execution off the main thread, which
-        # prevents graceful cancellation from ever becoming ready.
-        with RunMetrics(flow_run, flow):
-            _run_result: object = run_flow(
-                flow, flow_run=flow_run, error_logger=run_logger
-            )
-            _drive_run_flow_result(flow, _run_result)
+            # Run async flows on a main-thread event loop in this subprocess so
+            # `capture_sigterm()` can install Prefect's SIGTERM bridge. Using the
+            # shared run-sync loop here moves execution off the main thread, which
+            # prevents graceful cancellation from ever becoming ready.
+            with RunMetrics(flow_run, flow):
+                _run_result: object = run_flow(
+                    flow, flow_run=flow_run, error_logger=run_logger
+                )
+                _drive_run_flow_result(flow, _run_result)
 
 
 __getattr__: Callable[[str], Any] = getattr_migration(__name__)

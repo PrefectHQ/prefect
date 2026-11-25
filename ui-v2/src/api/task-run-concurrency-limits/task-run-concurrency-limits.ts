@@ -9,7 +9,7 @@ import { getQueryService } from "@/api/service";
 
 export type TaskRunConcurrencyLimit = components["schemas"]["ConcurrencyLimit"];
 export type TaskRunConcurrencyLimitsFilter =
-	components["schemas"]["Body_read_concurrency_limits_concurrency_limits_filter_post"];
+	components["schemas"]["Body_read_concurrency_limits"];
 
 /**
  * ```

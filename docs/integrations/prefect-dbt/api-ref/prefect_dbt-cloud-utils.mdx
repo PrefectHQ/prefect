@@ -13,7 +13,7 @@ Utilities for common interactions with the dbt Cloud API
 ### `extract_user_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/utils.py#L12" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-extract_user_message(ex: HTTPStatusError) -> Optional[str]
+extract_user_message(ex: HTTPStatusError) -> str | None
 ```
 
 
@@ -30,7 +30,7 @@ Extracts user message from a error response from the dbt Cloud administrative AP
 ### `extract_developer_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/utils.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-extract_developer_message(ex: HTTPStatusError) -> Optional[str]
+extract_developer_message(ex: HTTPStatusError) -> str | None
 ```
 
 
@@ -48,7 +48,7 @@ administrative API.
 ### `call_dbt_cloud_administrative_api_endpoint` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/utils.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-call_dbt_cloud_administrative_api_endpoint(dbt_cloud_credentials: DbtCloudCredentials, path: str, http_method: str, params: Optional[Dict[str, Any]] = None, json: Optional[Dict[str, Any]] = None) -> Any
+call_dbt_cloud_administrative_api_endpoint(dbt_cloud_credentials: DbtCloudCredentials, path: str, http_method: str, params: dict[str, Any] | None = None, json: dict[str, Any] | None = None) -> Any
 ```
 
 
