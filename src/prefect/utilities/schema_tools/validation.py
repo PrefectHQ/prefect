@@ -82,10 +82,14 @@ def validate(
     allow_none_with_default: bool = False,
 ) -> list[JSONSchemaValidationError]:
     if preprocess:
-        schema = preprocess_schema(schema, allow_none_with_default)
+        schema = _preprocess_schema(schema, allow_none_with_default)
 
     if ignore_required:
         schema = remove_nested_keys(["required"], schema)
+
+    if preprocess:
+        # Preserve synthetic reference requirements when ignoring user requirements.
+        _add_block_reference_schemas(schema)
 
     if raise_on_error:
         try:
@@ -242,11 +246,13 @@ def _fix_tuple_items(schema: dict[str, Any]) -> None:
 
 
 def process_properties(
-    properties: dict[str, dict[str, Any]],
+    properties: dict[str, dict[str, Any] | bool],
     required_fields: list[str],
     allow_none_with_default: bool = False,
 ) -> None:
     for key, schema in properties.items():
+        if isinstance(schema, bool):
+            continue
         _fix_null_typing(key, schema, required_fields, allow_none_with_default)
         _fix_tuple_items(schema)
 
@@ -262,6 +268,16 @@ def preprocess_schema(
     schema: ObjectSchema,
     allow_none_with_default: bool = False,
 ) -> ObjectSchema:
+    schema = _preprocess_schema(schema, allow_none_with_default)
+    _add_block_reference_schemas(schema)
+    return schema
+
+
+def _preprocess_schema(
+    schema: ObjectSchema,
+    allow_none_with_default: bool = False,
+) -> ObjectSchema:
+    """Apply compatibility fixes using the schema's original required fields."""
     schema = deepcopy(schema)
 
     if "properties" in schema:
@@ -283,6 +299,17 @@ def preprocess_schema(
                 process_properties(
                     definition["properties"], required_fields, allow_none_with_default
                 )
+
+    return schema
+
+
+def _add_block_reference_schemas(schema: ObjectSchema) -> None:
+    """Allow block-document references in reusable block schemas."""
+    for definitions_key in ("definitions", "$defs"):
+        definitions = cast(dict[str, Any], schema.get(definitions_key, {}))
+        for name, definition in list(definitions.items()):
+            if not isinstance(definition, dict):
+                continue
             # Allow block types to be referenced by their id. The block value
             # branch excludes `$ref` so that malformed references are rejected
             # for block schemas without required fields.
@@ -315,5 +342,3 @@ def preprocess_schema(
                         },
                     ]
                 }
-
-    return schema

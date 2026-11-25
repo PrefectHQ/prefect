@@ -1,5 +1,6 @@
 import uuid
 from collections import deque
+from copy import deepcopy
 from typing import Any, List, Optional, Union
 
 import jsonschema
@@ -2108,6 +2109,77 @@ class TestPreprocessSchemaBlockTypes:
         assert preprocess_schema(schema)["$defs"] == {"Forbidden": False}
         assert is_valid({}, schema)
         assert not is_valid({"forbidden": 1}, schema)
+
+    @pytest.mark.parametrize("definitions_key", ["definitions", "$defs"])
+    @pytest.mark.parametrize("ignore_required", [False, True])
+    def test_ignore_required_for_block_definitions(
+        self, definitions_key: str, ignore_required: bool
+    ):
+        schema = {
+            "type": "object",
+            "properties": {"credentials": {"$ref": f"#/{definitions_key}/Credentials"}},
+            definitions_key: {
+                "Credentials": {
+                    "type": "object",
+                    "title": "Credentials",
+                    "block_type_slug": "credentials",
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string"},
+                    },
+                    "required": ["username", "password"],
+                }
+            },
+        }
+        original_schema = deepcopy(schema)
+
+        for partial in [{}, {"username": "user"}]:
+            errors = validate(
+                {"credentials": partial}, schema, ignore_required=ignore_required
+            )
+            assert bool(errors) is not ignore_required
+
+        reference = {"$ref": {"block_document_id": str(uuid.uuid4())}}
+        assert not validate(
+            {"credentials": reference}, schema, ignore_required=ignore_required
+        )
+        for invalid in [
+            {"username": 123},
+            {"username": None},
+            {"$ref": {}},
+            {"$ref": "not-a-uuid"},
+        ]:
+            assert validate(
+                {"credentials": invalid}, schema, ignore_required=ignore_required
+            )
+        assert schema == original_schema
+
+    @pytest.mark.parametrize("definitions_key", [None, "definitions", "$defs"])
+    @pytest.mark.parametrize("nested", [False, True])
+    @pytest.mark.parametrize("property_schema", [False, True])
+    def test_boolean_property_schemas(
+        self, definitions_key: str | None, nested: bool, property_schema: bool
+    ):
+        schema = {"type": "object", "properties": {"value": property_schema}}
+        values = {"value": 42}
+        if nested:
+            schema = {
+                "type": "object",
+                "properties": {"nested": schema},
+                "required": ["nested"],
+            }
+            values = {"nested": values}
+        if definitions_key:
+            schema = {
+                "type": "object",
+                "properties": {"model": {"$ref": f"#/{definitions_key}/Model"}},
+                definitions_key: {"Model": schema},
+            }
+            values = {"model": values}
+        original_schema = deepcopy(schema)
+
+        assert bool(validate(values, schema)) is not property_schema
+        assert schema == original_schema
 
     def test_defs_properties_are_preprocessed(self):
         schema = {
