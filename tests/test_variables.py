@@ -117,35 +117,7 @@ async def test_get(variable: Variable):
     assert doesnt_exist_default == 42
 
 
-async def test_get_async(variable: Variable):
-    # get value
-    value = await Variable.get(variable.name)
-    assert value == variable.value
-
-    # get value of a variable that doesn't exist
-    doesnt_exist = await Variable.get("doesnt_exist")
-    assert doesnt_exist is None
-
-    # default is respected if it doesn't exist
-    doesnt_exist_default = await Variable.get("doesnt_exist", 42)
-    assert doesnt_exist_default == 42
-
-
 async def test_unset(variable: Variable):
-    # unset a variable
-    unset = await Variable.unset(variable.name)
-    assert unset is True
-
-    # confirm it's gone
-    doesnt_exist = await Variable.get(variable.name)
-    assert doesnt_exist is None
-
-    # unset a variable that doesn't exist
-    unset_doesnt_exist = await Variable.unset("doesnt_exist")
-    assert unset_doesnt_exist is False
-
-
-async def test_unset_async(variable: Variable):
     # unset a variable
     unset = await Variable.unset(variable.name)
     assert unset is True

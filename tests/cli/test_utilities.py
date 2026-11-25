@@ -8,7 +8,11 @@ from rich.console import Console
 
 import prefect.cli
 import prefect.cli._app as _cli
-from prefect.cli._utilities import print_verbatim
+from prefect.cli._utilities import (
+    exit_with_error,
+    load_json_key_values,
+    print_verbatim,
+)
 
 CLI_SOURCE_DIR = Path(prefect.cli.__file__).parent
 
@@ -43,6 +47,55 @@ def test_print_verbatim_preserves_json_output(
         "value": value,
         "nested": [{"value": value}],
     }
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Unknown setting name 'foo[/x]'.", "[bold]literal[/bold]"],
+)
+def test_exit_with_error_prints_message_literally(
+    captured_console: io.StringIO, message: str
+):
+    with pytest.raises(SystemExit) as exc_info:
+        exit_with_error(message, soft_wrap=True)
+
+    assert exc_info.value.code == 1
+    assert captured_console.getvalue() == message + "\n"
+
+
+def test_exit_with_error_renders_markup_when_requested(
+    captured_console: io.StringIO,
+):
+    with pytest.raises(SystemExit):
+        exit_with_error("[bold]styled[/bold]", markup=True)
+
+    assert captured_console.getvalue() == "styled\n"
+
+
+def test_load_json_key_values_parses_values_as_json_or_strings():
+    assert load_json_key_values(
+        ["count=2", 'tags=["a", "b"]', "name=foo", "url=a=b", "empty="],
+        "parameter",
+    ) == {
+        "count": 2,
+        "tags": ["a", "b"],
+        "name": "foo",
+        "url": "a=b",
+        "empty": "",
+    }
+
+
+@pytest.mark.parametrize("spec", ["name", "=value", ""])
+def test_load_json_key_values_rejects_options_without_a_key_and_equals_sign(
+    captured_console: io.StringIO, spec: str
+):
+    with pytest.raises(SystemExit) as exc_info:
+        load_json_key_values([spec], "parameter")
+
+    assert exc_info.value.code == 1
+    assert " ".join(captured_console.getvalue().split()) == (
+        f"Invalid parameter option {spec!r}. Expected format 'key=value'."
+    )
 
 
 def _is_serialized_output(node: ast.expr) -> bool:

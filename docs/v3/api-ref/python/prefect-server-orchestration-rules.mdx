@@ -456,7 +456,7 @@ this state type is not contained in `TO_STATES`, no hooks will fire
 
 **Methods:**
 
-#### `abort_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L900" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `abort_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abort_transition(self, reason: str) -> None
@@ -540,7 +540,7 @@ orchestration environment.
 - None
 
 
-#### `delay_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L868" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delay_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L879" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delay_transition(self, delay_seconds: int, reason: str) -> None
@@ -629,7 +629,7 @@ returned in the result instead.
 - `reason`: The reason for rejecting the transition
 
 
-#### `rename_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L924" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `rename_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L935" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 rename_state(self, state_name: str) -> None
@@ -643,7 +643,7 @@ the canonical state TYPE, and will not fizzle or invalidate any other rules
 that might govern this state transition.
 
 
-#### `update_context_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L936" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_context_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L947" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_context_parameters(self, key: str, value: Any) -> None
@@ -659,13 +659,13 @@ that any rules coupled this way (or any other way) are no longer independent and
 the order in which they appear in the orchestration policy priority will matter.
 
 
-### `FlowRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L951" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L962" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `TaskRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L957" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L968" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `GenericOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L963" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GenericOrchestrationRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L974" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `BaseUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L969" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BaseUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L980" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 An abstract base class used to implement privileged bookkeeping logic.
@@ -691,7 +691,7 @@ passed between transforms
 
 **Methods:**
 
-#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `after_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1066" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 after_transition(self, context: OrchestrationContext[T, RP]) -> None
@@ -706,7 +706,7 @@ Implements a hook that can fire after a state is committed to the database.
 - None
 
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[T, RP]) -> None
@@ -721,7 +721,7 @@ Implements a hook that fires before a state is committed to the database.
 - None
 
 
-#### `exception_in_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1079" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `exception_in_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 exception_in_transition(self) -> bool
@@ -733,7 +733,7 @@ Determines if the transition has encountered an exception.
 - True if the transition is encountered an exception, False otherwise.
 
 
-#### `nullified_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1066" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `nullified_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1077" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 nullified_transition(self) -> bool
@@ -748,8 +748,8 @@ nothing should be written to the database.
 - True if the transition is nullified, False otherwise.
 
 
-### `TaskRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `FlowRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1096" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `GenericUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GenericUniversalTransform` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/rules.py#L1113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

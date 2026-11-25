@@ -70,14 +70,14 @@ export const TagBadgeGroup = ({
 			const widths = tags.map((_, i) => widthOf(tagRefs.current.get(i)));
 			let used = 0;
 			let count = 0;
+			// No early exit: a tag that does not fit next to the `+N` counter can
+			// still fit when it is the last tag and the counter is not shown.
 			for (let i = 0; i < cap; i++) {
-				const hasOverflow = i + 1 < tags.length;
-				const needed = used + widths[i] + (hasOverflow ? overflowWidth : 0);
-				if (needed > available) {
-					break;
-				}
 				used += widths[i];
-				count = i + 1;
+				const hasOverflow = i + 1 < tags.length;
+				if (used + (hasOverflow ? overflowWidth : 0) <= available) {
+					count = i + 1;
+				}
 			}
 			setVisibleCount(count);
 			setFullWidth(

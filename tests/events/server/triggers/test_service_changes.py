@@ -1,5 +1,7 @@
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import Any, AsyncGenerator
 from unittest import mock
 from uuid import uuid4
 
@@ -15,7 +17,9 @@ from prefect.server.events.schemas.automations import (
     EventTrigger,
     Posture,
 )
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
 
@@ -221,8 +225,15 @@ async def test_removes_existing_automations_on_changes(
 
 
 async def test_gracefully_handles_errors_during_changes(
-    starting_automations, automations_session: AsyncSession
+    starting_automations,
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    # The periodic evaluation reconciles the loaded automations with the database,
+    # which would (correctly) drop the deleted automation that the failed change
+    # left loaded if its first run is slow enough to finish after the delete
+    monkeypatch.setattr(triggers, "periodic_evaluation", mock.AsyncMock())
+
     async with triggers.consumer():
         await asyncio.sleep(0.1)
 
@@ -268,3 +279,142 @@ async def test_gracefully_handles_errors_during_changes(
 
         (trigger,) = automation.triggers_of_type(EventTrigger)
         assert trigger.id not in triggers.triggers
+
+
+class HeldRead:
+    def __init__(self) -> None:
+        self.reading = asyncio.Event()
+        self.release = asyncio.Event()
+
+
+def hold_automations_session_read(
+    monkeypatch: pytest.MonkeyPatch, method: str, call: int
+) -> HeldRead:
+    """Makes the triggers service's `call`-th `session.<method>(...)` wait until the
+    test releases it, as a slow database query would"""
+    held = HeldRead()
+    calls = 0
+
+    @asynccontextmanager
+    async def automations_session() -> AsyncGenerator[AsyncSession, None]:
+        async with automations.automations_session() as session:
+            original = getattr(session, method)
+
+            async def read(*args: Any, **kwargs: Any) -> Any:
+                nonlocal calls
+                calls += 1
+                if calls == call:
+                    held.reading.set()
+                    await held.release.wait()
+                return await original(*args, **kwargs)
+
+            monkeypatch.setattr(session, method, read)
+            yield session
+
+    monkeypatch.setattr(triggers, "automations_session", automations_session)
+    return held
+
+
+def stuff_happened_to_foo() -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=now("UTC"),
+        event="stuff.happened",
+        resource={"prefect.resource.id": "foo"},
+        id=uuid4(),
+    )
+
+
+async def test_reconcile_keeps_automations_loaded_while_reading(
+    starting_automations: None, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23777"""
+    await triggers.reconcile_automations(force=True)
+    (expected,) = triggers.find_interested_triggers(stuff_happened_to_foo())
+
+    # the first read is the automation state snapshot, the second reads all
+    # automations
+    held = hold_automations_session_read(monkeypatch, "execute", call=2)
+    reload = asyncio.create_task(triggers.reconcile_automations(force=True))
+    try:
+        await held.reading.wait()
+
+        assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [expected]
+    finally:
+        held.release.set()
+        assert await reload is True
+
+    assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [expected]
+
+
+async def test_failed_reconciliation_restores_name_matches(
+    automations_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    automation = Automation(
+        name="Named deployment",
+        trigger=EventTrigger(
+            expect={"prefect.flow-run.Completed"},
+            match_related={"prefect.resource.name": "deployment-0"},
+            posture=Posture.Reactive,
+            threshold=1,
+        ),
+        actions=[actions.DoNothing()],
+    )
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="prefect.flow-run.Completed",
+        resource={"prefect.resource.id": "prefect.flow-run.example"},
+        related=[
+            {
+                "prefect.resource.id": "prefect.deployment.example",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "deployment-0",
+            }
+        ],
+        id=uuid4(),
+    )
+    triggers.load_automation(automation)
+    previous_snapshot = triggers.automation_state_snapshot
+    replacement = Automation.model_validate({**automation.model_dump(), "id": uuid4()})
+    replacement.trigger.reset_ids()
+    monkeypatch.setattr(automations, "_notify", mock.AsyncMock())
+    await automations.create_automation(automations_session, replacement)
+    await automations_session.commit()
+    load_automation = triggers.load_automation
+
+    def fail_after_loading(automation: Automation) -> None:
+        load_automation(automation)
+        raise RuntimeError("Loading failed")
+
+    monkeypatch.setattr(triggers, "load_automation", fail_after_loading)
+
+    with pytest.raises(RuntimeError, match="Loading failed"):
+        await triggers.reconcile_automations(force=True)
+
+    assert triggers.find_interested_triggers(event) == [automation.trigger]
+    assert triggers.automation_state_snapshot == previous_snapshot
+
+
+async def test_automation_update_keeps_automation_loaded_while_reading(
+    starting_automations: None, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23777"""
+    await triggers.reconcile_automations(force=True)
+    (trigger,) = triggers.find_interested_triggers(stuff_happened_to_foo())
+    automation_id = trigger.automation.id
+
+    held = hold_automations_session_read(monkeypatch, "scalar", call=1)
+    update = asyncio.create_task(
+        triggers.automation_changed(automation_id, "automation__updated")
+    )
+    try:
+        await held.reading.wait()
+
+        assert automation_id in triggers.automations_by_id
+        assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [trigger]
+    finally:
+        held.release.set()
+        await update
+
+    assert automation_id in triggers.automations_by_id
+    assert triggers.find_interested_triggers(stuff_happened_to_foo()) == [trigger]

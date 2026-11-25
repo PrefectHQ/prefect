@@ -7,7 +7,7 @@ import os
 from fastapi import Depends, status
 from fastapi.responses import JSONResponse
 
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.utilities.server import PrefectRouter
 from prefect.settings.context import get_current_settings
 
@@ -22,7 +22,7 @@ async def hello() -> str:
 
 @router.get("/ready")
 async def perform_readiness_check(
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> JSONResponse:
     is_db_connectable = await db.is_db_connectable()
 

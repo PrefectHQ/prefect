@@ -3,15 +3,13 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from uuid import UUID
 
 from httpx import HTTPStatusError
 
-from prefect.client.base import ServerType
 from prefect.client.orchestration.base import BaseAsyncClient, BaseClient
 
 if TYPE_CHECKING:
-    from uuid import UUID
-
     from prefect.client.schemas.actions import (
         WorkPoolCreate,
         WorkPoolUpdate,
@@ -41,7 +39,7 @@ class WorkPoolClient(BaseClient):
         heartbeat_interval_seconds: float | None = None,
         get_worker_id: bool = False,
         worker_metadata: "WorkerMetadata | None" = None,
-    ) -> "UUID | None":
+    ) -> UUID | None:
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -51,8 +49,6 @@ class WorkPoolClient(BaseClient):
             get_worker_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `get_worker_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
-        from uuid import UUID
-
         params: dict[str, Any] = {
             "name": worker_name,
             "heartbeat_interval_seconds": heartbeat_interval_seconds,
@@ -68,19 +64,9 @@ class WorkPoolClient(BaseClient):
             path_params={"work_pool_name": work_pool_name},
             json=params,
         )
-        from prefect.settings import get_current_settings
-
-        if (
-            (
-                self.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and get_worker_id
-            and resp.status_code == 200
-        ):
+        if get_worker_id and resp.status_code == 200:
             return UUID(resp.text)
-        else:
-            return None
+        return None
 
     def read_workers_for_work_pool(
         self,
@@ -369,7 +355,7 @@ class WorkPoolAsyncClient(BaseAsyncClient):
         heartbeat_interval_seconds: float | None = None,
         get_worker_id: bool = False,
         worker_metadata: "WorkerMetadata | None" = None,
-    ) -> "UUID | None":
+    ) -> UUID | None:
         """
         Sends a worker heartbeat for a given work pool.
 
@@ -379,8 +365,6 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             get_worker_id: Whether to return the worker ID. Note: will return `None` if the connected server does not support returning worker IDs, even if `get_worker_id` is `True`.
             worker_metadata: Metadata about the worker to send to the server.
         """
-        from uuid import UUID
-
         params: dict[str, Any] = {
             "name": worker_name,
             "heartbeat_interval_seconds": heartbeat_interval_seconds,
@@ -396,19 +380,9 @@ class WorkPoolAsyncClient(BaseAsyncClient):
             path_params={"work_pool_name": work_pool_name},
             json=params,
         )
-        from prefect.settings import get_current_settings
-
-        if (
-            (
-                self.server_type == ServerType.CLOUD
-                or get_current_settings().testing.test_mode
-            )
-            and get_worker_id
-            and resp.status_code == 200
-        ):
+        if get_worker_id and resp.status_code == 200:
             return UUID(resp.text)
-        else:
-            return None
+        return None
 
     async def read_workers_for_work_pool(
         self,

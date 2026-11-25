@@ -65,8 +65,8 @@ until holders release.
 
 ## Run locally
 
-Use JDK 21 locally; CI uses Temurin 21. Download the TLA+ tools release and
-SHA-256 checksum pinned in `.github/workflows/tla-plus.yaml` to
+Use JDK 21 locally; CI uses Amazon Corretto 21. Download the TLA+ tools
+release and SHA-256 checksum pinned in `.github/workflows/tla-plus.yaml` to
 `.planning/tla-tools/tla2tools.jar`. Use `$JAVA_HOME/bin/java` if `java` is
 not on `PATH`, then run from the repository root:
 

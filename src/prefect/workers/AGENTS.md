@@ -26,7 +26,7 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 Workers stamp two env vars into `os.environ` for their own process, so all API requests include attribution headers:
 
 - `PREFECT__WORKER_NAME` — set in `setup()` immediately
-- `PREFECT__WORKER_ID` — set in `sync_with_backend()` after the first successful heartbeat returns a backend ID
+- `PREFECT__WORKER_ID` — set when the worker-channel handshake or REST heartbeat returns a backend ID
 
 **Teardown guard**: `teardown()` only removes these vars if they still match the current worker instance (`os.environ.get("PREFECT__WORKER_NAME") == self.name`). This prevents a second worker sharing the same process from having its vars cleared.
 
@@ -47,8 +47,9 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 
 ## Pitfalls
 
-- `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
+- `backend_id` can remain `None` even after a successful handshake or heartbeat: older self-hosted servers do not return an ID. Run logs must omit `worker_id` in that case.
 - Requests answered with `Prefect-Maintenance: true` retry indefinitely, so any API call can block for an entire Cloud maintenance window. Worker health must be served before the first API call and must not count that wait as a missed poll (`_is_within_polling_window()` handles this).
+- Submission bookkeeping spans methods: `_submit_scheduled_flow_runs()` takes a limiter slot and registers the run in `_submitting_flow_run_ids` and the cancelling observer before spawning `_submit_run()` in `_runs_task_group`. `_submit_run()` must clear the ID from both on every exit, but releases the slot only when it aborts submission; once the run is handed to `_submit_run_and_capture_errors()`, that method owns the slot and releases it when the infrastructure task exits. A leaked slot silently shrinks worker capacity, and a leftover ID makes later polls skip the run. `_runs_task_group` is part of the worker's exit stack, so an exception escaping `_submit_run()` stops the worker; handle transient API errors before Pending is proposed by leaving the run Scheduled for the next poll.
 - Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `propose_submitting=False` because `BaseWorker` already proposed Submitting. Generated commands use `WorkspaceResolvingEngineCommandStarter` and pass its `hook_runner`; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step behavior. Consume the executor's normalized infrastructure status rather than the raw child exit code. Ad hoc bundle submissions open their own `FlowRunExecutorContext` with `BundleExecutionStarter`; `ProcessWorker` no longer owns a `Runner` (see `runner/AGENTS.md`).
 
 ## Related

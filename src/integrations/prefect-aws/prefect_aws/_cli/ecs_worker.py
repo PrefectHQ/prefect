@@ -2,9 +2,9 @@
 
 import json
 import pathlib
+from enum import Enum
 from typing import Optional
 
-import click
 import typer
 from rich.table import Table
 from typing_extensions import Annotated
@@ -25,6 +25,17 @@ from .utils import (
     validate_stack_is_cli_managed,
     validate_vpc_and_subnets,
 )
+
+
+class TemplateType(str, Enum):
+    SERVICE = "service"
+    EVENTS_ONLY = "events-only"
+
+
+class TemplateFormat(str, Enum):
+    JSON = "json"
+    YAML = "yaml"
+
 
 ecs_worker_app = typer.Typer(
     name="ecs-worker",
@@ -458,10 +469,9 @@ def delete_stack_cmd(
 @ecs_worker_app.command("export-template")
 def export_template(
     template_type: Annotated[
-        str,
+        TemplateType,
         typer.Option(
             help="Template type: 'service' or 'events-only'",
-            click_type=click.Choice(["service", "events-only"]),
             prompt=True,
         ),
     ],
@@ -470,24 +480,21 @@ def export_template(
         typer.Option(help="Output file path for the template", prompt=True),
     ],
     format: Annotated[
-        str,
-        typer.Option(
-            help="Output format: 'json' or 'yaml'",
-            click_type=click.Choice(["json", "yaml"]),
-        ),
-    ] = "json",
+        TemplateFormat,
+        typer.Option(help="Output format: 'json' or 'yaml'"),
+    ] = TemplateFormat.JSON,
 ):
     """Export CloudFormation templates to files for direct use or customization."""
     try:
         # Load the template
-        console.print(f"[cyan]Loading template '{template_type}'...")
-        template = load_template(f"{template_type}.json")
+        console.print(f"[cyan]Loading template '{template_type.value}'...")
+        template = load_template(f"{template_type.value}.json")
 
         content = ""
         # Prepare content based on format
-        if format == "json":
+        if format is TemplateFormat.JSON:
             content = json.dumps(template, indent=2)
-        elif format == "yaml":
+        elif format is TemplateFormat.YAML:
             try:
                 import yaml
 

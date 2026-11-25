@@ -11,6 +11,7 @@ from typing import Annotated, Any, Literal, Union, cast
 import cyclopts
 import orjson
 from dotenv import dotenv_values
+from rich.markup import escape
 
 import prefect.cli._app as _cli
 import prefect.context
@@ -71,9 +72,9 @@ def set_(
             for error in problem.errors():
                 help_message += (
                     f"[bold red]Validation error(s) for setting[/bold red] "
-                    f"[blue]{setting.name}[/blue]\n\n - {error['msg']}\n\n"
+                    f"[blue]{escape(setting.name)}[/blue]\n\n - {escape(error['msg'])}\n\n"
                 )
-        exit_with_error(help_message)
+        exit_with_error(help_message, markup=True)
 
     for setting, value in parsed_settings.items():
         _cli.console.print(f"Set {setting!r} to {value!r}.")

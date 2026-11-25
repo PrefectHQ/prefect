@@ -17,14 +17,15 @@ export function SchemaFormInputUnknown({
 	property,
 	id,
 }: SchemaFormInputUnknownProps) {
-	// if this isn't a simple enum we want to autoamtically switch to json
+	// if this isn't a simple enum we want to automatically switch to json
 	useEffect(() => {
 		if (!isWithPrimitiveEnum(property)) {
 			onValueChange({
 				__prefect_kind: "json",
+				value: value === undefined ? undefined : JSON.stringify(value, null, 2),
 			});
 		}
-	}, [property, onValueChange]);
+	}, [property, value, onValueChange]);
 
 	if (isWithPrimitiveEnum(property)) {
 		return (

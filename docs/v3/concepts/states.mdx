@@ -76,6 +76,8 @@ Here are some common state transitions and what they mean:
 | ⛔ | Running | Failed | Flow run | This usually means that your code raised an exception, check the flow run logs. |
 | ⛔ | Running | Crashed | Worker or flow run | Probably not a raised exception in your code, but could be an infrastructure issue such as 1) an out of memory error, 2) an evicted pod, or 3) a timeout. |
 
+Prefect rejects direct transitions from `COMPLETED` to `PENDING` to prevent workers from submitting a flow run that has already finished. When you rerun a deployment's flow run, the run moves to `Scheduled` before a worker can move it to `Pending` again.
+
 ## Final state determination
 
 The final state of a flow or task run depends on a number of factors; generally speaking there are three categories of terminal states:
@@ -279,6 +281,11 @@ def my_task_state_hook(task: Task, run: TaskRun, state: State) -> None:
 def my_flow_state_hook(flow: Flow, run: FlowRun, state: State) -> None:
     ...
 ```
+
+A flow state hook gets the flow, the flow run, and the state by name when its parameters are named `flow`, `flow_run` (or `run`), and `state`, in any order and including keyword-only parameters.
+Any other flow state hook gets them as three positional arguments, whatever its parameter names.
+If a hook accepts neither form, Prefect doesn't call it and logs an error.
+Task state hooks get the task, the task run, and the state as three positional arguments.
 
 State change hooks are versatile, allowing you to specify multiple state change hooks for the same state transition,
 or to use the same state change hook for different transitions.

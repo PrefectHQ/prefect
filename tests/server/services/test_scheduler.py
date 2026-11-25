@@ -756,7 +756,14 @@ class TestScheduleRulesWaterfall:
         session: AsyncSession,
         interval: datetime.timedelta,
         n: int,
+        monkeypatch: pytest.MonkeyPatch,
     ):
+        # Freeze the scheduler's clock so a slow run can't move its `now()` past
+        # the anchor, which would push the first run out by a full interval.
+        frozen_now = now("UTC")
+        monkeypatch.setattr(
+            "prefect.server.services.scheduler.now", lambda *_: frozen_now
+        )
         await models.deployments.create_deployment(
             session=session,
             deployment=schemas.core.Deployment(
@@ -766,7 +773,7 @@ class TestScheduleRulesWaterfall:
                     schemas.core.DeploymentSchedule(
                         schedule=schemas.schedules.IntervalSchedule(
                             interval=interval,
-                            anchor_date=now("UTC") + datetime.timedelta(seconds=1),
+                            anchor_date=frozen_now + datetime.timedelta(seconds=1),
                         ),
                         active=True,
                     )

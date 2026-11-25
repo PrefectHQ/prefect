@@ -12,10 +12,10 @@ Routes for interacting with work queue objects.
 
 ## Functions
 
-### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L38" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L39" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_work_queue(work_queue: schemas.actions.WorkQueueCreate, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueResponse
+create_work_queue(work_queue: schemas.actions.WorkQueueCreate, db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.responses.WorkQueueResponse
 ```
 
 
@@ -27,70 +27,70 @@ will be raised.
 For more information, see https://www.prefect.io/docs/v3/concepts/work-pools#work-queues.
 
 
-### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L73" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-update_work_queue(work_queue: schemas.actions.WorkQueueUpdate, work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+update_work_queue(work_queue: schemas.actions.WorkQueueUpdate, work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> None
 ```
 
 
 Updates an existing work queue.
 
 
-### `read_work_queue_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queue_by_name(name: str = Path(..., description='The work queue name'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueResponse
+read_work_queue_by_name(name: str = Path(..., description='The work queue name'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.responses.WorkQueueResponse
 ```
 
 
 Get a work queue by id.
 
 
-### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L133" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queue(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueResponse
+read_work_queue(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.responses.WorkQueueResponse
 ```
 
 
 Get a work queue by id.
 
 
-### `read_work_queue_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queue_runs(docket: dependencies.Docket, work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), limit: int = dependencies.LimitBody(), scheduled_before: DateTime = Body(None, description='Only flow runs scheduled to start before this time will be returned.'), x_prefect_ui: Optional[bool] = Header(default=False, description='A header to indicate this request came from the Prefect UI.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.FlowRunResponse]
+read_work_queue_runs(docket: dependencies.Docket, work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), limit: int = dependencies.LimitBody(), scheduled_before: DateTime = Body(None, description='Only flow runs scheduled to start before this time will be returned.'), x_prefect_ui: Optional[bool] = Header(default=False, description='A header to indicate this request came from the Prefect UI.'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> List[schemas.responses.FlowRunResponse]
 ```
 
 
 Get flow runs from the work queue.
 
 
-### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queues(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), work_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.responses.WorkQueueResponse]
+read_work_queues(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), work_queues: Optional[schemas.filters.WorkQueueFilter] = None, db: PrefectDBInterface = Depends(aprovide_database_interface)) -> List[schemas.responses.WorkQueueResponse]
 ```
 
 
 Query for work queues.
 
 
-### `delete_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_work_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L265" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete_work_queue(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+delete_work_queue(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> None
 ```
 
 
 Delete a work queue by id.
 
 
-### `read_work_queue_concurrency_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_concurrency_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queue_concurrency_status(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), page: int = Body(1, ge=1), limit: int = dependencies.LimitBody(), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.responses.WorkQueueConcurrencyStatus
+read_work_queue_concurrency_status(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), page: int = Body(1, ge=1), limit: int = dependencies.LimitBody(), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.responses.WorkQueueConcurrencyStatus
 ```
 
 
@@ -98,10 +98,10 @@ Read concurrency status for a work queue, including paginated flow run
 summaries. active_slots always reflects the total count.
 
 
-### `read_work_queue_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_work_queue_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/work_queues.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_work_queue_status(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.WorkQueueStatusDetail
+read_work_queue_status(work_queue_id: UUID = Path(..., description='The work queue id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.core.WorkQueueStatusDetail
 ```
 
 

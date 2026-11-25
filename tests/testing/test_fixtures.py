@@ -2,10 +2,12 @@
 Tests for prefect.testing.fixtures module.
 """
 
+import asyncio
 import subprocess
 from contextlib import asynccontextmanager
 from unittest import mock
 
+import httpx
 import pytest
 
 from prefect.testing import fixtures
@@ -154,3 +156,44 @@ class TestHostedApiServerWindowsProcessHandling:
 
         # Verify process.terminate() was called
         mock_process.terminate.assert_called_once()
+
+
+class TestHostedApiServerPortAllocation:
+    @pytest.mark.unix
+    async def test_hosted_api_server_is_not_shadowed_by_server_on_probed_port(
+        self,
+    ):
+        """
+        Another process (e.g. another xdist worker's API server) can bind a port
+        after it was probed as free. The fixture must still yield the URL of
+        its own API server instead of whichever server holds that port.
+        """
+
+        async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+            await reader.readuntil(b"\r\n\r\n")
+            writer.write(
+                b"HTTP/1.1 200 OK\r\n"
+                b"Content-Length: 7\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Connection: close\r\n\r\n"
+                b'"other"'
+            )
+            await writer.drain()
+            writer.close()
+
+        other_server = await asyncio.start_server(handle, "127.0.0.1", 0)
+        taken_port = other_server.sockets[0].getsockname()[1]
+
+        async with other_server:
+            gen = fixtures.hosted_api_server.__wrapped__(
+                unused_tcp_port_factory=lambda: taken_port,
+                test_database_connection_url=None,
+            )
+            api_url = await gen.__anext__()
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(f"{api_url}/hello")
+                assert response.json() == "👋"
+            finally:
+                with pytest.raises(StopAsyncIteration):
+                    await gen.__anext__()  # Trigger teardown

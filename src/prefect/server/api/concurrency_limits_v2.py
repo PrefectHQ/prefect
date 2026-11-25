@@ -14,7 +14,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.schemas import actions
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.server.utilities.server import PrefectRouter
@@ -38,7 +38,7 @@ def _global_concurrency_limit_response(
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_concurrency_limit_v2(
     concurrency_limit: actions.ConcurrencyLimitV2Create,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.core.ConcurrencyLimitV2:
     """
     Create a task run concurrency limit.
@@ -58,7 +58,7 @@ async def read_concurrency_limit_v2(
     id_or_name: Union[UUID, str] = Path(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.GlobalConcurrencyLimitResponse:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
@@ -92,7 +92,7 @@ async def read_concurrency_limit_v2(
 async def read_all_concurrency_limits_v2(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.GlobalConcurrencyLimitResponse]:
     async with db.session_context() as session:
         query = sa.select(
@@ -121,7 +121,7 @@ async def update_concurrency_limit_v2(
     id_or_name: Union[UUID, str] = Path(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
@@ -151,7 +151,7 @@ async def delete_concurrency_limit_v2(
     id_or_name: Union[UUID, str] = Path(
         ..., description="The ID or name of the concurrency limit", alias="id_or_name"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     if isinstance(id_or_name, str):  # TODO: this seems like it shouldn't be necessary
         try:
@@ -308,7 +308,7 @@ async def bulk_increment_active_slots(
         None,
         deprecated="Limits must be explicitly created before acquiring concurrency slots.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         acquired_limits, acquired = await _acquire_concurrency_slots(
@@ -349,7 +349,7 @@ async def bulk_increment_active_slots_with_lease(
         None,
         description="The holder of the lease with type (flow_run, task_run, or deployment) and id.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> ConcurrencyLimitWithLeaseResponse:
     async with db.session_context(
         begin_transaction=True, with_for_update=True
@@ -364,7 +364,10 @@ async def bulk_increment_active_slots_with_lease(
     if acquired:
         lease_storage = get_concurrency_lease_storage()
         lease = await lease_storage.create_lease(
-            resource_ids=[limit.id for limit in acquired_limits],
+            # Only active limits were incremented. Releasing the lease decrements
+            # its `resource_ids`, so an inactive limit enabled later must not be
+            # among them or the release would free another holder's slot.
+            resource_ids=[limit.id for limit in acquired_limits if limit.active],
             ttl=timedelta(seconds=lease_duration),
             metadata=ConcurrencyLimitLeaseMetadata(
                 slots=slots,
@@ -399,7 +402,7 @@ async def bulk_decrement_active_slots(
         None,
         deprecated="Limits must be explicitly created before decrementing active slots.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[MinimalConcurrencyLimitResponse]:
     async with db.session_context(begin_transaction=True) as session:
         limits = await models.concurrency_limits_v2.bulk_read_concurrency_limits(
@@ -431,7 +434,7 @@ async def bulk_decrement_active_slots_with_lease(
         description="The ID of the lease corresponding to the concurrency limits to decrement.",
         embed=True,
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     lease_storage = get_concurrency_lease_storage()
     lease = await lease_storage.read_lease(lease_id)

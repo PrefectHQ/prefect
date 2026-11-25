@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import re
 import shutil
@@ -107,6 +108,23 @@ def mock_run_process(monkeypatch):
     mock_run_process.return_value = result_mock
     monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
     return mock_run_process
+
+
+async def _failing_git_clone(cmd: list[str], **kwargs: Any) -> None:
+    """Simulate a failed `git clone` whose stderr echoes the credentialed URL.
+
+    Used instead of cloning from GitHub so tests don't depend on the network.
+    """
+    url = next(arg for arg in cmd if arg.startswith("https://"))
+    raise subprocess.CalledProcessError(
+        128,
+        cmd,
+        stderr=(
+            f"Cloning into 'repo'...\n"
+            f"fatal: unable to access '{url}/': GnuTLS recv error (-110):"
+            " The TLS connection was non-properly terminated.\n"
+        ).encode(),
+    )
 
 
 class MockCredentials(Block):
@@ -519,6 +537,35 @@ class TestGitRepository:
             " repository='https://github.com/org/repo.git', branch=None)"
         )
 
+    def test_repr_strips_credentials_from_url(self):
+        repo = GitRepository(
+            url="https://x-access-token:super-secret@github.com/org/repo.git"
+        )
+        assert (
+            repr(repo) == "GitRepository(name='repo'"
+            " repository='https://github.com/org/repo.git', branch=None)"
+        )
+
+    async def test_clone_repo_debug_log_strips_credentials_from_url(
+        self,
+        mock_run_process: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(
+            url="https://x-access-token:super-secret@github.com/org/repo.git"
+        )
+        with caplog.at_level(
+            logging.DEBUG, logger="prefect.runner.storage.git-repository.repo"
+        ):
+            await repo.pull_code()
+
+        messages = [record.getMessage() for record in caplog.records]
+        assert "Cloning repository https://github.com/org/repo.git" in messages
+        assert not any("super-secret" in message for message in messages)
+
     async def test_include_submodules_property(
         self, mock_run_process: AsyncMock, monkeypatch
     ):
@@ -613,6 +660,10 @@ class TestGitRepository:
                 cwd=str(Path.cwd() / "repo"),
             ),
             call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
+            ),
+            call(
                 ["git", "fetch", "origin", "--unshallow", "1234567890"],
                 cwd=Path.cwd() / "repo",
             ),
@@ -650,11 +701,15 @@ class TestGitRepository:
 
         await repo.pull_code()
 
-        # Should only check the remote URL since the commit is already checked out
+        # Should only inspect the checkout since the commit is already checked out
         expected_calls = [
             call(
                 ["git", "config", "--get", "remote.origin.url"],
                 cwd=str(Path.cwd() / "repo"),
+            ),
+            call(
+                ["git", "config", "--get", "core.sparseCheckout"],
+                cwd=Path.cwd() / "repo",
             ),
         ]
 
@@ -665,6 +720,8 @@ class TestGitRepository:
         self, monkeypatch, capsys, tmp_path: Path
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process = AsyncMock(side_effect=_failing_git_clone)
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
@@ -674,6 +731,8 @@ class TestGitRepository:
                     branch="definitely-does-not-exist-123",
                     credentials={"access_token": "super-secret-42".upper()},
                 ).pull_code()
+            # the credentials must have reached git for this test to be meaningful
+            assert "super-secret-42".upper() in str(mock_run_process.await_args)
             assert "super-secret-42".upper() not in str(exc.getrepr())
             console_output = capsys.readouterr()
             assert "super-secret-42".upper() not in console_output.out
@@ -686,6 +745,8 @@ class TestGitRepository:
         tmp_path: Path,
     ):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        mock_run_process = AsyncMock(side_effect=_failing_git_clone)
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
 
         with tmpchdir(str(tmp_path)):
             with pytest.raises(RuntimeError) as exc:
@@ -695,6 +756,8 @@ class TestGitRepository:
                     url=f"https://{basic_auth_creds}@github.com/prefecthq/prefect.git",
                     branch="definitely-does-not-exist-123",
                 ).pull_code()
+            # the credentials must have reached git for this test to be meaningful
+            assert "user:password".upper() in str(mock_run_process.await_args)
             assert "user:password".upper() not in str(exc.getrepr()), exc.getrepr()
             console_output = capsys.readouterr()
             assert "user:password".upper() not in console_output.out
@@ -1312,11 +1375,18 @@ class TestGitRepository:
             result = repo.to_pull_step()
             assert result == expected_output
 
+    @pytest.mark.parametrize("has_commit", [True, False])
     async def test_clone_repo_with_commit_sha(
-        self, mock_run_process: AsyncMock, monkeypatch
+        self,
+        mock_run_process: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+        has_commit: bool,
     ):
         # pretend the repo doesn't exist
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+        monkeypatch.setattr(
+            GitRepository, "_has_commit", AsyncMock(return_value=has_commit)
+        )
 
         repo = GitRepository(
             url="https://github.com/org/repo.git", commit_sha="1234567890"
@@ -1324,7 +1394,17 @@ class TestGitRepository:
 
         await repo.pull_code()
 
-        # Verify the expected git commands were called in order
+        # Only fetch the commit when the clone doesn't already contain it
+        fetch_calls = (
+            []
+            if has_commit
+            else [
+                call(
+                    ["git", "fetch", "origin", "1234567890"],
+                    cwd=Path.cwd() / "repo",
+                )
+            ]
+        )
         expected_calls = [
             call(
                 [
@@ -1336,10 +1416,7 @@ class TestGitRepository:
                     str(Path.cwd() / "repo"),
                 ]
             ),
-            call(
-                ["git", "fetch", "origin", "1234567890"],
-                cwd=Path.cwd() / "repo",
-            ),
+            *fetch_calls,
             call(
                 ["git", "checkout", "1234567890"],
                 cwd=Path.cwd() / "repo",
@@ -1753,6 +1830,13 @@ class TestGitRepositoryCommitSha:
         assert _git("rev-parse", "HEAD", cwd=repo.destination) == sha_c
         assert (repo.destination / "f.txt").read_text() == "C"
 
+    async def test_pull_code_clones_and_checks_out_short_sha(
+        self, upstream: _Upstream, base_path: Path
+    ):
+        repo = await self._pull(upstream.url, base_path, upstream.sha_a[:7])
+        assert _git("rev-parse", "HEAD", cwd=repo.destination) == upstream.sha_a
+        assert (repo.destination / "f.txt").read_text() == "A"
+
     async def test_pull_code_checks_out_local_commit_without_fetching(
         self, upstream: _Upstream, base_path: Path
     ):
@@ -1997,6 +2081,109 @@ class TestGitRepositoryUpdatesShallowClone:
 
         assert (repo.destination / "lib" / "lib.py").read_text() == "LIB = 2\n"
         assert in_use.exists(), "pull_code deleted and re-cloned the checkout"
+
+
+class TestGitRepositorySparseCheckout:
+    """
+    An existing sparse checkout must follow the configured `directories`: a
+    destination can be reused after a redeploy that changed the list, or by
+    deployments with different `directories` sharing a working directory.
+    """
+
+    @pytest.fixture
+    def remote(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        for role in ("AUTHOR", "COMMITTER"):
+            monkeypatch.setenv(f"GIT_{role}_NAME", "test")
+            monkeypatch.setenv(f"GIT_{role}_EMAIL", "test@example.com")
+
+        remote = tmp_path / "remote.git"
+        work = tmp_path / "work"
+        _git("init", "--bare", str(remote), cwd=tmp_path)
+        _git("clone", str(remote), str(work), cwd=tmp_path)
+        _git("symbolic-ref", "HEAD", "refs/heads/main", cwd=work)
+        for directory in ("flows_a", "flows_b"):
+            (work / directory).mkdir()
+            (work / directory / "flow.py").write_text(f"NAME = {directory!r}\n")
+        _git("add", ".", cwd=work)
+        _git("commit", "-m", "v1", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+        return remote
+
+    async def _pull(
+        self,
+        remote: Path,
+        tmp_path: Path,
+        directories: list[str] | None,
+        commit_sha: str | None = None,
+    ) -> GitRepository:
+        repo = GitRepository(
+            url=remote.as_uri(),
+            branch=None if commit_sha else "main",
+            commit_sha=commit_sha,
+            directories=directories,
+        )
+        repo.set_base_path(tmp_path / "storage")
+        await repo.pull_code()
+        return repo
+
+    async def test_pull_code_checks_out_directories_added_to_existing_sparse_checkout(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+
+        repo = await self._pull(remote, tmp_path, ["flows_a", "flows_b"])
+
+        assert (repo.destination / "flows_a" / "flow.py").exists()
+        assert (repo.destination / "flows_b" / "flow.py").exists()
+
+    async def test_pull_code_checks_out_directory_added_in_new_remote_commit(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+        work = tmp_path / "work"
+        (work / "flows_c").mkdir()
+        (work / "flows_c" / "flow.py").write_text("NAME = 'flows_c'\n")
+        _git("add", ".", cwd=work)
+        _git("commit", "-m", "add flows_c", cwd=work)
+        _git("push", "origin", "main", cwd=work)
+
+        repo = await self._pull(remote, tmp_path, ["flows_a", "flows_c"])
+
+        assert (repo.destination / "flows_c" / "flow.py").exists()
+
+    async def test_pull_code_checks_out_directories_added_at_pinned_commit(
+        self, remote: Path, tmp_path: Path
+    ):
+        sha = _git("rev-parse", "HEAD", cwd=tmp_path / "work")
+        await self._pull(remote, tmp_path, ["flows_a"], commit_sha=sha)
+
+        repo = await self._pull(remote, tmp_path, ["flows_b"], commit_sha=sha)
+
+        assert (repo.destination / "flows_b" / "flow.py").exists()
+
+    async def test_pull_code_keeps_directories_checked_out_for_other_runs(
+        self, remote: Path, tmp_path: Path
+    ):
+        first = await self._pull(remote, tmp_path, ["flows_a"])
+        # Stands in for a flow run that is using the first set of directories
+        in_use = first.destination / "flows_a" / "flow.py"
+
+        second = await self._pull(remote, tmp_path, ["flows_b"])
+
+        assert (second.destination / "flows_b" / "flow.py").exists()
+        assert in_use.exists(), "pull_code removed a directory another run uses"
+
+    async def test_pull_code_checks_out_whole_repository_when_directories_are_removed(
+        self, remote: Path, tmp_path: Path
+    ):
+        await self._pull(remote, tmp_path, ["flows_a"])
+
+        repo = await self._pull(remote, tmp_path, None)
+
+        assert (repo.destination / "flows_a" / "flow.py").exists()
+        assert (repo.destination / "flows_b" / "flow.py").exists()
 
 
 class TestRemoteStorageErrorHints:

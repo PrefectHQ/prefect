@@ -1,5 +1,6 @@
 """Held `expect` events stay bounded in count and lifetime, whatever the volume."""
 
+import asyncio
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -331,6 +332,41 @@ async def test_held_events_outlast_the_retention_while_their_bucket_is_open(
 
     await triggers.periodic_evaluation(held_at + swept_after)
     assert bool(await held_occurrences(db, automations_session)) is kept
+
+
+async def test_sweep_skips_held_events_locked_by_another_transaction(
+    db: PrefectDBInterface,
+    automations_session: AsyncSession,
+    trigger: EventTrigger,
+):
+    """The sweep skips a held event another transaction has locked instead of
+    waiting on it, and a later sweep deletes it."""
+    if db.dialect.name != "postgresql":
+        pytest.skip("Row-level locking is PostgreSQL-only")
+
+    locked, unlocked = walked(now("UTC")), walked(now("UTC"))
+    await automation_held_events.hold_event(automations_session, trigger, KEY, locked)
+    await automation_held_events.hold_event(
+        automations_session, trigger, ("groundhog",), unlocked
+    )
+    await automations_session.commit()
+    swept_at = now("UTC") + HELD_EXPECT_EVENTS_RETENTION + timedelta(seconds=1)
+
+    async def sweep() -> None:
+        async with db.session_context(begin_transaction=True) as session:
+            await automation_held_events.sweep_held_events(session, swept_at)
+
+    async with db.session_context(begin_transaction=True) as other:
+        await other.execute(
+            sa.select(db.AutomationHeldEvent)
+            .where(db.AutomationHeldEvent.event_id == locked.id)
+            .with_for_update()
+        )
+        await asyncio.wait_for(sweep(), timeout=5)
+
+    assert await held_event_ids(db, automations_session) == {locked.id}
+    await sweep()
+    assert await held_event_ids(db, automations_session) == set()
 
 
 LONG_WITHIN = timedelta(hours=1)

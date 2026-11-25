@@ -11,7 +11,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -46,8 +46,12 @@ from typing_extensions import ParamSpec
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
+    PrestartedFlowRunSuspensionObserver,
+    adopt_prestarted_flow_run_suspension_observer,
     is_suspended_flow_run_state,
     observe_flow_run_suspension,
+    observe_flow_run_suspension_async,
+    prestart_flow_run_suspension_observer,
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
 )
@@ -59,7 +63,11 @@ from prefect._internal.control_listener import (
     get_intent,
     report_engine_outcome,
 )
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    get_hook_name,
+    resolve_custom_flow_run_name,
+    resolve_flow_hook_arguments,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -260,8 +268,13 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
 def _run_flow_from_runtime_entrypoint(flow_run_id: UUID, entrypoint: str) -> None:
     configure_from_env()
 
-    with handle_engine_signals(flow_run_id):
+    with (
+        handle_engine_signals(flow_run_id),
+        prestart_flow_run_suspension_observer(flow_run_id) as stop_suspension_observer,
+    ):
         flow_run = load_flow_run(flow_run_id=flow_run_id)
+        if not flow_run.deployment_id:
+            stop_suspension_observer()
         run_logger = flow_run_logger(flow_run=flow_run)
 
         try:
@@ -330,28 +343,40 @@ def _send_heartbeats(
     resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
+    # The heartbeat thread checks for a stop and emits while holding this lock,
+    # so once `stop_heartbeats` returns, no heartbeat is mid-emit and none will
+    # be emitted.
+    emit_lock = threading.Lock()
+
+    def stop_heartbeats() -> None:
+        with emit_lock:
+            stop_event.set()
 
     def heartbeat_loop() -> None:
-        while not stop_event.is_set():
-            # Check state before emitting - don't emit if final
-            if (
-                engine.flow_run
-                and engine.flow_run.state
-                and engine.flow_run.state.is_final()
-            ):
-                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
-                return
-
-            try:
-                engine._emit_flow_run_heartbeat(resource, related)
-            except Exception:
-                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
-
-            # Sleep in increments to allow quick shutdown
-            for _ in range(heartbeat_seconds):
+        while True:
+            with emit_lock:
                 if stop_event.is_set():
                     return
-                time.sleep(1)
+
+                # Check state before emitting - don't emit if final
+                if (
+                    engine.flow_run
+                    and engine.flow_run.state
+                    and engine.flow_run.state.is_final()
+                ):
+                    engine.logger.debug(
+                        "Flow run in terminal state, stopping heartbeat"
+                    )
+                    return
+
+                try:
+                    engine._emit_flow_run_heartbeat(resource, related)
+                except Exception:
+                    engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+
+            # Waiting on the event wakes the thread as soon as heartbeats stop
+            if stop_event.wait(heartbeat_seconds):
+                return
 
     # Copy the current context so the heartbeat thread sees the same
     # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
@@ -366,13 +391,14 @@ def _send_heartbeats(
     thread = threading.Thread(
         target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
     )
+    engine._stop_heartbeats = stop_heartbeats
     thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
     try:
         yield
     finally:
-        stop_event.set()
+        stop_heartbeats()
         if join_on_exit:
             thread.join(timeout=2)
         engine.logger.debug("Stopped flow run heartbeat context")
@@ -424,6 +450,15 @@ class BaseFlowRunEngine(Generic[P, R]):
         default_factory=FlowRunSuspensionRequest
     )
     _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
+    # Stops the heartbeat thread started by the most recent `_send_heartbeats`.
+    # `set_state` calls it before proposing a terminal state: the server
+    # timestamps that state when it accepts it, but the heartbeat thread sees
+    # it only after the response arrives.  A heartbeat sent in that gap occurs
+    # after the terminal state, and an automation that expects every heartbeat
+    # to be followed by another event then fires on the finished run.
+    _stop_heartbeats: Callable[[], None] | None = field(
+        default=None, init=False, repr=False
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -609,6 +644,27 @@ class BaseFlowRunEngine(Generic[P, R]):
             return parent_flow_run_context.flow_run_suspension_request
         return self._flow_run_suspension_request
 
+    def _adopt_flow_run_suspension_request(
+        self, flow_run: FlowRun
+    ) -> tuple[FlowRunSuspensionRequest, PrestartedFlowRunSuspensionObserver | None]:
+        """
+        Returns the suspension request of `flow_run`, and the observer prestarted
+        for it if the engine adopts one.
+        """
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        prestarted_observer = (
+            adopt_prestarted_flow_run_suspension_observer(flow_run.id)
+            if flow_run.deployment_id
+            and flow_run_suspension_request is self._flow_run_suspension_request
+            else None
+        )
+        if prestarted_observer is not None:
+            # The prestarted observer marks its own request, so the engine and
+            # its tasks must check that same object.
+            self._flow_run_suspension_request = prestarted_observer.suspension_request
+            flow_run_suspension_request = prestarted_observer.suspension_request
+        return flow_run_suspension_request, prestarted_observer
+
     @contextmanager
     def setup_flow_run_suspension_request(
         self,
@@ -616,14 +672,18 @@ class BaseFlowRunEngine(Generic[P, R]):
         if not self.flow_run:
             raise ValueError("Flow run not set")
 
-        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        flow_run_suspension_request, prestarted_observer = (
+            self._adopt_flow_run_suspension_request(self.flow_run)
+        )
         with ExitStack() as stack:
             stack.enter_context(
                 register_flow_run_suspension_request(
                     self.flow_run.id, flow_run_suspension_request
                 )
             )
-            if self.flow_run.deployment_id:
+            if prestarted_observer is not None:
+                prestarted_observer.ready_event.wait()
+            elif self.flow_run.deployment_id:
                 stack.enter_context(
                     observe_flow_run_suspension(
                         self.flow_run.id, flow_run_suspension_request
@@ -756,6 +816,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         # prevents any state-setting activity
         if self.short_circuit:
             return self.state
+
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
 
         state = propose_state_sync(
             self.client, state, flow_run_id=self.flow_run.id, force=force
@@ -898,11 +961,50 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
+        """
+        if self._adopt_final_or_paused_server_state():
+            return
+        try:
+            # Not forced, so the server rejects the crash if the run became
+            # final after the read above
+            self._set_crashed_state(exc, force=False)
+        except Abort as abort:
+            self.logger.debug(f"Crash not reported: {abort}")
+            self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+        except Exception:
+            self.logger.debug("Unable to report crash", exc_info=True)
+            # The crash may have committed even though its response was lost
+            self._adopt_final_or_paused_server_state()
+
+    def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = self.client.read_flow_run(self.flow_run.id).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
+            return True
+        return False
+
     def handle_crash(self, exc: BaseException) -> None:
+        self._set_crashed_state(exc, force=True)
+
+    def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         state = run_coro_as_sync(exception_to_crashed_state(exc))
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.set_state(state, force=True)
+        self.set_state(state, force=force)
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
@@ -1072,7 +1174,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     run_coro_as_sync(result)
             except Exception:
@@ -1262,8 +1365,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
@@ -1495,6 +1602,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        if state.is_final() and self._stop_heartbeats is not None:
+            self._stop_heartbeats()
+
         state = await propose_state(
             self.client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
@@ -1631,14 +1741,56 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(message)
 
+    async def _handle_crash_unless_final_on_server(self, exc: Exception) -> None:
+        """
+        Crash the run unless the server already has a final or paused state,
+        e.g. a `Completed` proposal that committed but whose response was lost.
+        """
+        # need to shield from asyncio cancellation to ensure we update the state
+        # on the server before exiting
+        with CancelScope(shield=True):
+            if await self._adopt_final_or_paused_server_state():
+                return
+            try:
+                # Not forced, so the server rejects the crash if the run became
+                # final after the read above
+                await self._set_crashed_state(exc, force=False)
+            except Abort as abort:
+                self.logger.debug(f"Crash not reported: {abort}")
+                self._attempt_conclusion = EngineOutcomeReceipt.orchestration_aborted()
+            except Exception:
+                self.logger.debug("Unable to report crash", exc_info=True)
+                # The crash may have committed even though its response was lost
+                await self._adopt_final_or_paused_server_state()
+
+    async def _adopt_final_or_paused_server_state(self) -> bool:
+        try:
+            server_state = (await self.client.read_flow_run(self.flow_run.id)).state
+        except Exception:
+            self.logger.debug("Unable to read flow run state", exc_info=True)
+            return False
+        if server_state and (server_state.is_final() or server_state.is_paused()):
+            self.flow_run.state = server_state
+            self._capture_state_report(server_state)
+            self._telemetry.update_state(server_state)
+            if server_state.is_completed():
+                self._telemetry.end_span_on_success()
+            elif server_state.is_final():
+                self._telemetry.end_span_on_failure(server_state.message)
+            return True
+        return False
+
     async def handle_crash(self, exc: BaseException) -> None:
+        await self._set_crashed_state(exc, force=True)
+
+    async def _set_crashed_state(self, exc: BaseException, force: bool) -> None:
         # need to shield from asyncio cancellation to ensure we update the state
         # on the server before exiting
         with CancelScope(shield=True):
             state = await exception_to_crashed_state(exc)
             self.logger.error(f"Crash detected! {state.message}")
             self.logger.debug("Crash details:", exc_info=exc)
-            await self.set_state(state, force=True)
+            await self.set_state(state, force=force)
             self._raised = exc
 
             self._telemetry.record_exception(exc)
@@ -1803,7 +1955,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f"Running hook {hook_name!r} in response to entering state"
                     f" {state.name!r}"
                 )
-                result = hook(flow, flow_run, state)
+                args, kwargs = resolve_flow_hook_arguments(hook, flow, flow_run, state)
+                result = hook(*args, **kwargs)
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
@@ -1993,8 +2146,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                         else:
                             await self.handle_crash(exc)
                         raise
-                    except Exception:
-                        # regular exceptions are caught and re-raised to the user
+                    except Exception as exc:
+                        # Exceptions from user code are handled in `run_context`;
+                        # one that escapes before the run is final (e.g. from
+                        # `setup_run_context`) would otherwise leave it Running
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self._handle_crash_unless_final_on_server(exc)
                         raise
                     except (Abort, Pause) as exc:
                         if state := getattr(exc, "state", None):
@@ -2069,6 +2226,38 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
     # --------------------------
 
     @asynccontextmanager
+    async def _setup_flow_run_suspension_request_async(
+        self,
+    ) -> AsyncGenerator[FlowRunSuspensionRequest, None]:
+        """
+        Async counterpart of `setup_flow_run_suspension_request`, which waits for
+        the observer's first check without blocking the event loop.
+        """
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request, prestarted_observer = (
+            self._adopt_flow_run_suspension_request(self.flow_run)
+        )
+        async with AsyncExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if prestarted_observer is not None:
+                await prestarted_observer.ready_event.wait_async()
+            elif self.flow_run.deployment_id:
+                await stack.enter_async_context(
+                    observe_flow_run_suspension_async(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
+
+    @asynccontextmanager
     async def start(self) -> AsyncGenerator[None, None]:
         async with self.initialize_run():
             with (
@@ -2076,7 +2265,16 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                with self.setup_flow_run_suspension_request():
+                async with AsyncExitStack() as stack:
+                    if (
+                        type(self).setup_flow_run_suspension_request
+                        is BaseFlowRunEngine.setup_flow_run_suspension_request
+                    ):
+                        await stack.enter_async_context(
+                            self._setup_flow_run_suspension_request_async()
+                        )
+                    else:
+                        stack.enter_context(self.setup_flow_run_suspension_request())
                     await self.begin_run()
 
                     yield
@@ -2239,10 +2437,12 @@ async def run_generator_flow_async(
                         # link the current state to the result for dependency tracking
                         link_state_to_flow_run_result(engine.state, gen_result)
                         yield gen_result
-                except (StopAsyncIteration, GeneratorExit) as exc:
+                except StopAsyncIteration:
                     await engine.handle_success(None)
-                    if isinstance(exc, GeneratorExit):
-                        gen.throw(exc)
+                except GeneratorExit:
+                    await engine.handle_success(None)
+                    await gen.aclose()
+                    raise
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():

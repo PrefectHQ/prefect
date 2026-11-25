@@ -653,9 +653,13 @@ class ECSVariables(BaseVariables):
     network_configuration: Dict[str, Any] = Field(
         default_factory=dict,
         description=(
-            "When `network_configuration` is supplied it will override ECS Worker's"
-            "awsvpcConfiguration that defined in the ECS task executing your workload. "
-            "See the [AWS documentation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ecs-service-awsvpcconfiguration.html)"  # noqa
+            "Override the ECS worker's `awsvpcConfiguration`. Use the case-sensitive"
+            " boto3 keys `subnets`, `securityGroups`, and `assignPublicIp`, for example"
+            ' `{"subnets": ["subnet-..."], "securityGroups": ["sg-..."],'
+            ' "assignPublicIp": "DISABLED"}`. Supply these keys directly, without a'
+            " surrounding `networkConfiguration` or `awsvpcConfiguration` object."
+            " Requires `vpc_id`. See the"
+            " [boto3 documentation](https://docs.aws.amazon.com/boto3/latest/reference/services/ecs/client/run_task.html)"
             " for available options."
         ),
     )

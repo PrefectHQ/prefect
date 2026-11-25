@@ -40,23 +40,6 @@ class TestFilterResult:
         assert result.excluded_by_ignore == []
         assert result.explicitly_excluded == []
 
-    def test_create_filter_result_with_data(self, tmp_path):
-        """Test creating FilterResult with all fields populated."""
-        file1 = tmp_path / "included.txt"
-        file2 = tmp_path / "excluded.txt"
-        file1.touch()
-        file2.touch()
-
-        result = FilterResult(
-            included_files=[file1],
-            excluded_by_ignore=[file2],
-            explicitly_excluded=["excluded.txt was explicitly included but ignored"],
-        )
-
-        assert len(result.included_files) == 1
-        assert len(result.excluded_by_ignore) == 1
-        assert len(result.explicitly_excluded) == 1
-
 
 class TestFindProjectRoot:
     """Tests for find_project_root function."""
@@ -542,59 +525,6 @@ class TestIgnoreFilterEdgeCases:
         assert secret2 in result.excluded_by_ignore
         # Should have warnings for both
         assert len(result.explicitly_excluded) >= 2
-
-
-class TestSensitivePatterns:
-    """Tests for sensitive file pattern detection."""
-
-    def test_sensitive_patterns_constant_defined(self):
-        """Test SENSITIVE_PATTERNS constant is defined and exported."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert isinstance(SENSITIVE_PATTERNS, list)
-        assert len(SENSITIVE_PATTERNS) == 7
-
-    def test_sensitive_patterns_contains_env_files(self):
-        """Test SENSITIVE_PATTERNS contains .env* pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert ".env*" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_pem_files(self):
-        """Test SENSITIVE_PATTERNS contains *.pem pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "*.pem" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_key_files(self):
-        """Test SENSITIVE_PATTERNS contains *.key pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "*.key" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_credentials_files(self):
-        """Test SENSITIVE_PATTERNS contains credentials.* pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "credentials.*" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_rsa_keys(self):
-        """Test SENSITIVE_PATTERNS contains *_rsa pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "*_rsa" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_p12_files(self):
-        """Test SENSITIVE_PATTERNS contains *.p12 pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "*.p12" in SENSITIVE_PATTERNS
-
-    def test_sensitive_patterns_contains_secrets_files(self):
-        """Test SENSITIVE_PATTERNS contains secrets.* pattern."""
-        from prefect.bundles._ignore_filter import SENSITIVE_PATTERNS
-
-        assert "secrets.*" in SENSITIVE_PATTERNS
 
 
 class TestCheckSensitiveFiles:

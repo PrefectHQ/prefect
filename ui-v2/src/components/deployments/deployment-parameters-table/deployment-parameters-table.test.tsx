@@ -40,7 +40,8 @@ describe("DeploymentParametersTable", () => {
 		expect(screen.getByRole("cell", { name: /goodbye/i })).toBeVisible();
 	});
 
-	it("renders object-valued parameters as JSON", () => {
+	it("renders and searches object-valued parameters as JSON", async () => {
+		const user = userEvent.setup();
 		const deployment = createFakeDeployment({
 			parameter_openapi_schema: {
 				title: "Parameters",
@@ -58,11 +59,18 @@ describe("DeploymentParametersTable", () => {
 						title: "days",
 						type: "array",
 					},
+					records: {
+						default: [{ name: "daily", count: 10 }],
+						position: 2,
+						title: "records",
+						type: "array",
+					},
 				},
 			},
 			parameters: {
 				builder: { day: "prev_td" },
 				days: ["prev_td", "next_td"],
+				records: [{ name: "weekly", count: 20 }],
 			},
 		});
 
@@ -73,7 +81,24 @@ describe("DeploymentParametersTable", () => {
 		).toBeVisible();
 		expect(screen.getByRole("cell", { name: '{"day":"today"}' })).toBeVisible();
 		expect(screen.getByRole("cell", { name: "prev_td,next_td" })).toBeVisible();
+		expect(
+			screen.getByRole("cell", { name: '[{"name":"weekly","count":20}]' }),
+		).toBeVisible();
+		expect(
+			screen.getByRole("cell", { name: '[{"name":"daily","count":10}]' }),
+		).toBeVisible();
 		expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
+
+		for (const search of ["weekly", "daily"]) {
+			await user.clear(screen.getByRole("textbox"));
+			await user.type(screen.getByRole("textbox"), search);
+			await waitFor(() =>
+				expect(
+					screen.queryByRole("cell", { name: "builder" }),
+				).not.toBeInTheDocument(),
+			);
+			expect(screen.getByRole("cell", { name: "records" })).toBeVisible();
+		}
 	});
 
 	it("filters table rows", async () => {

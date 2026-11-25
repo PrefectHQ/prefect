@@ -47,9 +47,6 @@ resolve_profiles_yml(self) -> Generator[str, None, None]
 
 Context manager that creates a temporary directory with a resolved profiles.yml file.
 
-**Args:**
-- `include_profiles`: Whether to include the resolved profiles.yml in the yield.
-
 Example:
 ```python
     with resolve_profiles_yml() as temp_dir:

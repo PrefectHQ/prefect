@@ -36,6 +36,9 @@ async def create(tag: str, concurrency_limit: int):
     """Create a concurrency limit against a tag."""
     from prefect.client.orchestration import get_client
 
+    if concurrency_limit < 0:
+        exit_with_error("The concurrency limit must be 0 or greater.")
+
     async with get_client() as client:
         await client.create_concurrency_limit(
             tag=tag, concurrency_limit=concurrency_limit
@@ -126,11 +129,19 @@ async def ls(
     *,
     limit: Annotated[
         int,
-        cyclopts.Parameter("--limit", help="Maximum number of limits to list."),
+        cyclopts.Parameter(
+            "--limit",
+            help="Maximum number of limits to list.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 15,
     offset: Annotated[
         int,
-        cyclopts.Parameter("--offset", help="Offset for pagination."),
+        cyclopts.Parameter(
+            "--offset",
+            help="Offset for pagination.",
+            validator=cyclopts.validators.Number(gte=0),
+        ),
     ] = 0,
     output: Annotated[
         Optional[str],

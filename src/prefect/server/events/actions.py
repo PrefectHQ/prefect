@@ -877,6 +877,11 @@ class RunDeployment(JinjaTemplateAction, DeploymentCommandAction):
 
         response = await orchestration.create_flow_run(deployment_id, flow_run_create)
 
+        if response.status_code >= 500:
+            # Raise an unexpected error so the message is redelivered; the
+            # idempotency key keeps a redelivery from creating a second run
+            response.raise_for_status()
+
         if response.status_code < 300:
             flow_run = FlowRunResponse.model_validate(response.json())
 

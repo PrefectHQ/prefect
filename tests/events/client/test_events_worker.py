@@ -41,12 +41,6 @@ def test_worker_instance_server_client_non_cloud_api_url():
         assert worker.client_type == PrefectEventsClient
 
 
-def test_worker_instance_client_non_cloud_api_url_events_enabled():
-    with temporary_settings(updates={PREFECT_API_URL: "http://localhost:8080/api"}):
-        worker = EventsWorker.instance()
-        assert worker.client_type == PrefectEventsClient
-
-
 def test_worker_instance_ephemeral_prefect_events_client(enable_ephemeral_server):
     """
     Getting an instance of the worker with ephemeral server mode enabled should

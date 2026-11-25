@@ -54,6 +54,8 @@ uv run pytest tests/path/to/file.py --no-clear-db -x
 
 If it passes, delete the `pytestmark` (or per-test marker) and commit.
 
+`clear_db` clears the database and the in-memory lease storage only. Other process-global in-memory server singletons (e.g. `task_worker_tracker`, the in-memory worker cleanup queue) persist across tests on the same xdist worker, so tests asserting on their full contents must reset them in a fixture.
+
 ### PREFECT_HOME cleanup
 
 `PREFECT_HOME` is a single temp directory created once per test session (`pytest_sessionstart`), not reset between tests. A test that writes a file directly into it (e.g. a PID file) must delete it in fixture teardown, or later tests in the same session can see it as real state.

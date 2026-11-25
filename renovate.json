@@ -2,9 +2,17 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "github>PrefectHQ/renovate-config",
-    "github>PrefectHQ/renovate-config:python"
+    "github>PrefectHQ/renovate-config:python",
+    "helpers:pinGitHubActionDigests"
   ],
   "packageRules": [
+    {
+      "description": "Hold legacy UI ESLint below 9 until @prefecthq/eslint-config supports flat config and compatible plugins.",
+      "matchManagers": ["npm"],
+      "matchFileNames": ["ui/package.json"],
+      "matchPackageNames": ["eslint"],
+      "allowedVersions": "<9"
+    },
     {
       "description": "Hold TypeScript below 6.1.0 until the lint stack's peer ranges support it.",
       "matchManagers": ["npm"],

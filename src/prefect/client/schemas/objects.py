@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 import warnings
 from collections.abc import Callable, Mapping
 from enum import Enum
@@ -17,7 +18,6 @@ from typing import (
 )
 from uuid import UUID
 
-import orjson
 from pydantic import (
     AfterValidator,
     ConfigDict,
@@ -1395,6 +1395,9 @@ class Log(TimeSeriesBaseModel, ObjectBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run ID associated with the log."
     )
+    worker_id: Optional[UUID] = Field(
+        default=None, description="The ID of the worker that wrote the log."
+    )
 
 
 class QueueFilter(PrefectBaseModel):
@@ -1768,7 +1771,7 @@ class FlowRunInput(ObjectBaseModel):
         Returns:
             Any: the decoded value
         """
-        return orjson.loads(self.value)
+        return json.loads(self.value)
 
 
 class GlobalConcurrencyLimit(ObjectBaseModel):

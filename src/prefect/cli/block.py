@@ -78,7 +78,7 @@ def _display_block_type(block_type: BlockType) -> Table:
         "Description",
         (
             block_type.description.splitlines()[0].partition(".")[0]
-            if block_type.description is not None
+            if block_type.description
             else ""
         ),
         end_section=True,
@@ -520,7 +520,7 @@ async def list_types(
                 str(blocktype.slug),
                 (
                     str(blocktype.description.splitlines()[0].partition(".")[0])
-                    if blocktype.description is not None
+                    if blocktype.description
                     else ""
                 ),
                 f"prefect block create {blocktype.slug}",

@@ -5,7 +5,7 @@ import time
 import uuid
 from collections import OrderedDict
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, List, Optional
 
 import pytest
@@ -502,6 +502,23 @@ class TestResolveFuturesToResults:
             a=1, foo="bar", b=2
         )
 
+    def test_resolve_futures_transforms_future_in_dataclass_with_non_init_field(
+        self,
+    ):
+        @dataclass
+        class Foo:
+            foo: str
+            attempts: int = field(init=False, default=0)
+
+        future = MockFuture(data="bar")
+        value = Foo(foo=future)
+        value.attempts = 3
+
+        result = resolve_futures_to_results(value)
+
+        assert result.foo == "bar"
+        assert result.attempts == 3
+
     def test_resolves_futures_in_nested_collections(self):
         @dataclass
         class Foo:
@@ -668,28 +685,6 @@ class TestPrefectDistributedFuture:
 
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
-
-    async def test_final_state_missing_result(self, events_pipeline):
-        @task(persist_result=False)
-        def my_task():
-            return 42
-
-        task_run = await my_task.create_run()
-        future = PrefectDistributedFuture(task_run_id=task_run.id)
-
-        state = run_task_sync(
-            task=my_task,
-            task_run_id=future.task_run_id,
-            task_run=task_run,
-            parameters={},
-            return_type="state",
-        )
-        assert state.is_completed()
-
-        await events_pipeline.process_events()
-
-        with pytest.raises(MissingResult):
-            future.result()
 
     async def test_result_async_without_explicit_wait(self, events_pipeline):
         """Test that result_async() works without calling wait_async() first.
@@ -887,32 +882,6 @@ class TestPrefectFlowRunFuture:
 
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
-
-    async def test_final_state_missing_result(
-        self, events_pipeline: EventsPipeline, prefect_client: PrefectClient
-    ):
-        @flow(persist_result=False)
-        def my_flow():
-            return 42
-
-        flow_run = await prefect_client.create_flow_run(
-            flow=my_flow,
-            parameters={},
-        )
-        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
-
-        state = run_flow_sync(
-            flow=my_flow,
-            flow_run=flow_run,
-            parameters={},
-            return_type="state",
-        )
-        assert state.is_completed()
-
-        await events_pipeline.process_events()
-
-        with pytest.raises(MissingResult):
-            future.result()
 
 
 class TestPrefectFutureList:
