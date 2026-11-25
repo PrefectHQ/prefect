@@ -291,7 +291,7 @@ def _preprocess_schema(
         if definitions_key not in schema:
             continue
         definitions = cast(dict[str, Any], schema[definitions_key])
-        for name, definition in list(definitions.items()):
+        for definition in definitions.values():
             if not isinstance(definition, dict):
                 continue
             if "properties" in definition:
