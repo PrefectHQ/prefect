@@ -763,6 +763,20 @@ class TestRedisMessagingSettings:
         settings = RedisMessagingPublisherSettings()
         assert settings.batch_size == 10
 
+    async def test_publisher_settings_are_cached_until_clients_are_cleared(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Test that a changed setting applies once `clear_cached_clients` runs."""
+        cache = Cache()
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "7")
+        assert Publisher("message-tests", cache=cache).batch_size == 7
+
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PUBLISHER_BATCH_SIZE", "11")
+        assert Publisher("message-tests", cache=cache).batch_size == 7
+
+        await clear_cached_clients()
+        assert Publisher("message-tests", cache=cache).batch_size == 11
+
     def test_consumer_settings_can_be_overridden(self, monkeypatch: pytest.MonkeyPatch):
         """Test that Redis consumer settings can be overridden."""
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
