@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 from unittest import mock
 from uuid import UUID
 
@@ -6,6 +7,7 @@ import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
+from prefect.concurrency.services import _DEFAULT_RETRY_AFTER_SECONDS
 from prefect.concurrency.v1.services import ConcurrencySlotAcquisitionService
 
 pytestmark = pytest.mark.clear_db
@@ -85,6 +87,47 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
         sleep.assert_called_once_with(
             float(responses[0].response.headers["Retry-After"])
         )
+        assert mocked_client.client.increment_v1_concurrency_slots.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "retry_after, expected_sleep",
+    [
+        ("Wed, 21 Oct 2015 07:28:00 GMT", 0.0),
+        ("not-a-number", _DEFAULT_RETRY_AFTER_SECONDS),
+        ("inf", _DEFAULT_RETRY_AFTER_SECONDS),
+        ("", _DEFAULT_RETRY_AFTER_SECONDS),
+    ],
+    ids=["http-date", "malformed", "non-finite", "empty"],
+)
+async def test_retries_failed_call_with_unusable_retry_after_header(
+    mocked_client: Any, retry_after: str, expected_sleep: float
+):
+    task_run_id = UUID("00000000-0000-0000-0000-000000000000")
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("get", "/"),
+            response=Response(423, headers={"Retry-After": retry_after}),
+        ),
+        Response(200),
+    ]
+
+    mocked_client.client.increment_v1_concurrency_slots.side_effect = responses
+
+    limit_names = sorted(["api", "database"])
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
+
+    sleep = mock.AsyncMock()
+    with mock.patch(
+        "prefect.concurrency.v1.services.asyncio", wraps=asyncio, sleep=sleep
+    ):
+        future = service.send((task_run_id, None))
+        await service.drain()
+        returned_response = await asyncio.wrap_future(future)
+
+        assert returned_response == responses[1]
+        sleep.assert_called_once_with(expected_sleep)
         assert mocked_client.client.increment_v1_concurrency_slots.call_count == 2
 
 

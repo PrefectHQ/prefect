@@ -14,6 +14,7 @@ from typing_extensions import TypeAlias, Unpack
 
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
+from prefect.client.base import _parse_retry_after
 from prefect.client.orchestration import get_client
 from prefect.utilities.timeout import timeout_async
 
@@ -29,6 +30,9 @@ _no_limits_cache: cachetools.TTLCache[frozenset[str], bool] = cachetools.TTLCach
 )
 _cache_lock = Lock()
 
+# Wait used when a 423 response has no usable `Retry-After` value.
+_DEFAULT_RETRY_AFTER_SECONDS = 1.0
+
 _Item: TypeAlias = tuple[
     int, Literal["concurrency", "rate_limit"], Optional[float], Optional[int]
 ]
@@ -42,6 +46,18 @@ _ItemWithLease: TypeAlias = tuple[
     bool,
     Optional["ConcurrencyLeaseHolder"],
 ]
+
+
+def _get_retry_after_seconds(response: httpx.Response) -> float:
+    """
+    Return the number of seconds to wait before retrying a 423 response.
+
+    Falls back to `_DEFAULT_RETRY_AFTER_SECONDS` if the `Retry-After` header is
+    missing or cannot be parsed.
+    """
+    value = response.headers.get("Retry-After")
+    seconds = _parse_retry_after(value) if value is not None else None
+    return _DEFAULT_RETRY_AFTER_SECONDS if seconds is None else seconds
 
 
 class ConcurrencySlotAcquisitionService(
@@ -79,7 +95,7 @@ class ConcurrencySlotAcquisitionService(
 
                     if max_retries is not None and max_retries <= 0:
                         raise exc
-                    retry_after = float(exc.response.headers["Retry-After"])
+                    retry_after = _get_retry_after_seconds(exc.response)
                     logger.debug(
                         f"Unable to acquire concurrency slot. Retrying in {retry_after} second(s)."
                     )
@@ -191,7 +207,7 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     if max_retries is not None and max_retries <= 0:
                         raise exc
 
-                    retry_after = float(exc.response.headers["Retry-After"])
+                    retry_after = _get_retry_after_seconds(exc.response)
                     logger.debug(
                         f"Unable to acquire concurrency slot with lease for {self.concurrency_limit_names}. Retrying in {retry_after} second(s)."
                     )
