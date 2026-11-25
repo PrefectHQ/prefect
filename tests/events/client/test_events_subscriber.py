@@ -394,6 +394,27 @@ async def test_subscriber_limits_consecutive_clean_disconnects(
         await subscriber.__anext__()
 
 
+async def test_subscriber_raises_when_clean_close_during_reconnect_exhausts_retries():
+    subscriber = PrefectEventSubscriber(
+        "http://example.com",
+        reconnection_attempts=1,
+        reconnect_on_clean_close=True,
+    )
+    subscriber._websocket = AsyncMock(spec=ClientConnection)
+    subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+
+    reconnect_error = ConnectionClosedOK(None, None, None)
+    reconnect_socket = AsyncMock(spec=ClientConnection)
+    reconnect_socket.ping.side_effect = reconnect_error
+    subscriber._connect = AsyncMock()
+    subscriber._connect.__aenter__.return_value = reconnect_socket
+
+    with pytest.raises(ConnectionClosedOK) as exc_info:
+        await anext(subscriber)
+
+    assert exc_info.value is reconnect_error
+
+
 async def test_subscriber_gives_up_after_so_many_attempts(
     Subscriber: Type[PrefectEventSubscriber],
     socket_path: str,
@@ -659,7 +680,13 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
     context that fails to enter is never exited by its caller."""
     puppeteer.token = token
 
+    awaiting_auth_response = asyncio.Event()
+    websocket: ClientConnection | None = None
+
     async def never_respond(self: ClientConnection, *args: object, **kwargs: object):
+        nonlocal websocket
+        websocket = self
+        awaiting_auth_response.set()
         await asyncio.Event().wait()
 
     monkeypatch.setattr(ClientConnection, "recv", never_respond)
@@ -668,9 +695,19 @@ async def test_subscriber_closes_socket_when_setup_is_cancelled(
         filter=EventFilter(event=EventNameFilter(name=["example.event"])),
         reconnection_attempts=0,
     )
-    with pytest.raises(TimeoutError):
-        async with asyncio.timeout(0.5):
-            await subscriber.__aenter__()
+    # Cancel only once the handshake is actually in flight, rather than after a
+    # fixed timeout that can elapse before the socket is even opened under load
+    setup = asyncio.create_task(subscriber.__aenter__())
+    handshake = asyncio.create_task(awaiting_auth_response.wait())
+    await asyncio.wait({setup, handshake}, return_when=asyncio.FIRST_COMPLETED)
+    handshake.cancel()
+    if setup.done():
+        setup.result()  # surface an early setup failure
+        pytest.fail("setup completed without waiting on the auth response")
+    setup.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await setup
 
     assert recorder.connections == 1
-    assert subscriber._connect.connection.state is WebsocketState.CLOSED
+    assert websocket is not None
+    assert websocket.state is WebsocketState.CLOSED

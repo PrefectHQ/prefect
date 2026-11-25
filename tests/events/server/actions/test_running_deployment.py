@@ -4,6 +4,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import anyio
+import httpx
 import jsonschema
 import pytest
 import sqlalchemy as sa
@@ -637,6 +638,42 @@ async def test_orchestration_errors_are_reported_as_events(
         match="Unexpected status from 'run-deployment' action: 404",
     ):
         await action.act(snap_that_naughty_woodchuck)
+
+
+async def test_server_errors_are_redelivered_without_duplicate_runs(
+    take_a_picture: Deployment,
+    woodchonk_nibbled: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+    session: AsyncSession,
+):
+    triggered_action = run_deployment_triggered_action(
+        take_a_picture, "Flaky database", woodchonk_nibbled
+    )
+    original_create_flow_run = OrchestrationClient.create_flow_run
+    calls = 0
+
+    async def create_flow_run(
+        self: OrchestrationClient, *args: Any, **kwargs: Any
+    ) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        response = await original_create_flow_run(self, *args, **kwargs)
+        if calls == 1:
+            # the run is created, but the response is lost to a server error
+            return httpx.Response(503, request=response.request)
+        return response
+
+    monkeypatch.setattr(OrchestrationClient, "create_flow_run", create_flow_run)
+
+    async with actions.consumer() as handler:
+        with pytest.raises(httpx.HTTPStatusError):
+            await handler(as_message(triggered_action))
+
+        await handler(as_message(triggered_action))
+
+    assert calls == 2
+    (run,) = await flow_runs.read_flow_runs(session)
+    assert run.deployment_id == take_a_picture.id
 
 
 async def test_validates_templates_in_parameters(

@@ -12,10 +12,10 @@ This module contains functionality for creating schedules for deployments.
 
 ## Functions
 
-### `Cron` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Cron` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-Cron(timezone: str | None = None, day_or: bool = True, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
+Cron(timezone: str | None = None, day_or: bool = True, active: bool = _UNSET, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
 ```
 
 
@@ -30,7 +30,8 @@ OR. If the switch is set to False, the values are connected using AND.
 This behaves like fcron and enables you to e.g. define a job that
 executes each 2nd friday of a month by setting the days of month and
 the weekday.
-- `active`: Whether or not the schedule is active.
+- `active`: Whether or not the schedule is active. If not provided, new schedules
+are active and redeploying keeps an existing schedule's state.
 - `parameters`: A dictionary containing parameter overrides for the schedule.
 - `slug`: A unique identifier for the schedule.
 
@@ -54,10 +55,10 @@ Cron("0 8 * * 1", timezone="America/New_York")
 ```
 
 
-### `Interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Interval` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-Interval(anchor_date: datetime.datetime | None = None, timezone: str | None = None, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
+Interval(anchor_date: datetime.datetime | None = None, timezone: str | None = None, active: bool = _UNSET, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
 ```
 
 
@@ -68,7 +69,8 @@ Creates an interval schedule.
 it will be interpreted as seconds.
 - `anchor_date`: The anchor date to use for the schedule.
 - `timezone`: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-- `active`: Whether or not the schedule is active.
+- `active`: Whether or not the schedule is active. If not provided, new schedules
+are active and redeploying keeps an existing schedule's state.
 - `parameters`: A dictionary containing parameter overrides for the schedule.
 - `slug`: A unique identifier for the schedule.
 
@@ -96,10 +98,10 @@ Interval(60, anchor_date=datetime(2024, 1, 1))
 ```
 
 
-### `RRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RRule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L208" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-RRule(timezone: str | None = None, active: bool = True, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
+RRule(timezone: str | None = None, active: bool = _UNSET, parameters: dict[str, Any] | None = None, slug: str | None = None) -> Schedule
 ```
 
 
@@ -108,7 +110,8 @@ Creates an RRule schedule.
 **Args:**
 - `rrule`: A valid RRule string (e.g. "RRULE\:FREQ=DAILY;INTERVAL=1").
 - `timezone`: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-- `active`: Whether or not the schedule is active.
+- `active`: Whether or not the schedule is active. If not provided, new schedules
+are active and redeploying keeps an existing schedule's state.
 - `parameters`: A dictionary containing parameter overrides for the schedule.
 - `slug`: A unique identifier for the schedule.
 
@@ -134,7 +137,7 @@ RRule("RRULE:FREQ=MONTHLY;INTERVAL=1;BYDAY=2FR", timezone="America/Chicago")
 
 ## Classes
 
-### `Schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/schedules.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A dataclass representing a schedule.
@@ -154,7 +157,8 @@ OR. If the switch is set to False, the values are connected using AND.
 This behaves like fcron and enables you to e.g. define a job that
 executes each 2nd friday of a month by setting the days of month and
 the weekday.
-- `active`: Whether or not the schedule is active.
+- `active`: Whether or not the schedule is active. If not provided, new schedules
+are active and redeploying keeps an existing schedule's state.
 - `parameters`: A dictionary containing parameter overrides for the schedule.
 - `slug`: A unique identifier for the schedule.
 

@@ -7,8 +7,7 @@ import type { components } from "@/api/prefect";
 import { getApiUrl, getQueryService } from "@/api/service";
 
 export type Automation = components["schemas"]["Automation"];
-export type AutomationsFilter =
-	components["schemas"]["Body_read_automations_automations_filter_post"];
+export type AutomationsFilter = components["schemas"]["Body_read_automations"];
 
 /**
  * ```
@@ -53,6 +52,27 @@ export const buildListAutomationsQuery = (
 				throw new Error("'data' expected");
 			}
 			return res.data;
+		},
+	});
+
+export const buildListAllAutomationsQuery = (
+	sort: components["schemas"]["AutomationSort"] = "CREATED_DESC",
+) =>
+	queryOptions({
+		queryKey: [...queryKeyFactory.filter({ sort, offset: 0 }), "all"],
+		refetchInterval: 30_000,
+		queryFn: async ({ signal }) => {
+			const service = await getQueryService();
+			const automations: Automation[] = [];
+			while (true) {
+				const { data } = await service.POST("/automations/filter", {
+					body: { sort, offset: automations.length },
+					signal,
+				});
+				if (!data) throw new Error("'data' expected");
+				if (data.length === 0) return automations;
+				automations.push(...data);
+			}
 		},
 	});
 

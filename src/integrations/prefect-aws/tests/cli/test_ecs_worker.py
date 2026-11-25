@@ -1008,3 +1008,34 @@ class TestExportTemplate:
         assert "Next steps:" in result.stdout
         assert "aws cloudformation deploy" in result.stdout
         assert "Review and customize" in result.stdout
+
+    @pytest.mark.parametrize(
+        "option, invalid_value",
+        [("--template-type", "lambda"), ("--format", "toml")],
+    )
+    @patch("prefect_aws._cli.ecs_worker.load_template")
+    def test_export_template_rejects_value_outside_choices(
+        self, mock_load_template, tmp_path, option, invalid_value
+    ):
+        output_file = tmp_path / "template.out"
+        arguments = {
+            "--template-type": "service",
+            "--output-path": str(output_file),
+            "--format": "json",
+        }
+        arguments[option] = invalid_value
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            [
+                "ecs-worker",
+                "export-template",
+                *[part for pair in arguments.items() for part in pair],
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert invalid_value in result.output
+        mock_load_template.assert_not_called()
+        assert not output_file.exists()

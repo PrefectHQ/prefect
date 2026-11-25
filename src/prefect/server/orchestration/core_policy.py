@@ -1538,7 +1538,12 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             updated_policy["resuming"] = False
             updated_policy["pause_keys"] = set()
             updated_policy["retry_type"] = "reschedule"
-        else:
+        elif validated_state is not None and validated_state.is_scheduled():
+            # The run resumes from the top in a new process; the flag tells
+            # `IncrementFlowRunCount` that its next `Running` state continues
+            # the current attempt. A blocking pause resumed with `Running` is
+            # handled there directly, and leaving the flag set on any other
+            # state would make the next attempt skip its run count increment.
             updated_policy["resuming"] = True
 
         context.run.empirical_policy = core.FlowRunPolicy(**updated_policy)
@@ -1783,9 +1788,11 @@ class PreventPendingTransitions(GenericOrchestrationRule):
     RUNNING state a worker should not attempt to submit it again unless it has moved
     into a terminal state.
 
-    CANCELLING and CANCELLED runs should not be allowed to transition to PENDING.
-    For re-runs of deployed runs, they should transition to SCHEDULED first.
-    For re-runs of ad-hoc runs, they should transition directly to RUNNING.
+    COMPLETED, CANCELLING, and CANCELLED runs should not be allowed to transition to
+    PENDING. Otherwise, a worker with a stale copy of a run could submit a run that
+    has already finished. For re-runs of deployed runs, they should transition to
+    SCHEDULED first. For re-runs of ad-hoc runs, they should transition directly to
+    RUNNING.
     """
 
     FROM_STATES = {
@@ -1793,6 +1800,7 @@ class PreventPendingTransitions(GenericOrchestrationRule):
         StateType.CANCELLING,
         StateType.RUNNING,
         StateType.CANCELLED,
+        StateType.COMPLETED,
     }
     TO_STATES = {StateType.PENDING}
 

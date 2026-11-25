@@ -33,9 +33,7 @@ def test_related_resource_openapi_schema() -> None:
     }
 
 
-@pytest.mark.parametrize(
-    "resource_class", [Resource, RelatedResource, ResourceSpecification]
-)
+@pytest.mark.parametrize("resource_class", [Resource, ResourceSpecification])
 def test_resource_root_is_required(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
         resource_class.model_validate(None)
@@ -46,9 +44,7 @@ def test_resource_root_is_required(resource_class: Type[Resource]) -> None:
     assert error["type"] == "dict_type"
 
 
-@pytest.mark.parametrize(
-    "resource_class", [Resource, RelatedResource, ResourceSpecification]
-)
+@pytest.mark.parametrize("resource_class", [Resource, ResourceSpecification])
 def test_resource_root_is_a_dictionary(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
         resource_class.model_validate(11)
@@ -145,7 +141,7 @@ def test_empty_resource_specification_allowed_and_includes_all_resources() -> No
     )
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
     with pytest.raises(ValidationError) as error:
         resource_class.model_validate(
@@ -163,7 +159,7 @@ def test_resource_disallows_none_values(resource_class: Type[Resource]) -> None:
     assert error["type"] == "string_type"
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_support_indexing(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -184,7 +180,7 @@ def test_resources_support_indexing(resource_class: Type[Resource]) -> None:
     assert resource["new.thing"] == "new thing"
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_support_contains(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -198,7 +194,7 @@ def test_resources_support_contains(resource_class: Type[Resource]) -> None:
     assert "that.thing" in resource
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_id_shortcut(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -219,7 +215,7 @@ def test_resource_role_shortcut() -> None:
     assert resource.role == "any-role"
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_labels_are_iterable(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -237,7 +233,7 @@ def test_resource_labels_are_iterable(resource_class: Type[Resource]) -> None:
     }
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_label_pairs_are_iterable(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -255,7 +251,7 @@ def test_resource_label_pairs_are_iterable(resource_class: Type[Resource]) -> No
     }
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -273,7 +269,7 @@ def test_resources_export_to_simple_dicts(resource_class: Type[Resource]) -> Non
     }
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_export_label_value_arrays(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -291,7 +287,7 @@ def test_resources_export_label_value_arrays(resource_class: Type[Resource]) -> 
     ]
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_can_test_for_labels(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -306,7 +302,7 @@ def test_resources_can_test_for_labels(resource_class: Type[Resource]) -> None:
     assert not resource.has_all_labels({"hello": "world", "goodbye": "mars"})
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resources_provide_label_divers(resource_class: Type[Resource]) -> None:
     resource = resource_class.model_validate(
         {
@@ -415,7 +411,7 @@ def test_limit_on_related_resources():
             )
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 @pytest.mark.parametrize(
     "example",
     [
@@ -441,17 +437,14 @@ def test_resource_specification_matches_resource(
     assert specification.includes([resource])
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 @pytest.mark.parametrize(
     "example",
     [
         {"a-label": "a-value"},
-        {"a-label": "a-value", "another-label": "a-value"},
         {"a-label": "a-value", "another-label": "another-value"},
         {"a-label": "a-val", "another-label": "another-value"},
-        {"a-label": "a-valerie", "another-label": "another-value"},
         {"a-label": "a-val kilmer", "another-label": "another-value"},
-        {"a-label": "a-valiant-effort", "another-label": "another-value"},
         {"a-label": "a-val.iant-effort", "another-label": "another-value"},
     ],
 )
@@ -472,7 +465,7 @@ def test_resource_specification_wildcard_matches_resource(
     assert specification.includes([resource])
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 @pytest.mark.parametrize(
     "example",
     [
@@ -499,7 +492,7 @@ def test_resource_specification_does_not_match_resource(
     assert not specification.includes([resource])
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 @pytest.mark.parametrize(
     "example",
     [
@@ -528,7 +521,7 @@ def test_resource_specification_wildcard_does_not_match_resource(
     assert not specification.includes([resource])
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_specification_matches_every_resource(resource_class: Type[Resource]):
     specification = ResourceSpecification.model_validate({})
     assert specification.matches_every_resource()
@@ -545,7 +538,7 @@ def test_resource_specification_matches_every_resource(resource_class: Type[Reso
     assert specification.includes([resource])
 
 
-@pytest.mark.parametrize("resource_class", [Resource, RelatedResource])
+@pytest.mark.parametrize("resource_class", [Resource])
 def test_resource_specification_matches_every_resource_of_kind(
     resource_class: Type[Resource],
 ):

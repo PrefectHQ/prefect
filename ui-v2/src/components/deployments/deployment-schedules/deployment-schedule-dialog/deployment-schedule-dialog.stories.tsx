@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { buildApiUrl } from "@tests/utils/handlers";
 import { HttpResponse, http } from "msw";
-import { fn } from "storybook/test";
+import { fn, userEvent, within } from "storybook/test";
 import { createFakeDeployment } from "@/mocks";
 import {
 	reactQueryDecorator,
@@ -77,5 +77,52 @@ export const WithoutParameters: Story = {
 		deployment: createFakeDeployment({
 			parameter_openapi_schema: { type: "object", properties: {} },
 		}),
+	},
+};
+
+export const CreateRRule: Story = {
+	play: async ({ canvasElement }) => {
+		await userEvent.click(
+			within(canvasElement.ownerDocument.body).getByRole("tab", {
+				name: "RRule",
+			}),
+		);
+	},
+};
+
+export const EditRRule: Story = {
+	args: {
+		scheduleToEdit: {
+			...EditSchedule.args?.scheduleToEdit,
+			id: "rrule-schedule",
+			created: "2026-01-01T00:00:00Z",
+			updated: "2026-01-01T00:00:00Z",
+			deployment_id: MOCK_DEPLOYMENT.id,
+			active: true,
+			max_scheduled_runs: null,
+			schedule: {
+				rrule:
+					"DTSTART;TZID=America/Chicago:20260301T090000\nRRULE:FREQ=WEEKLY;BYDAY=MO,WE",
+				timezone: "America/Chicago",
+			},
+		},
+	},
+};
+
+export const UnsupportedRRule: Story = {
+	args: {
+		scheduleToEdit: {
+			...EditRRule.args?.scheduleToEdit,
+			id: "unsupported-schedule",
+			created: "2026-01-01T00:00:00Z",
+			updated: "2026-01-01T00:00:00Z",
+			deployment_id: MOCK_DEPLOYMENT.id,
+			active: true,
+			max_scheduled_runs: null,
+			schedule: {
+				rrule: "DTSTART;TZID=UTC:20260301T090000\nRRULE:FREQ=HOURLY",
+				timezone: "UTC",
+			},
+		},
 	},
 };

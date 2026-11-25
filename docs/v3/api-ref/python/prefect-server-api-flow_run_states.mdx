@@ -15,7 +15,7 @@ Routes for interacting with flow run state objects.
 ### `read_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_run_states.py#L21" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flow_run_state(flow_run_state_id: UUID = Path(..., description='The flow run state id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.states.State
+read_flow_run_state(flow_run_state_id: UUID = Path(..., description='The flow run state id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.states.State
 ```
 
 
@@ -27,7 +27,7 @@ For more information, see https://www.prefect.io/docs/v3/concepts/flows#final-st
 ### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flow_run_states.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flow_run_states(flow_run_id: UUID, db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.states.State]
+read_flow_run_states(flow_run_id: UUID, db: PrefectDBInterface = Depends(aprovide_database_interface)) -> List[schemas.states.State]
 ```
 
 

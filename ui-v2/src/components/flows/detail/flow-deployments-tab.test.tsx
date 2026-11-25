@@ -6,10 +6,13 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Toaster } from "@/components/ui/sonner";
 import { createFakeDeployment } from "@/mocks/create-fake-deployment";
+import { createFakeFlowRun } from "@/mocks/create-fake-flow-run";
 import { FlowDeploymentsTab } from "./flow-deployments-tab";
 
 describe("FlowDeploymentsTab", () => {
@@ -40,9 +43,14 @@ describe("FlowDeploymentsTab", () => {
 		onClearFilters: vi.fn(),
 	};
 
-	const renderTab = () => {
+	const renderTab = (props: Partial<typeof defaultProps> = {}) => {
 		const rootRoute = createRootRoute({
-			component: () => <FlowDeploymentsTab {...defaultProps} />,
+			component: () => (
+				<>
+					<Toaster />
+					<FlowDeploymentsTab {...defaultProps} {...props} />
+				</>
+			),
 		});
 
 		const router = createRouter({
@@ -64,6 +72,75 @@ describe("FlowDeploymentsTab", () => {
 				screen.getByRole("link", { name: "Test Deployment" }),
 			).toHaveAttribute("href", `/deployments/deployment/${deployment.id}`);
 		});
+	});
+
+	it("offers Quick Run, Custom Run and Copy ID in the deployment row menu", async () => {
+		renderTab();
+
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Open menu" }),
+		);
+
+		expect(screen.getByRole("menuitem", { name: "Quick Run" })).toBeVisible();
+		expect(screen.getByRole("menuitem", { name: "Copy ID" })).toBeVisible();
+		expect(screen.getByRole("link", { name: "Custom Run" })).toHaveAttribute(
+			"href",
+			expect.stringContaining(`/deployments/deployment/${deployment.id}/run`),
+		);
+	});
+
+	it("creates a flow run for the deployment with Quick Run", async () => {
+		const createdForDeployments: string[] = [];
+		server.use(
+			http.post(
+				buildApiUrl("/deployments/:id/create_flow_run"),
+				({ params }) => {
+					createdForDeployments.push(String(params.id));
+					return HttpResponse.json(
+						createFakeFlowRun({ name: "quick-flow-run" }),
+					);
+				},
+			),
+		);
+		renderTab({
+			deployments: [{ ...deployment, parameter_openapi_schema: {} }],
+		});
+
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Open menu" }),
+		);
+		await userEvent.click(screen.getByRole("menuitem", { name: "Quick Run" }));
+
+		await waitFor(() => {
+			expect(screen.getByText("quick-flow-run")).toBeVisible();
+		});
+		expect(createdForDeployments).toEqual([deployment.id]);
+	});
+
+	it("asks for required parameters before a Quick Run", async () => {
+		renderTab({
+			deployments: [
+				{
+					...deployment,
+					parameters: {},
+					parameter_openapi_schema: {
+						title: "Parameters",
+						type: "object",
+						properties: { project: { title: "Project", type: "string" } },
+						required: ["project"],
+					},
+				},
+			],
+		});
+
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Open menu" }),
+		);
+		await userEvent.click(screen.getByRole("menuitem", { name: "Quick Run" }));
+
+		expect(
+			await screen.findByRole("heading", { name: "Run Deployment" }),
+		).toBeVisible();
 	});
 
 	it("limits deployment activity runs to the charted window so future scheduled runs don't crowd out recent runs", async () => {

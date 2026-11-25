@@ -15,7 +15,7 @@ Routes for interacting with flow objects.
 ### `create_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_flow(flow: schemas.actions.FlowCreate, response: Response, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.Flow
+create_flow(flow: schemas.actions.FlowCreate, response: Response, db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.core.Flow
 ```
 
 
@@ -28,7 +28,7 @@ For more information, see https://www.prefect.io/docs/v3/concepts/flows.
 ### `update_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L50" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-update_flow(flow: schemas.actions.FlowUpdate, flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+update_flow(flow: schemas.actions.FlowUpdate, flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> None
 ```
 
 
@@ -38,7 +38,7 @@ Updates a flow.
 ### `count_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-count_flows(flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, work_pools: schemas.filters.WorkPoolFilter = None, db: PrefectDBInterface = Depends(provide_database_interface)) -> int
+count_flows(flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, work_pools: schemas.filters.WorkPoolFilter = None, db: PrefectDBInterface = Depends(aprovide_database_interface)) -> int
 ```
 
 
@@ -48,7 +48,7 @@ Count flows.
 ### `read_flow_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flow_by_name(name: str = Path(..., description='The name of the flow'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.Flow
+read_flow_by_name(name: str = Path(..., description='The name of the flow'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.core.Flow
 ```
 
 
@@ -58,7 +58,7 @@ Get a flow by name.
 ### `read_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flow(flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.Flow
+read_flow(flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> schemas.core.Flow
 ```
 
 
@@ -68,7 +68,7 @@ Get a flow by id.
 ### `read_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_flows(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, work_pools: schemas.filters.WorkPoolFilter = None, sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC), db: PrefectDBInterface = Depends(provide_database_interface)) -> List[schemas.core.Flow]
+read_flows(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), flows: schemas.filters.FlowFilter = None, flow_runs: schemas.filters.FlowRunFilter = None, task_runs: schemas.filters.TaskRunFilter = None, deployments: schemas.filters.DeploymentFilter = None, work_pools: schemas.filters.WorkPoolFilter = None, sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> List[schemas.core.Flow]
 ```
 
 
@@ -78,7 +78,7 @@ Query for flows.
 ### `delete_flow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-delete_flow(flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+delete_flow(flow_id: UUID = Path(..., description='The flow id', alias='id'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> None
 ```
 
 
@@ -88,7 +88,7 @@ Delete a flow by id.
 ### `bulk_delete_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-bulk_delete_flows(flows: Optional[schemas.filters.FlowFilter] = Body(None, description='Filter criteria for flows to delete'), limit: int = Body(BULK_OPERATION_LIMIT, ge=1, le=BULK_OPERATION_LIMIT, description=f'Maximum number of flows to delete. Defaults to {BULK_OPERATION_LIMIT}.'), db: PrefectDBInterface = Depends(provide_database_interface)) -> FlowBulkDeleteResponse
+bulk_delete_flows(flows: Optional[schemas.filters.FlowFilter] = Body(None, description='Filter criteria for flows to delete'), limit: int = Body(BULK_OPERATION_LIMIT, ge=1, le=BULK_OPERATION_LIMIT, description=f'Maximum number of flows to delete. Defaults to {BULK_OPERATION_LIMIT}.'), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> FlowBulkDeleteResponse
 ```
 
 
@@ -102,7 +102,7 @@ Returns the IDs of flows that were deleted.
 ### `paginate_flows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/flows.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-paginate_flows(limit: int = dependencies.LimitBody(), page: int = Body(1, ge=1), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC), db: PrefectDBInterface = Depends(provide_database_interface)) -> FlowPaginationResponse
+paginate_flows(limit: int = dependencies.LimitBody(), page: int = Body(1, ge=1), flows: Optional[schemas.filters.FlowFilter] = None, flow_runs: Optional[schemas.filters.FlowRunFilter] = None, task_runs: Optional[schemas.filters.TaskRunFilter] = None, deployments: Optional[schemas.filters.DeploymentFilter] = None, work_pools: Optional[schemas.filters.WorkPoolFilter] = None, sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> FlowPaginationResponse
 ```
 
 

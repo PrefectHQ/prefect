@@ -60,36 +60,24 @@ class TestState:
         assert new_state.timestamp >= dt
 
 
+STATE_TYPE_PREDICATES = {
+    "is_scheduled": StateType.SCHEDULED,
+    "is_pending": StateType.PENDING,
+    "is_running": StateType.RUNNING,
+    "is_completed": StateType.COMPLETED,
+    "is_failed": StateType.FAILED,
+    "is_cancelled": StateType.CANCELLED,
+}
+
+
 class TestStateTypeFunctions:
     @pytest.mark.parametrize("state_type", StateType)
-    def test_is_scheduled(self, state_type):
+    def test_state_type_predicates(self, state_type: StateType):
         state = State(type=state_type)
-        assert state.is_scheduled() == (state_type == StateType.SCHEDULED)
-
-    @pytest.mark.parametrize("state_type", StateType)
-    def test_is_pending(self, state_type):
-        state = State(type=state_type)
-        assert state.is_pending() == (state_type == StateType.PENDING)
-
-    @pytest.mark.parametrize("state_type", StateType)
-    def test_is_running(self, state_type):
-        state = State(type=state_type)
-        assert state.is_running() == (state_type == StateType.RUNNING)
-
-    @pytest.mark.parametrize("state_type", StateType)
-    def test_is_completed(self, state_type):
-        state = State(type=state_type)
-        assert state.is_completed() == (state_type == StateType.COMPLETED)
-
-    @pytest.mark.parametrize("state_type", StateType)
-    def test_is_failed(self, state_type):
-        state = State(type=state_type)
-        assert state.is_failed() == (state_type == StateType.FAILED)
-
-    @pytest.mark.parametrize("state_type", StateType)
-    def test_is_cancelled(self, state_type):
-        state = State(type=state_type)
-        assert state.is_cancelled() == (state_type == StateType.CANCELLED)
+        assert {name: getattr(state, name)() for name in STATE_TYPE_PREDICATES} == {
+            name: state_type == expected
+            for name, expected in STATE_TYPE_PREDICATES.items()
+        }
 
 
 class TestStateConvenienceFunctions:

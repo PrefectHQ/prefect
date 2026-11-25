@@ -4,9 +4,13 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import PrefectDBInterface
+from prefect.server.database.orm_models import FlowRun
 from prefect.server.services.late_runs import mark_flow_run_late, monitor_late_runs
+from tests.server import ConcurrentCommits
 
 pytestmark = pytest.mark.clear_db
 
@@ -342,3 +346,17 @@ async def test_marks_late_when_deployment_has_enqueue_strategy(session, flow, db
     await session.refresh(late_candidate)
     # ENQUEUE strategy should mark Late, not cancel
     assert late_candidate.state_name == "Late"
+
+
+async def test_marks_late_run_despite_concurrent_sqlite_write(
+    session: AsyncSession,
+    late_run: FlowRun,
+    db: PrefectDBInterface,
+    commit_after_run_read: ConcurrentCommits,
+):
+    commit_after_run_read.armed = True
+    await mark_flow_run_late(late_run.id, db=db)
+
+    assert commit_after_run_read.writers
+    await session.refresh(late_run)
+    assert late_run.state.name == "Late"

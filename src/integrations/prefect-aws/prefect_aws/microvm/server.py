@@ -1,0 +1,334 @@
+"""HTTP server for the AWS Lambda MicroVM lifecycle hooks."""
+
+from __future__ import annotations
+
+import os
+import queue
+import socket
+import socketserver
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+
+from prefect.logging import get_logger
+from prefect_aws.microvm.payload import (
+    InvalidRunHookPayload,
+    RunHookRequest,
+    parse_run_hook_request,
+)
+
+logger = get_logger("prefect_aws.microvm")
+
+HOOK_SERVER_PORT = 8080
+HOOK_PATH_PREFIX = "/aws/lambda-microvms/runtime/v1/"
+MAX_REQUEST_BODY_BYTES = 1024 * 1024
+HANDLER_FINISH_TIMEOUT_SECONDS = 10
+WAKE_INTERVAL_SECONDS = 0.01
+WAKE_CONNECT_TIMEOUT_SECONDS = 1
+HOOK_REQUEST_TIMEOUT_SECONDS = 5
+NAME_LOOKUP_WARM_UP_WAIT_SECONDS = 2
+RUN_REPLY_WAIT_SECONDS = 1
+
+
+class LifecycleHookServer(ThreadingHTTPServer):
+    """
+    Serves the MicroVM lifecycle hooks and hands the first valid `/run` request
+    to the thread that calls `wait_for_run_request`.
+
+    Hooks are accepted both at `/<hook>` and at
+    `/aws/lambda-microvms/runtime/v1/<hook>`. A `/ready` request is answered
+    once `name_lookup_warm_up` has finished, or after
+    `NAME_LOOKUP_WARM_UP_WAIT_SECONDS`. A valid `/run` request is answered with
+    200 once `allow_run_reply` is called, or after `RUN_REPLY_WAIT_SECONDS`.
+    `wait_for_run_reply` reports whether that 200 was sent.
+    """
+
+    daemon_threads = True
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        name_lookup_warm_up: threading.Thread | None = None,
+    ) -> None:
+        super().__init__(server_address, LifecycleHookHandler)
+        self._name_lookup_warm_up = name_lookup_warm_up
+        self._run_reply_allowed = threading.Event()
+        self._run_reply_finished = threading.Event()
+        self._run_reply_sent = False
+        self._run_requests: queue.Queue[RunHookRequest | InvalidRunHookPayload] = (
+            queue.Queue()
+        )
+        self._run_received = False
+        self._run_lock = threading.Lock()
+        self._handlers_finished = threading.Condition()
+        self._active_handlers = 0
+
+    def server_bind(self) -> None:
+        # `HTTPServer.server_bind` names the server with `socket.getfqdn`, a reverse
+        # DNS lookup that blocks startup while DNS is slow or unreachable.
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = port
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        # Counted on the serving thread, before the handler thread starts, so
+        # `stop_serving` cannot miss a handler that has not started yet.
+        with self._handlers_finished:
+            self._active_handlers += 1
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._handler_finished()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._handler_finished()
+
+    def _handler_finished(self) -> None:
+        with self._handlers_finished:
+            self._active_handlers -= 1
+            self._handlers_finished.notify_all()
+
+    def stop_serving(self, timeout: float = HANDLER_FINISH_TIMEOUT_SECONDS) -> None:
+        """
+        Stop accepting hook requests and wait up to `timeout` seconds for the
+        requests in progress to finish, so that no handler thread holds a lock
+        when the process forks. Requests still in progress after `timeout` are
+        logged and left running.
+
+        Args:
+            timeout: The longest time to wait for requests in progress, in seconds.
+        """
+        # `serve_forever` sees the shutdown request only when `select` returns; a
+        # connection ends that wait, and an early one is served, so wake until
+        # `shutdown` returns.
+        shut_down = threading.Event()
+        waker = threading.Thread(
+            target=self._wake_serving_loop,
+            args=(shut_down,),
+            name="microvm-lifecycle-hooks-waker",
+            daemon=True,
+        )
+        waker.start()
+        try:
+            self.shutdown()
+        finally:
+            shut_down.set()
+            waker.join(timeout=WAKE_CONNECT_TIMEOUT_SECONDS + WAKE_INTERVAL_SECONDS)
+            if waker.is_alive():
+                logger.debug("The lifecycle hook server waker thread is still running.")
+        with self._handlers_finished:
+            finished = self._handlers_finished.wait_for(
+                lambda: self._active_handlers == 0, timeout=timeout
+            )
+        if not finished:
+            logger.warning(
+                "%d lifecycle hook requests were still in progress after %s seconds.",
+                self._active_handlers,
+                timeout,
+            )
+
+    def _wake_serving_loop(self, shut_down: threading.Event) -> None:
+        # The server binds the wildcard address; connect through loopback.
+        loopback = ("127.0.0.1", self.server_address[1])
+        while not shut_down.is_set():
+            try:
+                with socket.create_connection(
+                    loopback, timeout=WAKE_CONNECT_TIMEOUT_SECONDS
+                ):
+                    pass
+            except OSError:
+                logger.debug(
+                    "Could not wake the lifecycle hook server; it stops within "
+                    "its poll interval instead.",
+                    exc_info=True,
+                )
+                return
+            shut_down.wait(WAKE_INTERVAL_SECONDS)
+
+    def claim_run(self) -> bool:
+        """Return True for the first `/run` request and False for every later one."""
+        with self._run_lock:
+            if self._run_received:
+                return False
+            self._run_received = True
+            return True
+
+    def submit_run(self, request: RunHookRequest | InvalidRunHookPayload) -> None:
+        """Pass a parsed `/run` request, or the reason it was rejected, to `wait_for_run_request`."""
+        self._run_requests.put(request)
+
+    def wait_for_run_request(self) -> RunHookRequest | InvalidRunHookPayload:
+        """
+        Block until the first `/run` request has been parsed or rejected, then
+        return it. A rejected request has been answered; a valid one is answered
+        after `allow_run_reply`.
+        """
+        return self._run_requests.get()
+
+    def allow_run_reply(self) -> None:
+        """Let the handler of a valid `/run` request answer it with 200."""
+        self._run_reply_allowed.set()
+
+    def wait_until_run_reply_allowed(self) -> None:
+        """Wait up to `RUN_REPLY_WAIT_SECONDS` for `allow_run_reply`."""
+        if not self._run_reply_allowed.wait(RUN_REPLY_WAIT_SECONDS):
+            logger.warning(
+                "Answering the `/run` request after %s seconds without waiting "
+                "for SIGTERM to be blocked.",
+                RUN_REPLY_WAIT_SECONDS,
+            )
+
+    def record_run_reply(self, sent: bool) -> None:
+        """Record whether the 200 reply to a valid `/run` request was sent."""
+        self._run_reply_sent = sent
+        self._run_reply_finished.set()
+
+    def wait_for_run_reply(self) -> bool | None:
+        """
+        Wait up to `RUN_REPLY_WAIT_SECONDS` for the 200 reply to a valid `/run`
+        request to be sent or to fail.
+
+        Returns:
+            True if the reply was sent, False if sending it failed, or None if
+            neither happened in time.
+        """
+        if not self._run_reply_finished.wait(RUN_REPLY_WAIT_SECONDS):
+            return None
+        return self._run_reply_sent
+
+    def wait_for_name_lookup_warm_up(self) -> None:
+        """
+        Wait up to `NAME_LOOKUP_WARM_UP_WAIT_SECONDS` for the
+        `name_lookup_warm_up` thread to finish.
+        """
+        if self._name_lookup_warm_up is None:
+            return
+        self._name_lookup_warm_up.join(NAME_LOOKUP_WARM_UP_WAIT_SECONDS)
+        if self._name_lookup_warm_up.is_alive():
+            logger.warning(
+                "Name lookups have not finished after %s seconds; a run that "
+                "starts before they finish waits for them.",
+                NAME_LOOKUP_WARM_UP_WAIT_SECONDS,
+            )
+
+
+class LifecycleHookHandler(BaseHTTPRequestHandler):
+    """Request handler for `LifecycleHookServer`."""
+
+    server: LifecycleHookServer
+    # A client that stalls mid-request would otherwise hold its handler, and a
+    # stalled `/run` would hold the flow run, forever.
+    timeout = HOOK_REQUEST_TIMEOUT_SECONDS
+    _replied = False
+
+    def log_message(self, format: str, *args: Any) -> None:
+        logger.debug(format, *args)
+
+    def do_GET(self) -> None:
+        if self._hook_name() == "ready":
+            self.server.wait_for_name_lookup_warm_up()
+        self._reply(200)
+
+    def do_POST(self) -> None:
+        hook_name = self._hook_name()
+        if hook_name == "run":
+            self._run()
+            return
+        if hook_name == "ready":
+            self.server.wait_for_name_lookup_warm_up()
+        else:
+            logger.debug("Ignoring lifecycle hook %r.", hook_name)
+        self._reply(200)
+
+    def _hook_name(self) -> str:
+        return self.path.split("?", 1)[0].removeprefix(HOOK_PATH_PREFIX).strip("/")
+
+    def _run(self) -> None:
+        if not self.server.claim_run():
+            logger.warning("Ignoring a second `/run` request.")
+            self._reply(409)
+            return
+
+        # Every path below submits exactly one outcome; without one,
+        # `wait_for_run_request` blocks forever.
+        outcome: RunHookRequest | InvalidRunHookPayload = InvalidRunHookPayload(
+            "The `/run` request was interrupted."
+        )
+        try:
+            outcome = self._start_run()
+        except InvalidRunHookPayload as exc:
+            logger.error("Rejected `/run` request: %s", exc)
+            outcome = exc
+            self._reply_if_unanswered(400)
+        except Exception as exc:
+            logger.exception("Could not start a flow run from the `/run` request.")
+            outcome = InvalidRunHookPayload(
+                f"The `/run` request failed with {type(exc).__name__}."
+            )
+            self._reply_if_unanswered(500)
+        finally:
+            self.server.submit_run(outcome)
+        if isinstance(outcome, RunHookRequest):
+            # `main` blocks SIGTERM before it allows the reply, so a SIGTERM
+            # sent after the 200 is held for the flow run's process.
+            self.server.wait_until_run_reply_allowed()
+            self._reply_to_run()
+
+    def _reply_to_run(self) -> None:
+        # This catches a 200 reply whose write fails. The runtime's response to
+        # a failed `/run` reply is not documented, so `main` does not start the
+        # run after one.
+        reply_sent = False
+        try:
+            self._reply(200)
+            reply_sent = True
+        except OSError:
+            logger.warning("Could not reply 200 to the `/run` request.")
+        finally:
+            self.server.record_run_reply(reply_sent)
+
+    def _start_run(self) -> RunHookRequest:
+        run_request = parse_run_hook_request(self._read_body())
+        logger.info(
+            "Starting flow run %s on MicroVM %s.",
+            run_request.payload.flow_run_id,
+            run_request.microvm_id,
+        )
+        os.environ.update(run_request.payload.env)
+        return run_request
+
+    def _read_body(self) -> bytes:
+        content_length = self.headers.get("Content-Length")
+        if content_length is None:
+            raise InvalidRunHookPayload("The request has no Content-Length.")
+        try:
+            length = int(content_length)
+        except ValueError:
+            raise InvalidRunHookPayload("Content-Length is not an integer.") from None
+        if length < 0:
+            raise InvalidRunHookPayload("Content-Length is negative.")
+        if length > MAX_REQUEST_BODY_BYTES:
+            raise InvalidRunHookPayload(
+                f"Request body is {length} bytes; the limit is {MAX_REQUEST_BODY_BYTES}."
+            )
+        return self.rfile.read(length)
+
+    def _reply_if_unanswered(self, status: int) -> None:
+        if self._replied:
+            return
+        try:
+            self._reply(status)
+        except OSError:
+            logger.warning("Could not reply %d to the `/run` request.", status)
+
+    def _reply(self, status: int) -> None:
+        self._replied = True
+        self.send_response(status)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        self.wfile.flush()

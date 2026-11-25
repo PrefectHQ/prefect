@@ -651,6 +651,10 @@ class AzureContainerWorker(
         """
         Wait for the result of group and container creation.
 
+        The container is considered started as soon as either the ARM deployment
+        succeeds or the container group reports that it has been provisioned or
+        that its container is running, whichever is observed first.
+
         Args:
             creation_status_poller: Poller returned by the Azure SDK.
 
@@ -666,16 +670,31 @@ class AzureContainerWorker(
         timeout = configuration.task_start_timeout_seconds
 
         while not creation_status_poller.done():
+            container_group = self._get_container_group_if_started(
+                client, configuration, container_group_name
+            )
+            if container_group is not None:
+                return container_group
+
             elapsed_time = time.time() - t0
 
             if timeout and elapsed_time > timeout:
                 raise RuntimeError(
                     (
-                        f"Timed out after {elapsed_time}s while watching waiting for "
+                        f"Timed out after {elapsed_time}s while waiting for "
                         "container start."
                     )
                 )
             time.sleep(configuration.task_watch_poll_interval)
+
+        # Check the container group once more before trusting the deployment
+        # result, so that a deployment failure (e.g. in another resource of a
+        # custom ARM template) doesn't cause a running container to be deleted.
+        container_group = self._get_container_group_if_started(
+            client, configuration, container_group_name
+        )
+        if container_group is not None:
+            return container_group
 
         deployment = creation_status_poller.result()
 
@@ -690,6 +709,38 @@ class AzureContainerWorker(
             )
         else:
             return None
+
+    def _get_container_group_if_started(
+        self,
+        client: ContainerInstanceManagementClient,
+        configuration: AzureContainerJobConfiguration,
+        container_group_name: str,
+    ) -> Optional[ContainerGroup]:
+        """
+        Reads the container group directly from ACI and returns it if it has
+        been provisioned or its container has started, independently of the
+        state of the ARM deployment that created it.
+
+        Returns:
+            The `ContainerGroup` if it has started, otherwise None.
+        """
+        try:
+            container_group = self._get_container_group(
+                client, configuration.resource_group_name, container_group_name
+            )
+        except ResourceNotFoundError:
+            # The ARM deployment has not created the container group yet.
+            return None
+        except HttpResponseError as exc:
+            self._logger.warning(
+                f"{self._log_prefix}: Unable to read the status of container group "
+                f"{container_group_name!r} while waiting for it to start: {exc}"
+            )
+            return None
+
+        if self._provisioning_succeeded(container_group):
+            return container_group
+        return None
 
     async def _provision_container_group(
         self,
@@ -721,6 +772,7 @@ class AzureContainerWorker(
             resource_group_name=configuration.resource_group_name,
             deployment_name=f"prefect-{container_group_name}",
             parameters=deployment,
+            polling_interval=configuration.task_watch_poll_interval,
         )
 
         created_container_group = await run_sync_in_worker_thread(
@@ -1020,19 +1072,34 @@ class AzureContainerWorker(
         """
         Determines whether ACI container group provisioning was successful.
 
+        A container group whose container is already running (or has already
+        run to completion) is treated as successfully provisioned, even if
+        the group's provisioning state has not yet been updated to reflect it.
+
         Args:
             container_group: a container group returned by the Azure SDK.
 
         Returns:
             True if provisioning was successful, False otherwise.
         """
-        if not container_group:
+        if (
+            not container_group
+            or not container_group.containers
+            or len(container_group.containers) != 1
+        ):
             return False
 
-        return (
+        if (
             container_group.provisioning_state
             == ContainerGroupProvisioningState.SUCCEEDED
-            and len(container_group.containers) == 1
+        ):
+            return True
+
+        instance_view = container_group.containers[0].instance_view
+        current_state = instance_view.current_state if instance_view else None
+        return current_state is not None and current_state.state in (
+            ContainerRunState.RUNNING,
+            ContainerRunState.TERMINATED,
         )
 
     @staticmethod

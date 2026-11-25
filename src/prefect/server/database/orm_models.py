@@ -947,6 +947,7 @@ class Log(Base):
     level: Mapped[int] = mapped_column(sa.SmallInteger, index=True)
     flow_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
     task_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True)
+    worker_id: Mapped[Optional[uuid.UUID]]
     message: Mapped[str] = mapped_column(sa.Text)
 
     # The client-side timestamp of this logged statement.
