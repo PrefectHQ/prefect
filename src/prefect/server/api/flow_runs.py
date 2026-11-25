@@ -605,7 +605,9 @@ async def resume_flow_run(
 
 @router.post("/filter")
 async def read_flow_runs(
-    sort: schemas.sorting.FlowRunSort = Body(schemas.sorting.FlowRunSort.ID_DESC),
+    sort: Optional[schemas.sorting.FlowRunSort] = Body(
+        schemas.sorting.FlowRunSort.ID_DESC
+    ),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: Optional[schemas.filters.FlowFilter] = None,
@@ -630,7 +632,7 @@ async def read_flow_runs(
             work_queue_filter=work_pool_queues,
             offset=offset,
             limit=limit,
-            sort=sort,
+            sort=sort or schemas.sorting.FlowRunSort.ID_DESC,
         )
 
         # Instead of relying on fastapi.encoders.jsonable_encoder to convert the

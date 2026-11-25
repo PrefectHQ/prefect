@@ -43,7 +43,7 @@ logs_adapter: TypeAdapter[Sequence[Log]] = TypeAdapter(Sequence[Log])
 @router.post("/filter")
 async def read_logs(
     limit: int = dependencies.LimitBody(),
-    offset: int = Body(0, ge=0),
+    offset: Optional[int] = Body(0, ge=0),
     logs: Optional[LogFilter] = None,
     sort: LogSort = Body(LogSort.TIMESTAMP_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
@@ -54,7 +54,11 @@ async def read_logs(
     async with db.session_context() as session:
         return logs_adapter.validate_python(
             await models.logs.read_logs(
-                session=session, log_filter=logs, offset=offset, limit=limit, sort=sort
+                session=session,
+                log_filter=logs,
+                offset=offset or 0,
+                limit=limit,
+                sort=sort,
             )
         )
 

@@ -4429,11 +4429,11 @@ export interface components {
         };
         /** Body_count_artifacts */
         Body_count_artifacts: {
-            artifacts?: components["schemas"]["ArtifactFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            flows?: components["schemas"]["FlowFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            artifacts?: components["schemas"]["ArtifactFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
         };
         /** Body_count_automations */
         Body_count_automations: {
@@ -4470,26 +4470,26 @@ export interface components {
         };
         /** Body_count_flows */
         Body_count_flows: {
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
         };
         /** Body_count_latest_artifacts */
         Body_count_latest_artifacts: {
-            artifacts?: components["schemas"]["ArtifactCollectionFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            flows?: components["schemas"]["FlowFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            artifacts?: components["schemas"]["ArtifactCollectionFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
         };
         /** Body_count_task_runs */
         Body_count_task_runs: {
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
         };
         /** Body_count_task_runs_by_flow_run */
         Body_count_task_runs_by_flow_run: {
@@ -4606,7 +4606,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_get_scheduled_flow_runs_for_deployments */
         Body_get_scheduled_flow_runs_for_deployments: {
@@ -4625,7 +4625,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_increment_concurrency_limits_v1 */
         Body_increment_concurrency_limits_v1: {
@@ -4665,7 +4665,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_paginate_flow_runs */
         Body_paginate_flow_runs: {
@@ -4686,7 +4686,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_paginate_flows */
         Body_paginate_flows: {
@@ -4706,7 +4706,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_paginate_task_runs */
         Body_paginate_task_runs: {
@@ -4725,7 +4725,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_all_concurrency_limits_v2 */
         Body_read_all_concurrency_limits_v2: {
@@ -4738,32 +4738,32 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_artifacts */
         Body_read_artifacts: {
             /** @default ID_DESC */
-            sort: components["schemas"]["ArtifactSort"];
+            sort: components["schemas"]["ArtifactSort"] | null;
             /**
              * Offset
              * @default 0
              */
-            offset: number;
-            artifacts?: components["schemas"]["ArtifactFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            flows?: components["schemas"]["FlowFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            offset: number | null;
+            artifacts?: components["schemas"]["ArtifactFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_automations */
         Body_read_automations: {
             /** @default NAME_ASC */
-            sort: components["schemas"]["AutomationSort"];
+            sort: components["schemas"]["AutomationSort"] | null;
             /**
              * Offset
              * @default 0
@@ -4774,7 +4774,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_block_documents */
         Body_read_block_documents: {
@@ -4793,12 +4793,12 @@ export interface components {
              * Offset
              * @default 0
              */
-            offset: number;
+            offset: number | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_block_schemas */
         Body_read_block_schemas: {
@@ -4812,7 +4812,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_block_types */
         Body_read_block_types: {
@@ -4827,7 +4827,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_concurrency_limits */
         Body_read_concurrency_limits: {
@@ -4840,7 +4840,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_dashboard_task_run_counts */
         Body_read_dashboard_task_run_counts: {
@@ -4865,12 +4865,12 @@ export interface components {
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             work_pool_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
-            sort: components["schemas"]["DeploymentSort"];
+            sort: components["schemas"]["DeploymentSort"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_events */
         Body_read_events: {
@@ -4906,7 +4906,7 @@ export interface components {
         /** Body_read_flow_runs */
         Body_read_flow_runs: {
             /** @default ID_DESC */
-            sort: components["schemas"]["FlowRunSort"];
+            sort: components["schemas"]["FlowRunSort"] | null;
             /**
              * Offset
              * @default 0
@@ -4922,7 +4922,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_flows */
         Body_read_flows: {
@@ -4931,38 +4931,38 @@ export interface components {
              * @default 0
              */
             offset: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
-            work_pools?: components["schemas"]["WorkPoolFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
+            work_pools?: components["schemas"]["WorkPoolFilter"] | null;
             /** @default NAME_ASC */
-            sort: components["schemas"]["FlowSort"];
+            sort: components["schemas"]["FlowSort"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_latest_artifacts */
         Body_read_latest_artifacts: {
             /** @default ID_DESC */
-            sort: components["schemas"]["ArtifactCollectionSort"];
+            sort: components["schemas"]["ArtifactCollectionSort"] | null;
             /**
              * Offset
              * @default 0
              */
-            offset: number;
-            artifacts?: components["schemas"]["ArtifactCollectionFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            flows?: components["schemas"]["FlowFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            offset: number | null;
+            artifacts?: components["schemas"]["ArtifactCollectionFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            flows?: components["schemas"]["FlowFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_logs */
         Body_read_logs: {
@@ -4970,7 +4970,7 @@ export interface components {
              * Offset
              * @default 0
              */
-            offset: number;
+            offset: number | null;
             logs?: components["schemas"]["LogFilter"] | null;
             /** @default TIMESTAMP_ASC */
             sort: components["schemas"]["LogSort"];
@@ -4978,7 +4978,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_saved_searches */
         Body_read_saved_searches: {
@@ -4991,7 +4991,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_task_run_counts_by_state */
         Body_read_task_run_counts_by_state: {
@@ -5003,7 +5003,7 @@ export interface components {
         /** Body_read_task_runs */
         Body_read_task_runs: {
             /** @default ID_DESC */
-            sort: components["schemas"]["TaskRunSort"];
+            sort: components["schemas"]["TaskRunSort"] | null;
             /**
              * Offset
              * @default 0
@@ -5017,7 +5017,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_task_workers */
         Body_read_task_workers: {
@@ -5033,12 +5033,12 @@ export interface components {
             offset: number;
             variables?: components["schemas"]["VariableFilter"] | null;
             /** @default NAME_ASC */
-            sort: components["schemas"]["VariableSort"];
+            sort: components["schemas"]["VariableSort"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_pool_concurrency_status */
         Body_read_work_pool_concurrency_status: {
@@ -5057,21 +5057,21 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_pool_queues */
         Body_read_work_pool_queues: {
-            work_queues?: components["schemas"]["WorkQueueFilter"];
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Offset
              * @default 0
              */
-            offset: number;
+            offset: number | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_pools */
         Body_read_work_pools: {
@@ -5085,7 +5085,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_queue_concurrency_status */
         Body_read_work_queue_concurrency_status: {
@@ -5098,7 +5098,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_queue_runs */
         Body_read_work_queue_runs: {
@@ -5112,7 +5112,7 @@ export interface components {
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_work_queues */
         Body_read_work_queues: {
@@ -5120,13 +5120,13 @@ export interface components {
              * Offset
              * @default 0
              */
-            offset: number;
+            offset: number | null;
             work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_read_workers */
         Body_read_workers: {
@@ -5135,12 +5135,12 @@ export interface components {
              * Offset
              * @default 0
              */
-            offset: number;
+            offset: number | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
              */
-            limit?: number;
+            limit?: number | null;
         };
         /** Body_renew_concurrency_lease */
         Body_renew_concurrency_lease: {
@@ -5239,10 +5239,10 @@ export interface components {
              * @description The size of each history interval, in seconds. Must be at least 1 second.
              */
             history_interval_seconds: number;
-            flows?: components["schemas"]["FlowFilter"];
-            flow_runs?: components["schemas"]["FlowRunFilter"];
-            task_runs?: components["schemas"]["TaskRunFilter"];
-            deployments?: components["schemas"]["DeploymentFilter"];
+            flows?: components["schemas"]["FlowFilter"] | null;
+            flow_runs?: components["schemas"]["FlowRunFilter"] | null;
+            task_runs?: components["schemas"]["TaskRunFilter"] | null;
+            deployments?: components["schemas"]["DeploymentFilter"] | null;
         };
         /** Body_validate_obj */
         Body_validate_obj: {
@@ -8656,7 +8656,7 @@ export interface components {
          */
         "IntervalSchedule-Output": {
             /** Interval */
-            interval: number | string;
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time

@@ -604,7 +604,7 @@ async def read_deployments(
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    sort: schemas.sorting.DeploymentSort = Body(
+    sort: Optional[schemas.sorting.DeploymentSort] = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
@@ -616,7 +616,7 @@ async def read_deployments(
         response = await models.deployments.read_deployments(
             session=session,
             offset=offset,
-            sort=sort,
+            sort=sort or schemas.sorting.DeploymentSort.NAME_ASC,
             limit=limit,
             flow_filter=flows,
             flow_run_filter=flow_runs,

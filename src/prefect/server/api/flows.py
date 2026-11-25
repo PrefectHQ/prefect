@@ -67,11 +67,11 @@ async def update_flow(
 
 @router.post("/count")
 async def count_flows(
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
@@ -126,12 +126,12 @@ async def read_flow(
 async def read_flows(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
-    work_pools: schemas.filters.WorkPoolFilter = None,
-    sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
+    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    sort: Optional[schemas.sorting.FlowSort] = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.Flow]:
     """
@@ -145,7 +145,7 @@ async def read_flows(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
-            sort=sort,
+            sort=sort or schemas.sorting.FlowSort.NAME_ASC,
             offset=offset,
             limit=limit,
         )

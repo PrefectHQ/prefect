@@ -112,10 +112,10 @@ async def update_task_run(
 @router.post("/count")
 async def count_task_runs(
     db: PrefectDBInterface = Depends(aprovide_database_interface),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
 ) -> int:
     """
     Count task runs.
@@ -143,10 +143,10 @@ async def task_run_history(
         ),
         json_schema_extra={"format": "time-delta"},
     ),
-    flows: schemas.filters.FlowFilter = None,
-    flow_runs: schemas.filters.FlowRunFilter = None,
-    task_runs: schemas.filters.TaskRunFilter = None,
-    deployments: schemas.filters.DeploymentFilter = None,
+    flows: Optional[schemas.filters.FlowFilter] = None,
+    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
+    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
+    deployments: Optional[schemas.filters.DeploymentFilter] = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.HistoryResponse]:
     """
@@ -193,7 +193,9 @@ async def read_task_run(
 
 @router.post("/filter")
 async def read_task_runs(
-    sort: schemas.sorting.TaskRunSort = Body(schemas.sorting.TaskRunSort.ID_DESC),
+    sort: Optional[schemas.sorting.TaskRunSort] = Body(
+        schemas.sorting.TaskRunSort.ID_DESC
+    ),
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
     flows: Optional[schemas.filters.FlowFilter] = None,
@@ -214,7 +216,7 @@ async def read_task_runs(
             deployment_filter=deployments,
             offset=offset,
             limit=limit,
-            sort=sort,
+            sort=sort or schemas.sorting.TaskRunSort.ID_DESC,
         )
 
 

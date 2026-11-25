@@ -103,14 +103,14 @@ async def read_variables(
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
     variables: Optional[filters.VariableFilter] = None,
-    sort: sorting.VariableSort = Body(sorting.VariableSort.NAME_ASC),
+    sort: Optional[sorting.VariableSort] = Body(sorting.VariableSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[core.Variable]:
     async with db.session_context() as session:
         return await models.variables.read_variables(
             session=session,
             variable_filter=variables,
-            sort=sort,
+            sort=sort or sorting.VariableSort.NAME_ASC,
             offset=offset,
             limit=limit,
         )

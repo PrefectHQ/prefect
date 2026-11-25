@@ -178,7 +178,7 @@ async def delete_automation(
 
 @router.post("/filter")
 async def read_automations(
-    sort: AutomationSort = Body(AutomationSort.NAME_ASC),
+    sort: Optional[AutomationSort] = Body(AutomationSort.NAME_ASC),
     limit: int = LimitBody(),
     offset: int = Body(0, ge=0),
     automations: Optional[AutomationFilter] = None,
@@ -187,7 +187,7 @@ async def read_automations(
     async with db.session_context() as session:
         return await automations_models.read_automations_for_workspace(
             session=session,
-            sort=sort,
+            sort=sort or AutomationSort.NAME_ASC,
             limit=limit,
             offset=offset,
             automation_filter=automations,

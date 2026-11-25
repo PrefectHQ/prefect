@@ -233,7 +233,7 @@ async def read_work_queue_runs(
 @router.post("/filter")
 async def read_work_queues(
     limit: int = dependencies.LimitBody(),
-    offset: int = Body(0, ge=0),
+    offset: Optional[int] = Body(0, ge=0),
     work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.WorkQueueResponse]:
@@ -242,7 +242,10 @@ async def read_work_queues(
     """
     async with db.session_context() as session:
         wqs = await models.work_queues.read_work_queues(
-            session=session, offset=offset, limit=limit, work_queue_filter=work_queues
+            session=session,
+            offset=offset or 0,
+            limit=limit,
+            work_queue_filter=work_queues,
         )
 
         ret = [
