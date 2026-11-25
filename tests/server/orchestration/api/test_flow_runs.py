@@ -24,6 +24,7 @@ from prefect.server import models, schemas
 from prefect.server.api.server import create_app
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.concurrency.lease_storage.filesystem import ConcurrencyLeaseStorage
+from prefect.server.database import PrefectDBInterface
 from prefect.server.database.orm_models import (
     Deployment,
     Flow,
@@ -657,6 +658,53 @@ class TestReadFlowRun:
         assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
 
 
+async def _seed_legacy_unusual_flow_runs(
+    session: AsyncSession, flow: Flow, db: PrefectDBInterface
+) -> tuple[FlowRun, FlowRun, set[str]]:
+    deep_value: Any = 1
+    for _ in range(300):
+        deep_value = [deep_value]
+
+    normal_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.actions.FlowRunCreate(
+            flow_id=flow.id, name="normal-run", parameters={"ok": True}
+        ),
+    )
+    deep_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.core.FlowRun(
+            flow_id=flow.id, name="deep-run", parameters={"x": deep_value}
+        ),
+    )
+    null_label_run = await models.flow_runs.create_flow_run(
+        session=session,
+        flow_run=schemas.core.FlowRun(
+            flow_id=flow.id,
+            name="null-label-run",
+            labels={"good": "ok"},
+        ),
+    )
+    await session.execute(
+        sa.update(FlowRun)
+        .where(FlowRun.id == null_label_run.id)
+        .values(labels={"bad": None, "good": "ok"})
+    )
+    expected_ids = {str(normal_run.id), str(deep_run.id), str(null_label_run.id)}
+    if db.dialect.name == "sqlite":
+        surrogate_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                name="surrogate-run",
+                parameters={"x": "\ud800"},
+            ),
+        )
+        expected_ids.add(str(surrogate_run.id))
+    await session.commit()
+    return normal_run, null_label_run, expected_ids
+
+
 class TestReadFlowRuns:
     @pytest.fixture
     async def flow_runs(self, flow, work_queue_1, session):
@@ -753,6 +801,23 @@ class TestReadFlowRuns:
         response = await client.get(f"/flow_runs/{flow_run.id}")
         assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["parameters"] == {"x": big_int}
+
+    async def test_read_flow_runs_with_legacy_unusual_rows(
+        self,
+        flow: Flow,
+        session: AsyncSession,
+        client: AsyncClient,
+        db: PrefectDBInterface,
+    ):
+        normal_run, null_label_run, expected_ids = await _seed_legacy_unusual_flow_runs(
+            session, flow, db
+        )
+        response = await client.post("/flow_runs/filter")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        by_id = {row["id"]: row for row in response.json()}
+        assert set(by_id) == expected_ids
+        assert by_id[str(normal_run.id)]["parameters"] == {"ok": True}
+        assert by_id[str(null_label_run.id)]["labels"] == {"good": "ok"}
 
     async def test_read_flow_runs_work_pool_fields(
         self,
@@ -3626,6 +3691,25 @@ class TestPaginateFlowRuns:
         (result,) = json["results"]
         assert result["id"] == str(flow_run.id)
         assert result["parameters"] == {"x": big_int}
+
+    async def test_paginate_flow_runs_with_legacy_unusual_rows(
+        self,
+        flow: Flow,
+        session: AsyncSession,
+        client: AsyncClient,
+        db: PrefectDBInterface,
+    ):
+        normal_run, null_label_run, expected_ids = await _seed_legacy_unusual_flow_runs(
+            session, flow, db
+        )
+        response = await client.post("/flow_runs/paginate")
+        assert response.status_code == status.HTTP_200_OK, response.text
+        data = response.json()
+        assert data["count"] == len(expected_ids)
+        by_id = {row["id"]: row for row in data["results"]}
+        assert set(by_id) == expected_ids
+        assert by_id[str(normal_run.id)]["parameters"] == {"ok": True}
+        assert by_id[str(null_label_run.id)]["labels"] == {"good": "ok"}
 
     async def test_read_flow_runs_work_pool_fields(
         self,

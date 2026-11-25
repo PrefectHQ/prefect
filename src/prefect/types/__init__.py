@@ -159,8 +159,10 @@ def cast_none_to_empty_dict(value: Any) -> dict[str, Any]:
     return value
 
 
+FiniteStrictFloat = Annotated[StrictFloat, Field(allow_inf_nan=False)]
+
 KeyValueLabels = Annotated[
-    dict[str, Union[StrictBool, StrictInt, StrictFloat, str]],
+    dict[str, Union[StrictBool, StrictInt, FiniteStrictFloat, str]],
     BeforeValidator(cast_none_to_empty_dict),
 ]
 

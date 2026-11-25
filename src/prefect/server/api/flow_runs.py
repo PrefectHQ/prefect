@@ -6,6 +6,7 @@ import asyncio
 import csv
 import datetime
 import io
+import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from urllib.parse import quote
 from uuid import UUID
@@ -24,6 +25,7 @@ from fastapi import (
     Request,
     Response,
 )
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy.exc import IntegrityError
 
@@ -70,18 +72,40 @@ logger: "logging.Logger" = get_logger("server.api")
 router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
+def _dump_json_compatible(model: Any) -> Any:
+    """
+    Dump a Pydantic model to JSON-compatible Python data, falling back to
+    FastAPI's encoder if pydantic-core's 255-level recursion guard trips on
+    a pre-existing deeply nested database row.
+    """
+    try:
+        return model.model_dump(mode="json")
+    except ValueError:
+        return jsonable_encoder(
+            model.model_dump(mode="python"),
+            custom_encoder={datetime.timedelta: lambda td: td.total_seconds()},
+        )
+
+
 def _json_response(content: Any) -> Response:
     """
     Serialize already JSON-compatible `content` into a JSON response.
 
     orjson is much faster than the FastAPI encoder, but it rejects integers
-    outside of the 64-bit range. Flow run parameters are arbitrary user data, so
-    fall back to pydantic-core, which supports arbitrarily large integers.
+    outside of the 64-bit range, nesting deeper than 256 levels, and unpaired
+    UTF-16 surrogates. Fall back to pydantic-core (for large ints) and then to
+    the standard library encoder so a single pre-existing row cannot break list
+    endpoints.
     """
     try:
         body = orjson.dumps(content)
-    except TypeError:
-        body = pydantic_core.to_json(content)
+    except (TypeError, ValueError):
+        try:
+            body = pydantic_core.to_json(content)
+        except (TypeError, ValueError):
+            body = json.dumps(content, ensure_ascii=True, allow_nan=False).encode(
+                "utf-8"
+            )
     return Response(content=body, media_type="application/json")
 
 
@@ -640,9 +664,11 @@ async def read_flow_runs(
         # In particular, the FastAPI encoder is very slow for large, nested objects.
         # See: https://github.com/tiangolo/fastapi/issues/1224
         encoded = [
-            schemas.responses.FlowRunResponse.model_validate(
-                fr, from_attributes=True
-            ).model_dump(mode="json")
+            _dump_json_compatible(
+                schemas.responses.FlowRunResponse.model_validate(
+                    fr, from_attributes=True
+                )
+            )
             for fr in db_flow_runs
         ]
         return _json_response(encoded)
@@ -1060,13 +1086,15 @@ async def paginate_flow_runs(
         for run in runs
     ]
 
-    response = FlowRunPaginationResponse(
-        results=results,
-        count=count,
-        limit=limit,
-        pages=(count + limit - 1) // limit if limit > 0 else 0,
-        page=page,
-    ).model_dump(mode="json")
+    response = _dump_json_compatible(
+        FlowRunPaginationResponse(
+            results=results,
+            count=count,
+            limit=limit,
+            pages=(count + limit - 1) // limit if limit > 0 else 0,
+            page=page,
+        )
+    )
 
     return _json_response(response)
 

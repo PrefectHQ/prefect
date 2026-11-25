@@ -44,56 +44,131 @@ def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
 # `json.loads` decodes with `surrogatepass`
 _SURROGATE_PATTERN = re.compile(rb"\\u[dD][89a-fA-F]|\xed[\xa0-\xbf]")
 
+# Keep request nesting below pydantic-core's (255) and orjson's (256) limits
+# even after response/pagination wrapper objects are added on read.
+MAX_JSON_NESTING_DEPTH = 200
+
+
+def _find_excessive_nesting(
+    value: Any, loc: tuple[str | int, ...], max_depth: int = MAX_JSON_NESTING_DEPTH
+) -> tuple[str | int, ...] | None:
+    """Return the location of the first container nested deeper than `max_depth`."""
+    stack: list[tuple[Any, tuple[str | int, ...], int]] = [(value, loc, 0)]
+    while stack:
+        current, current_loc, depth = stack.pop()
+        if isinstance(current, dict):
+            if depth > max_depth:
+                return current_loc
+            next_depth = depth + 1
+            for key, item in reversed(list(current.items())):
+                if isinstance(item, (dict, list)):
+                    stack.append((item, (*current_loc, key), next_depth))
+        elif isinstance(current, list):
+            if depth > max_depth:
+                return current_loc
+            next_depth = depth + 1
+            for index in range(len(current) - 1, -1, -1):
+                item = current[index]
+                if isinstance(item, (dict, list)):
+                    stack.append((item, (*current_loc, index), next_depth))
+    return None
+
 
 def _find_unpaired_surrogate(
     value: Any, loc: tuple[str | int, ...]
 ) -> tuple[str | int, ...] | None:
     """Return the location of the first string that is not encodable as UTF-8."""
-    if isinstance(value, str):
-        try:
-            value.encode("utf-8")
-        except UnicodeEncodeError:
-            return loc
-    elif isinstance(value, dict):
-        for key, item in value.items():
-            if _find_unpaired_surrogate(key, loc) is not None:
-                return loc
-            if (found := _find_unpaired_surrogate(item, (*loc, key))) is not None:
-                return found
-    elif isinstance(value, list):
-        for index, item in enumerate(value):
-            if (found := _find_unpaired_surrogate(item, (*loc, index))) is not None:
-                return found
+    stack: list[tuple[Any, tuple[str | int, ...]]] = [(value, loc)]
+    while stack:
+        current, current_loc = stack.pop()
+        if isinstance(current, str):
+            try:
+                current.encode("utf-8")
+            except UnicodeEncodeError:
+                return current_loc
+        elif isinstance(current, dict):
+            for key, item in reversed(list(current.items())):
+                if isinstance(item, (str, dict, list)):
+                    stack.append((item, (*current_loc, key)))
+                if isinstance(key, str):
+                    stack.append((key, current_loc))
+        elif isinstance(current, list):
+            for index in range(len(current) - 1, -1, -1):
+                item = current[index]
+                if isinstance(item, (str, dict, list)):
+                    stack.append((item, (*current_loc, index)))
     return None
 
 
-async def _reject_unpaired_surrogates(request: Request) -> None:
+async def _validate_json_body(request: Request) -> None:
     """
-    Reject JSON bodies containing unpaired surrogates (e.g. `"\\ud800"`), which
-    cannot be encoded as UTF-8 and so can neither be stored nor returned.
+    Reject JSON bodies containing excessively nested containers or unpaired
+    surrogates (e.g. `"\\ud800"`), which cannot be serialized cleanly on read.
     """
-    if "json" not in request.headers.get("content-type", "application/json"):
+    if "json" not in request.headers.get("content-type", "application/json").lower():
         return
-    if not _SURROGATE_PATTERN.search(await request.body()):
+    raw_body = await request.body()
+    has_surrogate_bytes = bool(_SURROGATE_PATTERN.search(raw_body))
+    might_exceed_depth = (
+        len(raw_body) > MAX_JSON_NESTING_DEPTH
+        and (raw_body.count(b"[") + raw_body.count(b"{")) > MAX_JSON_NESTING_DEPTH
+    )
+    if not has_surrogate_bytes and not might_exceed_depth:
         return
     try:
         body = await request.json()
     except ValueError:
         # Leave reporting malformed JSON to FastAPI
         return
-    loc = _find_unpaired_surrogate(body, ("body",))
-    if loc is not None:
+    except RecursionError:
         raise RequestValidationError(
             [
                 {
-                    "type": "string_unicode",
-                    "loc": loc,
-                    "msg": "String should not contain unpaired surrogates",
+                    "type": "value_error",
+                    "loc": ("body",),
+                    "msg": (
+                        f"JSON nesting depth exceeds maximum allowed depth of "
+                        f"{MAX_JSON_NESTING_DEPTH}"
+                    ),
                     "input": None,
                 }
             ],
-            body=body,
+            body=None,
         )
+
+    if (
+        might_exceed_depth
+        and (loc := _find_excessive_nesting(body, ("body",))) is not None
+    ):
+        raise RequestValidationError(
+            [
+                {
+                    "type": "value_error",
+                    "loc": loc,
+                    "msg": (
+                        f"JSON nesting depth exceeds maximum allowed depth of "
+                        f"{MAX_JSON_NESTING_DEPTH}"
+                    ),
+                    "input": None,
+                }
+            ],
+            body=None,
+        )
+
+    if has_surrogate_bytes:
+        loc = _find_unpaired_surrogate(body, ("body",))
+        if loc is not None:
+            raise RequestValidationError(
+                [
+                    {
+                        "type": "string_unicode",
+                        "loc": loc,
+                        "msg": "String should not contain unpaired surrogates",
+                        "input": None,
+                    }
+                ],
+                body=body,
+            )
 
 
 class PrefectAPIRoute(APIRoute):
@@ -114,7 +189,7 @@ class PrefectAPIRoute(APIRoute):
         async def handle_response_scoped_depends(request: Request) -> Response:
             # Create a new stack scoped to exit before the response is returned
             if self.body_field is not None:
-                await _reject_unpaired_surrogates(request)
+                await _validate_json_body(request)
 
             response = None
             async with AsyncExitStack() as stack:

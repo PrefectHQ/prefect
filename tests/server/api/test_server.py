@@ -282,6 +282,82 @@ async def test_surrogate_pairs_are_accepted(client: AsyncClient):
     assert response.json()["name"] == f"{name}-\U0001f600"
 
 
+@pytest.mark.parametrize("depth", [253, 300])
+async def test_deeply_nested_json_is_rejected(
+    client: AsyncClient,
+    flow: orm_models.Flow,
+    depth: int,
+):
+    nested = f"{'[' * depth}1{']' * depth}"
+    body = f'{{"flow_id": "{flow.id}", "parameters": {{"x": {nested}}}}}'.encode()
+    response = await client.post(
+        "/flow_runs/", content=body, headers={"content-type": "application/json"}
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert (
+        await client.post(
+            "/flow_runs/filter", json={"flows": {"id": {"any_": [str(flow.id)]}}}
+        )
+    ).json() == []
+
+
+async def test_deeply_nested_json_is_rejected_on_deployments_and_work_pools(
+    client: AsyncClient,
+    flow: orm_models.Flow,
+):
+    nested = f"{'[' * 253}1{']' * 253}"
+    dep_body = (
+        f'{{"name": "deep-dep-{uuid4()}", "flow_id": "{flow.id}", '
+        f'"parameters": {{"x": {nested}}}}}'
+    ).encode()
+    dep_response = await client.post(
+        "/deployments/",
+        content=dep_body,
+        headers={"content-type": "application/json"},
+    )
+    assert dep_response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    wp_body = (
+        f'{{"name": "deep-wp-{uuid4()}", "base_job_template": '
+        f'{{"job_configuration": {{"x": {nested}}}, "variables": {{}}}}}}'
+    ).encode()
+    wp_response = await client.post(
+        "/work_pools/",
+        content=wp_body,
+        headers={"content-type": "application/json"},
+    )
+    assert wp_response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
+async def test_non_finite_label_values_are_rejected(
+    client: AsyncClient,
+    flow: orm_models.Flow,
+    literal: str,
+):
+    body = f'{{"flow_id": "{flow.id}", "labels": {{"x": {literal}}}}}'.encode()
+    response = await client.post(
+        "/flow_runs/", content=body, headers={"content-type": "application/json"}
+    )
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert (
+        await client.post(
+            "/flow_runs/filter", json={"flows": {"id": {"any_": [str(flow.id)]}}}
+        )
+    ).json() == []
+
+    dep_body = (
+        f'{{"name": "nan-dep-{uuid4()}", "flow_id": "{flow.id}", '
+        f'"labels": {{"x": {literal}}}}}'
+    ).encode()
+    dep_response = await client.post(
+        "/deployments/",
+        content=dep_body,
+        headers={"content-type": "application/json"},
+    )
+    assert dep_response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
 async def test_values_rejected_by_the_database_return_422(
     client_without_exceptions: AsyncClient,
     flow: orm_models.Flow,
