@@ -5,14 +5,20 @@ import pathlib
 import socket
 import sqlite3
 import sys
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
 import httpx
+import jsonschema
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi import Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
@@ -104,6 +110,117 @@ async def test_validation_error_handler_422(client):
         }
     ]
     assert response.json()["request_body"] == bad_flow_data
+
+
+@pytest.fixture
+async def openapi_schema(client: AsyncClient) -> dict[str, Any]:
+    response = await client.get("/openapi.json")
+    assert response.status_code == status.HTTP_200_OK
+    return response.json()
+
+
+def _documented_422_schema(
+    openapi_schema: dict[str, Any], path: str, method: str
+) -> dict[str, Any]:
+    response = openapi_schema["paths"][path][method]["responses"]["422"]
+    return {
+        **response["content"]["application/json"]["schema"],
+        "components": openapi_schema["components"],
+    }
+
+
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/flow_runs/filter", {"limit": "ten"}),
+        ("/flow_runs/filter", {"limit": 500}),
+        ("/templates/validate", "{{ broken"),
+        ("/templates/validate", 5),
+        ("/automations/templates/validate", "{{ broken"),
+        ("/automations/templates/validate", 5),
+    ],
+)
+async def test_422_responses_match_openapi_schema(
+    client: AsyncClient, openapi_schema: dict[str, Any], path: str, body: Any
+):
+    response = await client.post(path, json=body)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    jsonschema.validate(
+        response.json(), _documented_422_schema(openapi_schema, path, "post")
+    )
+
+
+def test_create_app_openapi_documents_prefect_422_responses():
+    app = create_app(ephemeral=True)
+    schema = app.openapi()
+    validation = schema["components"]["schemas"]["InvalidRequestResponse"]
+    assert set(validation["properties"]) == {
+        "exception_message",
+        "exception_detail",
+        "request_body",
+    }
+    assert validation["properties"]["exception_message"]["type"] == "string"
+    assert validation["properties"]["exception_detail"]["type"] == "array"
+    assert _documented_422_schema(schema, "/flows/", "post") == _documented_422_schema(
+        app.api_app.openapi(), "/flows/", "post"
+    )
+
+
+@pytest.mark.parametrize(
+    "fast_api_app_kwargs",
+    [
+        {},
+        {"exception_handlers": None},
+        {
+            "exception_handlers": {
+                RequestValidationError: request_validation_exception_handler
+            }
+        },
+    ],
+)
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/templates/validate", 5),
+        ("/automations/templates/validate", 5),
+    ],
+)
+async def test_api_app_keeps_fastapi_validation_handler(
+    fast_api_app_kwargs: dict[str, Any], path: str, body: Any
+):
+    api_app = create_api_app(ignore_cache=True, fast_api_app_kwargs=fast_api_app_kwargs)
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post(path, json=body)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert set(response.json()) == {"detail"}
+    assert isinstance(response.json()["detail"], list)
+    jsonschema.validate(
+        response.json(), _documented_422_schema(api_app.openapi(), path, "post")
+    )
+
+
+async def test_api_app_keeps_custom_validation_handler():
+    async def custom_validation_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse({"custom": exc.body}, status_code=400)
+
+    api_app = create_api_app(
+        ignore_cache=True,
+        fast_api_app_kwargs={
+            "exception_handlers": {RequestValidationError: custom_validation_handler}
+        },
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post("/flows/", json={})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {"custom": {}}
 
 
 async def test_validation_error_handler_renders_non_finite_floats(client: AsyncClient):

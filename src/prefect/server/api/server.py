@@ -64,6 +64,7 @@ from prefect.server.database import (
     provide_database_interface,
 )
 from prefect.server.exceptions import ObjectNotFoundError
+from prefect.server.schemas.responses import HTTPErrorResponse, InvalidRequestResponse
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
@@ -1114,6 +1115,12 @@ def create_app(
     )
     api_app = create_api_app(
         fast_api_app_kwargs={
+            "responses": {
+                422: {
+                    "model": InvalidRequestResponse | HTTPErrorResponse,
+                    "description": "Validation Error",
+                }
+            },
             "exception_handlers": {
                 # NOTE: FastAPI special cases the generic `Exception` handler and
                 #       registers it as a separate middleware from the others
@@ -1121,7 +1128,7 @@ def create_app(
                 RequestValidationError: validation_exception_handler,
                 sa.exc.IntegrityError: integrity_exception_handler,
                 ObjectNotFoundError: prefect_object_not_found_exception_handler,
-            }
+            },
         },
         final=final,
         ignore_cache=ignore_cache,
