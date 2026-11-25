@@ -284,6 +284,20 @@ async def test_resets_the_events_clock_at_startup_and_shutdown(
     assert await triggers.get_known_events_clock_offset(frozen_time) is None
 
 
+async def test_events_clock_idle_timer_starts_after_reconciling(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def slow_reconcile(force: bool = False) -> bool:
+        advance_time(triggers.EVENTS_CLOCK_IDLE_THRESHOLD * 2)
+        return False
+
+    monkeypatch.setattr(triggers, "reconcile_automations", slow_reconcile)
+
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        assert await triggers.get_known_events_clock_offset(now("UTC")) is None
+
+
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
     open_automations_session: mock.Mock,
     load_automations: mock.AsyncMock,

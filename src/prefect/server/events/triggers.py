@@ -1468,6 +1468,10 @@ async def consumer(
     try:
         await reconcile_automations(force=True)
 
+        # Reconciling can be slow, so restart the idle timer now that this consumer is
+        # about to start handling events
+        await reset_events_clock()
+
         proactive_task = asyncio.create_task(
             evaluate_periodically(periodic_granularity)
         )
