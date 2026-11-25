@@ -127,6 +127,19 @@ def test_deploy_init_field_value_can_contain_equals(
     assert captured_inputs == {"api_key": "aGVsbG8gd29ybGQ="}
 
 
+def test_deploy_init_field_without_equals_exits_with_error(tmp_path: Path):
+    invoke_and_assert(
+        ["deploy", "init", "--recipe", "local", "--field", "image_name"],
+        temp_dir=str(tmp_path),
+        expected_code=1,
+        expected_output_contains=(
+            "Invalid field 'image_name'. Expected format 'key=value'."
+        ),
+        expected_output_does_not_contain="Traceback",
+    )
+    assert not (tmp_path / "prefect.yaml").exists()
+
+
 @pytest.fixture
 def project_dir(tmp_path: Path):
     with tmpchdir(str(tmp_path)):
