@@ -570,10 +570,7 @@ async def get_events_clock_offset() -> float:
         if _events_clock is None or _events_clock_updated is None:
             return 0.0
 
-        now: float = prefect.types._datetime.now("UTC").timestamp()
-        offset = (_events_clock - now) + (now - _events_clock_updated)
-
-    return offset
+        return _events_clock - _events_clock_updated
 
 
 async def events_clock_is_known(now: prefect.types._datetime.DateTime) -> bool:
@@ -1494,24 +1491,23 @@ async def proactive_evaluation(
 
 
 async def evaluate_proactive_triggers() -> None:
-    if not await events_clock_is_known(prefect.types._datetime.now("UTC")):
-        logger.debug("Skipping proactive evaluation until the events clock is known")
-        return
-
     for trigger in list(triggers.values()):
         if trigger.posture != Posture.Proactive:
             continue
 
-        next_run = next_proactive_runs.get(
-            trigger.id, prefect.types._datetime.now("UTC")
-        )
-        if next_run > prefect.types._datetime.now("UTC"):
+        now = prefect.types._datetime.now("UTC")
+        if next_proactive_runs.get(trigger.id, now) > now:
             continue
 
-        try:
-            run_again_at = await proactive_evaluation(
-                trigger, prefect.types._datetime.now("UTC")
+        # The consumer can reset the clock while a previous trigger is evaluated.
+        if not await events_clock_is_known(now):
+            logger.debug(
+                "Skipping proactive evaluation until the events clock is known"
             )
+            return
+
+        try:
+            run_again_at = await proactive_evaluation(trigger, now)
             logger.debug(
                 "Automation %s trigger %s will run again at %s",
                 trigger.automation.id,

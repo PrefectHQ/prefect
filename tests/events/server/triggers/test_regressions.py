@@ -1245,3 +1245,68 @@ async def test_lost_followers_on_restart_do_not_sweep_buckets_open_in_event_time
 
     trigger = triggers.triggers[automation.trigger.id]
     assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
+
+
+async def test_proactive_batch_waits_when_the_events_clock_is_reset(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    act: mock.AsyncMock,
+):
+    loaded: list[Automation] = []
+    for index in range(2):
+        automation = await automations.create_automation(
+            automations_session,
+            Automation(
+                name=f"no heartbeat for 10 minutes {index}",
+                trigger=EventTrigger(
+                    match={"prefect.resource.id": "some.*"},
+                    after={"heartbeat"},
+                    expect={"heartbeat"},
+                    for_each={"prefect.resource.id"},
+                    posture=Posture.Proactive,
+                    threshold=1,
+                    within=timedelta(minutes=10),
+                ),
+                actions=[actions.DoNothing()],
+            ),
+        )
+        triggers.load_automation(automation)
+        loaded.append(automation)
+    await automations_session.commit()
+
+    event = Event(
+        occurred=frozen_time - timedelta(hours=2),
+        event="heartbeat",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(event)
+    original_evaluation = triggers.proactive_evaluation
+
+    async def reset_after_first(trigger: EventTrigger, as_of: DateTime) -> DateTime:
+        run_again_at = await original_evaluation(trigger, as_of)
+        if trigger.id == loaded[0].trigger.id:
+            # Consumer shutdown can reset the clock during a proactive batch.
+            await triggers.reset_events_clock()
+        return run_again_at
+
+    monkeypatch.setattr(triggers, "proactive_evaluation", reset_after_first)
+    await triggers.evaluate_proactive_triggers()
+
+    act.assert_not_awaited()
+    deferred_trigger = triggers.triggers[loaded[1].trigger.id]
+    assert deferred_trigger.id not in triggers.next_proactive_runs
+    assert await triggers.read_bucket(
+        automations_session, deferred_trigger, ("some.resource",)
+    )
+
+    # The skipped trigger remains eligible once the consumer handles another event.
+    monkeypatch.setattr(triggers, "proactive_evaluation", original_evaluation)
+    await triggers.update_events_clock(event)
+    await triggers.evaluate_proactive_triggers()
+
+    act.assert_not_awaited()
+    assert deferred_trigger.id in triggers.next_proactive_runs
