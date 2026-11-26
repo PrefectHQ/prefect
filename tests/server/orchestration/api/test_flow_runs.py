@@ -4282,3 +4282,64 @@ class TestDownloadFlowRunLogs:
             assert line_count == expected_line_count, (
                 f"Expected {expected_line_count} lines, got {line_count}"
             )
+
+
+class TestUpdateFlowRunLabels:
+    @pytest.mark.parametrize("raw_value", ["NaN", "Infinity", "-Infinity"])
+    async def test_update_flow_run_labels_rejects_non_finite_floats(
+        self,
+        flow: Flow,
+        session: AsyncSession,
+        client: AsyncClient,
+        raw_value: str,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, labels={"keep": "yes"}
+            ),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/flow_runs/{flow_run.id}/labels",
+            content=f'{{"bad": {raw_value}}}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+        read_response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert read_response.status_code == status.HTTP_200_OK
+        assert read_response.json()["labels"] == {
+            "prefect.flow.id": str(flow.id),
+            "keep": "yes",
+        }
+
+    async def test_update_flow_run_labels_accepts_finite_values(
+        self,
+        flow: Flow,
+        session: AsyncSession,
+        client: AsyncClient,
+    ):
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.actions.FlowRunCreate(
+                flow_id=flow.id, labels={"keep": "yes"}
+            ),
+        )
+        await session.commit()
+
+        response = await client.patch(
+            f"/flow_runs/{flow_run.id}/labels",
+            json={"added": 1.5, "flag": True},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        read_response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert read_response.status_code == status.HTTP_200_OK
+        assert read_response.json()["labels"] == {
+            "prefect.flow.id": str(flow.id),
+            "keep": "yes",
+            "added": 1.5,
+            "flag": True,
+        }

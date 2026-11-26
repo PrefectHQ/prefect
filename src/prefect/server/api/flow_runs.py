@@ -60,7 +60,7 @@ from prefect.server.services.cancellation_cleanup import (
     maybe_schedule_cancelling_timeout_check_for_state,
 )
 from prefect.server.utilities.server import PrefectRouter
-from prefect.types import DateTime
+from prefect.types import DateTime, KeyValueLabels
 from prefect.types._datetime import earliest_possible_datetime, now
 from prefect.utilities import schema_tools
 
@@ -1195,7 +1195,7 @@ async def download_logs(
 @router.patch("/{id:uuid}/labels", status_code=status.HTTP_204_NO_CONTENT)
 async def update_flow_run_labels(
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
-    labels: Dict[str, Any] = Body(..., description="The labels to update"),
+    labels: KeyValueLabels = Body(..., description="The labels to update"),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
