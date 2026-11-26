@@ -192,13 +192,13 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
     ) -> httpcore.AsyncNetworkStream:
+        deadline = time.monotonic() + timeout if timeout is not None else None
         # Resolve in a worker thread so the event loop is not blocked during
         # DNS lookups (which can be slow or intermittently failing).
         validated_ips = await anyio.to_thread.run_sync(
             _resolve_and_validate_for_connect, host
         )
         last_exc: Optional[BaseException] = None
-        deadline = time.monotonic() + timeout if timeout is not None else None
         for ip in validated_ips:
             remaining = _remaining_timeout(deadline)
             if remaining == 0.0:
@@ -213,8 +213,9 @@ class _SSRFProtectedAsyncBackend(httpcore.AsyncNetworkBackend):
                 )
             except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
                 last_exc = exc
-        assert last_exc is not None
-        raise last_exc
+        if last_exc is not None:
+            raise last_exc
+        raise httpcore.ConnectTimeout(f"Timed out connecting to {host!r}")
 
     async def connect_unix_socket(
         self,
@@ -244,9 +245,9 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
         local_address: Optional[str] = None,
         socket_options: Optional[Iterable[Any]] = None,
     ) -> httpcore.NetworkStream:
+        deadline = time.monotonic() + timeout if timeout is not None else None
         validated_ips = _resolve_and_validate_for_connect(host)
         last_exc: Optional[BaseException] = None
-        deadline = time.monotonic() + timeout if timeout is not None else None
         for ip in validated_ips:
             remaining = _remaining_timeout(deadline)
             if remaining == 0.0:
@@ -261,8 +262,9 @@ class _SSRFProtectedSyncBackend(httpcore.NetworkBackend):
                 )
             except (httpcore.ConnectError, httpcore.ConnectTimeout, OSError) as exc:
                 last_exc = exc
-        assert last_exc is not None
-        raise last_exc
+        if last_exc is not None:
+            raise last_exc
+        raise httpcore.ConnectTimeout(f"Timed out connecting to {host!r}")
 
     def connect_unix_socket(
         self,
