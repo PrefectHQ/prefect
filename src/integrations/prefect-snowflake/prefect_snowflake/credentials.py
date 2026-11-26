@@ -378,11 +378,25 @@ class SnowflakeCredentials(CredentialsBlock):
             connection = snowflake_credentials_block.get_client(database="my_database")
             ```
         """  # noqa
+        dumped_params = {
+            key: value
+            for key, value in self.model_dump(
+                exclude_unset=True,
+                exclude_none=True,
+                exclude={
+                    "block_type_slug",
+                    "_block_document_id",
+                    "_block_document_name",
+                    "_is_anonymous",
+                },
+            ).items()
+            if not key.startswith("_")
+        }
         connect_params = {
             # required to track task's usage in the Snowflake Partner Network Portal
             "application": "Prefect_Snowflake_Collection",
-            **self.model_dump(exclude_unset=True, exclude={"block_type_slug"}),
-            **connect_kwargs,
+            **dumped_params,
+            **{k: v for k, v in connect_kwargs.items() if v is not None},
         }
 
         for key, value in connect_params.items():
@@ -401,5 +415,6 @@ class SnowflakeCredentials(CredentialsBlock):
             connect_params["private_key"] = private_der_key
             connect_params.pop("password", None)
             connect_params.pop("private_key_passphrase", None)
+            connect_params.pop("private_key_path", None)
 
         return snowflake.connector.connect(**connect_params)
