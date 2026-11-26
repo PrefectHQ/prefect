@@ -1,4 +1,7 @@
 import datetime
+import os
+import sys
+import tempfile
 import time
 from datetime import timedelta
 from logging import Logger
@@ -6,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import anyio
+import anyio.to_thread
 import pydantic_core
 from typing_extensions import TypedDict
 
@@ -15,6 +19,56 @@ from prefect.types._datetime import now, parse_datetime
 from .protocol import LockManager
 
 logger: Logger = get_logger(__name__)
+
+
+def _serialize_lock_info(holder: str, expiration: Optional[datetime.datetime]) -> bytes:
+    return pydantic_core.to_json(
+        {
+            "holder": holder,
+            "expiration": str(expiration) if expiration is not None else None,
+        }
+    )
+
+
+def _create_lock_file(lock_path: Path, data: bytes) -> None:
+    """Atomically create a lock file populated with `data`.
+
+    Writes `data` to a sibling temporary file and hard-links it into place so
+    concurrent readers never observe an empty or partially written lock file.
+    Falls back to `open(..., "xb")` on filesystems without hard-link support.
+    Raises `FileExistsError` if `lock_path` already exists.
+    """
+    fd, tmp_path = tempfile.mkstemp(dir=lock_path.parent, prefix=".lock_")
+    try:
+        with os.fdopen(fd, "wb") as tmp_file:
+            fd = -1
+            tmp_file.write(data)
+        try:
+            os.link(tmp_path, lock_path)
+        except FileExistsError:
+            raise
+        except OSError:
+            with open(lock_path, "xb") as lock_file:
+                lock_file.write(data)
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        try:
+            os.unlink(tmp_path)
+        except FileNotFoundError:
+            pass
+
+
+def _unlink_lock_file(lock_path: Path) -> None:
+    """Remove `lock_path`, ignoring missing files and retrying transient Windows sharing errors."""
+    for attempt in range(5):
+        try:
+            lock_path.unlink(missing_ok=True)
+            return
+        except PermissionError:
+            if sys.platform != "win32" or attempt == 4:
+                raise
+            time.sleep(0.01)
 
 
 class _LockInfo(TypedDict):
@@ -103,37 +157,41 @@ class FileSystemLockManager(LockManager):
     ) -> bool:
         self._ensure_lock_files_directory_exists()
         lock_path = self._lock_path_for_key(key)
-
-        if self.is_locked(key) and not self.is_lock_holder(key, holder):
-            lock_free = self.wait_for_lock(key, acquire_timeout)
-            if not lock_free:
-                return False
-
-        try:
-            Path(lock_path).touch(exist_ok=False)
-        except FileExistsError:
-            if not self.is_lock_holder(key, holder):
-                logger.debug(
-                    f"Another actor acquired the lock for record with key {key}. Trying again."
-                )
-                return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
-        expiration = (
-            now("UTC") + timedelta(seconds=hold_timeout)
-            if hold_timeout is not None
-            else None
+        deadline = (
+            time.monotonic() + acquire_timeout if acquire_timeout is not None else None
         )
 
-        with open(Path(lock_path), "wb") as lock_file:
-            lock_file.write(
-                pydantic_core.to_json(
-                    {
-                        "holder": holder,
-                        "expiration": str(expiration)
-                        if expiration is not None
-                        else None,
-                    },
+        while True:
+            if self.is_locked(key) and not self.is_lock_holder(key, holder):
+                remaining = (
+                    max(0.0, deadline - time.monotonic())
+                    if deadline is not None
+                    else None
                 )
+                lock_free = self.wait_for_lock(key, remaining)
+                if not lock_free:
+                    return False
+
+            expiration = (
+                now("UTC") + timedelta(seconds=hold_timeout)
+                if hold_timeout is not None
+                else None
             )
+            lock_info_bytes = _serialize_lock_info(holder, expiration)
+
+            try:
+                _create_lock_file(lock_path, lock_info_bytes)
+            except FileExistsError:
+                if not self.is_lock_holder(key, holder):
+                    if deadline is not None and time.monotonic() >= deadline:
+                        return False
+                    logger.debug(
+                        f"Another actor acquired the lock for record with key {key}. Trying again."
+                    )
+                    continue
+                with open(Path(lock_path), "wb") as lock_file:
+                    lock_file.write(lock_info_bytes)
+            break
 
         self._locks[key] = {
             "holder": holder,
@@ -152,37 +210,43 @@ class FileSystemLockManager(LockManager):
     ) -> bool:
         await anyio.Path(self.lock_files_directory).mkdir(parents=True, exist_ok=True)
         lock_path = self._lock_path_for_key(key)
-
-        if self.is_locked(key) and not self.is_lock_holder(key, holder):
-            lock_free = await self.await_for_lock(key, acquire_timeout)
-            if not lock_free:
-                return False
-
-        try:
-            await anyio.Path(lock_path).touch(exist_ok=False)
-        except FileExistsError:
-            if not self.is_lock_holder(key, holder):
-                logger.debug(
-                    f"Another actor acquired the lock for record with key {key}. Trying again."
-                )
-                return self.acquire_lock(key, holder, acquire_timeout, hold_timeout)
-        expiration = (
-            now("UTC") + timedelta(seconds=hold_timeout)
-            if hold_timeout is not None
-            else None
+        deadline = (
+            time.monotonic() + acquire_timeout if acquire_timeout is not None else None
         )
 
-        async with await anyio.Path(lock_path).open("wb") as lock_file:
-            await lock_file.write(
-                pydantic_core.to_json(
-                    {
-                        "holder": holder,
-                        "expiration": str(expiration)
-                        if expiration is not None
-                        else None,
-                    },
+        while True:
+            if self.is_locked(key) and not self.is_lock_holder(key, holder):
+                remaining = (
+                    max(0.0, deadline - time.monotonic())
+                    if deadline is not None
+                    else None
                 )
+                lock_free = await self.await_for_lock(key, remaining)
+                if not lock_free:
+                    return False
+
+            expiration = (
+                now("UTC") + timedelta(seconds=hold_timeout)
+                if hold_timeout is not None
+                else None
             )
+            lock_info_bytes = _serialize_lock_info(holder, expiration)
+
+            try:
+                await anyio.to_thread.run_sync(
+                    _create_lock_file, lock_path, lock_info_bytes
+                )
+            except FileExistsError:
+                if not self.is_lock_holder(key, holder):
+                    if deadline is not None and time.monotonic() >= deadline:
+                        return False
+                    logger.debug(
+                        f"Another actor acquired the lock for record with key {key}. Trying again."
+                    )
+                    continue
+                async with await anyio.Path(lock_path).open("wb") as lock_file:
+                    await lock_file.write(lock_info_bytes)
+            break
 
         self._locks[key] = {
             "holder": holder,
@@ -195,7 +259,7 @@ class FileSystemLockManager(LockManager):
     def release_lock(self, key: str, holder: str) -> None:
         lock_path = self._lock_path_for_key(key)
         if self.is_lock_holder(key, holder):
-            Path(lock_path).unlink(missing_ok=True)
+            _unlink_lock_file(Path(lock_path))
             self._locks.pop(key, None)
             return
         if not self.is_locked(key):
@@ -216,7 +280,7 @@ class FileSystemLockManager(LockManager):
 
         expired = expiration < now("UTC")
         if expired:
-            Path(lock_info["path"]).unlink()
+            _unlink_lock_file(Path(lock_info["path"]))
             self._locks.pop(key, None)
             return False
         else:
@@ -225,27 +289,30 @@ class FileSystemLockManager(LockManager):
     def is_lock_holder(self, key: str, holder: str) -> bool:
         if not self.is_locked(key):
             return False
-
-        if not self.is_locked(key):
-            return False
         if (lock_info := self._get_lock_info(key)) is None:
             return False
         return lock_info["holder"] == holder
 
     def wait_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
-        seconds_waited = 0
+        deadline = time.monotonic() + timeout if timeout is not None else None
         while self.is_locked(key, use_cache=False):
-            if timeout and seconds_waited >= timeout:
-                return False
-            seconds_waited += 0.1
-            time.sleep(0.1)
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                time.sleep(min(0.1, remaining))
+            else:
+                time.sleep(0.1)
         return True
 
     async def await_for_lock(self, key: str, timeout: Optional[float] = None) -> bool:
-        seconds_waited = 0
+        deadline = time.monotonic() + timeout if timeout is not None else None
         while self.is_locked(key, use_cache=False):
-            if timeout and seconds_waited >= timeout:
-                return False
-            seconds_waited += 0.1
-            await anyio.sleep(0.1)
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                await anyio.sleep(min(0.1, remaining))
+            else:
+                await anyio.sleep(0.1)
         return True
