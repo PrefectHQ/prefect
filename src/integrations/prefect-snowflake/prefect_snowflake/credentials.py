@@ -378,10 +378,20 @@ class SnowflakeCredentials(CredentialsBlock):
             connection = snowflake_credentials_block.get_client(database="my_database")
             ```
         """  # noqa
+        # A loaded block reports every field as set and includes private block
+        # metadata (e.g. `_block_document_id`), so only pass fields that differ
+        # from their defaults. The connector rejects `None` and non-scalar options.
+        block_params = {
+            key: value
+            for key, value in self.model_dump(
+                exclude_defaults=True, exclude={"block_type_slug"}
+            ).items()
+            if not key.startswith("_")
+        }
         connect_params = {
             # required to track task's usage in the Snowflake Partner Network Portal
             "application": "Prefect_Snowflake_Collection",
-            **self.model_dump(exclude_unset=True, exclude={"block_type_slug"}),
+            **block_params,
             **connect_kwargs,
         }
 
@@ -400,6 +410,7 @@ class SnowflakeCredentials(CredentialsBlock):
         if private_der_key is not None:
             connect_params["private_key"] = private_der_key
             connect_params.pop("password", None)
+            connect_params.pop("private_key_path", None)
             connect_params.pop("private_key_passphrase", None)
 
         return snowflake.connector.connect(**connect_params)

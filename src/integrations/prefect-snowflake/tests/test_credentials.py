@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+from uuid import uuid4
 
 import pytest
 from prefect_snowflake.credentials import InvalidPemFormat, SnowflakeCredentials
@@ -301,6 +302,55 @@ def test_get_client(credentials_params, snowflake_connect_mock: MagicMock):
         user="user",
         password="password",
     )
+
+
+def test_get_client_excludes_none_fields(
+    credentials_params, snowflake_connect_mock: MagicMock
+):
+    snowflake_credentials = SnowflakeCredentials(
+        **credentials_params, role=None, private_key_path=None, token=None
+    )
+    snowflake_credentials.get_client()
+    snowflake_connect_mock.assert_called_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        password="password",
+    )
+
+
+def test_get_client_loaded_block(credentials_params, snowflake_connect_mock: MagicMock):
+    block_name = f"test-get-client-{uuid4()}"
+    SnowflakeCredentials(**credentials_params).save(block_name)
+    snowflake_credentials = SnowflakeCredentials.load(block_name)
+    snowflake_credentials.get_client()
+    snowflake_connect_mock.assert_called_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        password="password",
+    )
+
+
+def test_get_client_loaded_private_key_path_block(
+    snowflake_connect_mock: MagicMock,
+):
+    block_name = f"test-get-client-{uuid4()}"
+    SnowflakeCredentials(
+        account="account",
+        user="user",
+        private_key_path=Path(__file__).parent / "test_data" / "test_cert.p8",
+        private_key_passphrase="letmein",
+    ).save(block_name)
+    snowflake_credentials = SnowflakeCredentials.load(block_name)
+    snowflake_credentials.get_client()
+    connect_params = snowflake_connect_mock.call_args.kwargs
+    assert isinstance(connect_params.pop("private_key"), bytes)
+    assert connect_params == {
+        "application": "Prefect_Snowflake_Collection",
+        "account": "account",
+        "user": "user",
+    }
 
 
 def test_get_client_okta_endpoint(
