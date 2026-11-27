@@ -537,7 +537,7 @@ This CI pipeline approach allows versioning and automating your flows deployment
 ### Prefect in Production
 Once deployed, Prefect schedules and orchestrates flows based on your **deployments**. Follow these best practices to ensure a reliable production setup:
 
-- **High Availability**: If self-hosting, use PostgreSQL and consider running **multiple API replicas** behind a load balancer. [**Prefect Cloud**](https://prefect.io/cloud) handles availability automatically.
+- **High Availability**: If self-hosting, use PostgreSQL and consider running **multiple API replicas** behind a load balancer. [**Prefect Cloud**](https://www.prefect.io/prefect/cloud) handles availability automatically.
 - **Keep Workers Active**: Ensure Prefect workers are always running, whether as systemd services, Docker containers, or Kubernetes deployments.
 - **Logging & Observability**: Use Prefect's UI for logs or configure external storage (e.g., S3, Elasticsearch) for **long-term retention**.
 - **Notifications & Alerts**: Set up failure alerts via Slack, email, or Twilio using [**Prefect Automations**](/v3/automate/events/automations-triggers) to ensure timely issue resolution.
@@ -639,5 +639,5 @@ Prefect allows your team to focus on engineering—iterating faster, improving r
 - [See more Prefect examples](/v3/examples/index)
 - [Join the community](https://prefect.io/slack)
 - [Dig into Prefect's Integrations](/integrations/integrations)
-- [Learn more about Prefect Cloud](https://prefect.io/cloud)
+- [Learn more about Prefect Cloud](https://www.prefect.io/prefect/cloud)
 - [Visit Prefect's GitHub](https://github.com/PrefectHQ/prefect)

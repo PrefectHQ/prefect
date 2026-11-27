@@ -15,6 +15,7 @@ from prefect.runner._process_manager import (
     _create_windows_job_termination_scope,
     _pid_is_alive,
     _PosixProcessGroupTerminationScope,
+    create_spawn_process_termination_scope,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -441,6 +442,29 @@ class TestPidIsAlive:
 
         assert _pid_is_alive(67890) is False
         fake_kernel32.CloseHandle.assert_called_once_with(456)
+
+
+async def test_windows_spawn_process_kill_terminates_without_console_event(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # A spawn child is not a process group leader, so a CTRL_BREAK_EVENT sent to
+    # its pid would reach every process on the runner's console instead.
+    monkeypatch.setattr("prefect.runner._process_manager.sys.platform", "win32")
+    termination_scope = create_spawn_process_termination_scope()
+
+    async with ProcessManager() as pm:
+        flow_run_id = uuid4()
+        process = MagicMock(pid=12345, exitcode=None)
+        await pm.add(
+            flow_run_id,
+            ProcessHandle(process, termination_scope=termination_scope),
+        )
+
+        with patch("prefect.runner._process_manager.os.kill") as mock_kill:
+            await pm.kill(flow_run_id, grace_seconds=0)
+        await pm.remove(flow_run_id)
+
+    mock_kill.assert_called_once_with(12345, signal.SIGTERM)
 
 
 async def test_windows_job_scope_force_kills_and_closes_the_owned_tree(

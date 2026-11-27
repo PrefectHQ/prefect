@@ -1267,23 +1267,6 @@ class TestGitCloneStep:
         assert "Network timeout" in caplog.text
         assert "Server busy" in caplog.text
 
-    async def test_agit_clone_with_commit_sha(self, git_repository_mock):
-        output = await agit_clone(
-            repository="https://github.com/org/repo.git",
-            commit_sha="1234567890",
-        )
-        assert output["directory"] == "repo"
-        git_repository_mock.assert_called_once_with(
-            url="https://github.com/org/repo.git",
-            credentials=None,
-            branch=None,
-            commit_sha="1234567890",
-            include_submodules=False,
-            directories=None,
-            name=None,
-        )
-        git_repository_mock.return_value.pull_code.assert_awaited_once()
-
     async def test_agit_clone_via_steps(self, monkeypatch, caplog):
         """Test that async-only steps work when called via step syntax"""
         mock_git_repo = MagicMock()

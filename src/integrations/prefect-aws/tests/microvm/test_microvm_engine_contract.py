@@ -12,6 +12,7 @@ from uuid import UUID
 
 import pytest
 
+import prefect._flow_run_suspension
 import prefect.engine
 import prefect.flow_engine
 from prefect._internal.concurrency.services import QueueService
@@ -49,6 +50,14 @@ def test_run_flow_from_runtime_entrypoint_signature():
     assert describe_parameters(function) == [
         ("flow_run_id", POSITIONAL_OR_KEYWORD, NO_DEFAULT, UUID),
         ("entrypoint", POSITIONAL_OR_KEYWORD, NO_DEFAULT, str),
+    ]
+
+
+def test_prestart_flow_run_suspension_observer_signature():
+    function = prefect._flow_run_suspension.prestart_flow_run_suspension_observer
+
+    assert describe_parameters(function) == [
+        ("flow_run_id", POSITIONAL_OR_KEYWORD, NO_DEFAULT, UUID),
     ]
 
 
@@ -93,6 +102,7 @@ def test_drain_all_accepts_a_timeout(worker: type[QueueService[typing.Any]]):
         ("prefect.flow_engine", "load_flow"),
         ("prefect.flow_engine", "flow_run_logger"),
         ("prefect.utilities.engine", "propose_state_sync"),
+        ("prefect._flow_run_suspension", "prestart_flow_run_suspension_observer"),
     ],
 )
 def test_engine_functions_the_entrypoint_calls_import(module: str, name: str):

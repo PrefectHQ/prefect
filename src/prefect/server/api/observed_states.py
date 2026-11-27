@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Query
 
 from prefect.server import models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.schemas.observed_states import ObservedState, ObservedStateSort
 from prefect.server.utilities.server import PrefectRouter
 
@@ -16,7 +16,7 @@ router: PrefectRouter = PrefectRouter(
 
 @router.get("")
 async def read_observed_states(
-    db: Annotated[PrefectDBInterface, Depends(provide_database_interface)],
+    db: Annotated[PrefectDBInterface, Depends(aprovide_database_interface)],
     query: Annotated[str | None, Query(max_length=100)] = None,
     order_by: ObservedStateSort = ObservedStateSort.LAST_SEEN_DESC,
     limit: Annotated[int, Query(ge=1, le=200)] = 200,

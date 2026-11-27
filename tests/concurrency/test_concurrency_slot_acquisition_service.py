@@ -1,11 +1,15 @@
 import asyncio
+from typing import Any
 from unittest import mock
 
 import pytest
 from httpx import HTTPStatusError, Request, Response
 
 from prefect.client.orchestration import get_client
-from prefect.concurrency.services import ConcurrencySlotAcquisitionService
+from prefect.concurrency.services import (
+    _DEFAULT_RETRY_AFTER_SECONDS,
+    ConcurrencySlotAcquisitionService,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -70,7 +74,10 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
     limit_names = sorted(["api", "database"])
     service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
 
-    with mock.patch("asyncio.sleep") as sleep:
+    # Patch `asyncio.sleep` only as seen by the service module. Patching it
+    # globally also records sleeps from unrelated background tasks.
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
         future = service.send((1, "concurrency", None, None))
         await service.drain()
         returned_response = await asyncio.wrap_future(future)
@@ -80,6 +87,44 @@ async def test_retries_failed_call_respects_retry_after_header(mocked_client):
         sleep.assert_called_once_with(
             float(responses[0].response.headers["Retry-After"])
         )
+        assert mocked_client.client.increment_concurrency_slots.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "headers, expected_sleep",
+    [
+        ({"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}, 0.0),
+        ({"Retry-After": "not-a-number"}, _DEFAULT_RETRY_AFTER_SECONDS),
+        ({"Retry-After": "inf"}, _DEFAULT_RETRY_AFTER_SECONDS),
+        ({}, _DEFAULT_RETRY_AFTER_SECONDS),
+    ],
+    ids=["http-date", "malformed", "non-finite", "missing"],
+)
+async def test_retries_failed_call_with_unusable_retry_after_header(
+    mocked_client: Any, headers: dict[str, str], expected_sleep: float
+):
+    responses = [
+        HTTPStatusError(
+            "Limit is locked",
+            request=Request("get", "/"),
+            response=Response(423, headers=headers),
+        ),
+        Response(200),
+    ]
+
+    mocked_client.client.increment_concurrency_slots.side_effect = responses
+
+    limit_names = sorted(["api", "database"])
+    service = ConcurrencySlotAcquisitionService.instance(frozenset(limit_names))
+
+    sleep = mock.AsyncMock()
+    with mock.patch("prefect.concurrency.services.asyncio", wraps=asyncio, sleep=sleep):
+        future = service.send((1, "concurrency", None, None))
+        await service.drain()
+        returned_response = await asyncio.wrap_future(future)
+
+        assert returned_response == responses[1]
+        sleep.assert_called_once_with(expected_sleep)
         assert mocked_client.client.increment_concurrency_slots.call_count == 2
 
 

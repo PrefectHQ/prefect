@@ -5,14 +5,21 @@ import pathlib
 import socket
 import sqlite3
 import sys
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import asyncpg
 import httpx
+import jsonschema
 import pytest
 import sqlalchemy as sa
 import toml
+from fastapi import Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
@@ -55,6 +62,40 @@ from prefect.settings import (
 pytestmark = pytest.mark.clear_db
 
 
+def test_openapi_operation_ids_use_route_names():
+    app = create_api_app(ignore_cache=True)
+    paths = app.openapi()["paths"]
+    operation_ids = [
+        operation["operationId"]
+        for path in paths.values()
+        for operation in path.values()
+        if isinstance(operation, dict) and "operationId" in operation
+    ]
+    assert operation_ids
+    assert len(operation_ids) == len(set(operation_ids))
+
+    checked = 0
+    for route in app.routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+            if isinstance(route, APIRoute)
+            else ()
+        )
+        for candidate in candidates:
+            if not candidate.include_in_schema:
+                continue
+            for method in candidate.methods:
+                operation = paths[candidate.path_format][method.lower()]
+                assert operation["operationId"] == (
+                    candidate.operation_id or candidate.name
+                )
+                checked += 1
+    assert checked == len(operation_ids)
+
+
 async def test_validation_error_handler_422(client):
     bad_flow_data = {"name": "my-flow", "tags": "this should be a list not a string"}
     response = await client.post("/flows/", json=bad_flow_data)
@@ -69,6 +110,117 @@ async def test_validation_error_handler_422(client):
         }
     ]
     assert response.json()["request_body"] == bad_flow_data
+
+
+@pytest.fixture
+async def openapi_schema(client: AsyncClient) -> dict[str, Any]:
+    response = await client.get("/openapi.json")
+    assert response.status_code == status.HTTP_200_OK
+    return response.json()
+
+
+def _documented_422_schema(
+    openapi_schema: dict[str, Any], path: str, method: str
+) -> dict[str, Any]:
+    response = openapi_schema["paths"][path][method]["responses"]["422"]
+    return {
+        **response["content"]["application/json"]["schema"],
+        "components": openapi_schema["components"],
+    }
+
+
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/flow_runs/filter", {"limit": "ten"}),
+        ("/flow_runs/filter", {"limit": 500}),
+        ("/templates/validate", "{{ broken"),
+        ("/templates/validate", 5),
+        ("/automations/templates/validate", "{{ broken"),
+        ("/automations/templates/validate", 5),
+    ],
+)
+async def test_422_responses_match_openapi_schema(
+    client: AsyncClient, openapi_schema: dict[str, Any], path: str, body: Any
+):
+    response = await client.post(path, json=body)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    jsonschema.validate(
+        response.json(), _documented_422_schema(openapi_schema, path, "post")
+    )
+
+
+def test_create_app_openapi_documents_prefect_422_responses():
+    app = create_app(ephemeral=True)
+    schema = app.openapi()
+    validation = schema["components"]["schemas"]["InvalidRequestResponse"]
+    assert set(validation["properties"]) == {
+        "exception_message",
+        "exception_detail",
+        "request_body",
+    }
+    assert validation["properties"]["exception_message"]["type"] == "string"
+    assert validation["properties"]["exception_detail"]["type"] == "array"
+    assert _documented_422_schema(schema, "/flows/", "post") == _documented_422_schema(
+        app.api_app.openapi(), "/flows/", "post"
+    )
+
+
+@pytest.mark.parametrize(
+    "fast_api_app_kwargs",
+    [
+        {},
+        {"exception_handlers": None},
+        {
+            "exception_handlers": {
+                RequestValidationError: request_validation_exception_handler
+            }
+        },
+    ],
+)
+@pytest.mark.parametrize(
+    "path, body",
+    [
+        ("/flows/", {}),
+        ("/templates/validate", 5),
+        ("/automations/templates/validate", 5),
+    ],
+)
+async def test_api_app_keeps_fastapi_validation_handler(
+    fast_api_app_kwargs: dict[str, Any], path: str, body: Any
+):
+    api_app = create_api_app(ignore_cache=True, fast_api_app_kwargs=fast_api_app_kwargs)
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post(path, json=body)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert set(response.json()) == {"detail"}
+    assert isinstance(response.json()["detail"], list)
+    jsonschema.validate(
+        response.json(), _documented_422_schema(api_app.openapi(), path, "post")
+    )
+
+
+async def test_api_app_keeps_custom_validation_handler():
+    async def custom_validation_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        return JSONResponse({"custom": exc.body}, status_code=400)
+
+    api_app = create_api_app(
+        ignore_cache=True,
+        fast_api_app_kwargs={
+            "exception_handlers": {RequestValidationError: custom_validation_handler}
+        },
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=api_app), base_url="http://test"
+    ) as client:
+        response = await client.post("/flows/", json={})
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.json() == {"custom": {}}
 
 
 async def test_validation_error_handler_renders_non_finite_floats(client: AsyncClient):
@@ -292,6 +444,8 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        ConnectionRefusedError(errno.ECONNREFUSED, "Connect call failed"),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
     ),
@@ -365,6 +519,11 @@ def test_non_data_database_errors_remain_retryable():
     assert is_client_retryable_exception(
         asyncpg.exceptions.PostgresConnectionError("connection failure")
     )
+
+
+def test_other_os_errors_are_not_retryable():
+    assert not is_client_retryable_exception(OSError(errno.EACCES, "Permission denied"))
+    assert not is_client_retryable_exception(FileNotFoundError("missing"))
 
 
 def _write_fake_ui_bundle(directory: pathlib.Path, marker: str) -> pathlib.Path:
@@ -777,6 +936,27 @@ def test_create_ui_app_uses_v1_default_when_v2_disabled(
     settings_response.raise_for_status()
     assert settings_response.json()["default_ui"] == "v1"
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
+
+
+@pytest.mark.parametrize("v2_enabled", [True, False])
+def test_create_ui_app_warns_that_v2_enabled_setting_is_deprecated(
+    caplog: pytest.LogCaptureFixture,
+    v2_enabled: bool,
+):
+    with temporary_settings({PREFECT_SERVER_UI_V2_ENABLED: v2_enabled}):
+        create_ui_app(ephemeral=False)
+
+    deprecation_messages = [
+        record.getMessage()
+        for record in caplog.records
+        if "PREFECT_SERVER_UI_V2_ENABLED" in record.getMessage()
+    ]
+    if v2_enabled:
+        assert deprecation_messages == []
+    else:
+        assert len(deprecation_messages) == 1
+        assert "deprecated" in deprecation_messages[0]
+        assert "V1 UI will be removed in Prefect 3.10" in deprecation_messages[0]
 
 
 def test_create_ui_app_respects_v1_cookie_at_neutral_root(

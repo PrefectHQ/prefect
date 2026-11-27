@@ -65,7 +65,7 @@ class Subscription(Generic[S]):
                 websockets.exceptions.ConnectionClosedError,
             ):
                 self._websocket = None
-                if hasattr(self._connect, "protocol"):
+                if hasattr(self._connect, "connection"):
                     await self._connect.__aexit__(None, None, None)
                 await asyncio.sleep(0.5)
 

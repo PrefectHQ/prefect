@@ -12,6 +12,9 @@ from typing_extensions import Unpack
 from prefect._internal.concurrency import logger
 from prefect._internal.concurrency.services import FutureQueueService
 from prefect.client.orchestration import get_client
+from prefect.concurrency.services import (
+    _get_retry_after_seconds,  # pyright: ignore[reportPrivateUsage]
+)
 from prefect.utilities.timeout import timeout_async
 
 if TYPE_CHECKING:
@@ -50,10 +53,8 @@ class ConcurrencySlotAcquisitionService(
                     if not exc.response.status_code == status.HTTP_423_LOCKED:
                         raise
 
-                    retry_after = exc.response.headers.get("Retry-After")
-                    if retry_after:
-                        retry_after = float(retry_after)
-                        await asyncio.sleep(retry_after)
+                    if "Retry-After" in exc.response.headers:
+                        await asyncio.sleep(_get_retry_after_seconds(exc.response))
                     else:
                         # We received a 423 but no Retry-After header. This
                         # should indicate that the server told us to abort

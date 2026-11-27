@@ -1,6 +1,7 @@
 import uuid
 from types import SimpleNamespace
 from typing import Any, Dict
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -442,6 +443,25 @@ class TestResolveBlockDocumentReferences:
             client=prefect_client,
         )
 
+    async def test_resolve_block_document_references_with_uuid_string_reference(
+        self, prefect_client: PrefectClient, block_document_id: dict[str, Any]
+    ):
+        assert {
+            "key": {"a": 1, "b": "hello"}
+        } == await resolve_block_document_references(
+            {"key": {"$ref": str(block_document_id["id"])}},
+            client=prefect_client,
+        )
+
+    async def test_resolve_block_document_references_ignores_non_uuid_string_reference(
+        self, prefect_client: PrefectClient
+    ):
+        template = {"key": {"$ref": "#/definitions/Foo"}}
+        assert (
+            await resolve_block_document_references(template, client=prefect_client)
+            == template
+        )
+
     async def test_resolve_block_document_references_with_nested_block_document_references(
         self, prefect_client, block_document_id
     ):
@@ -633,6 +653,32 @@ class TestResolveBlockDocumentReferences:
         # Standard placeholders should be left intact for later resolution.
         assert result == {"key": "{{ standard_placeholder }}/hello"}
 
+    async def test_resolve_block_document_references_does_not_substitute_inserted_placeholders(
+        self,
+    ):
+        values = {
+            "first": "{{ prefect.blocks.secret.second }}",
+            "second": "{{ prefect.blocks.secret.first }}",
+        }
+
+        async def fake_read_block_document_by_name(
+            name: str, block_type_slug: str
+        ) -> SimpleNamespace:
+            return SimpleNamespace(data={"value": values[name]})
+
+        fake_client = AsyncMock()
+        fake_client.read_block_document_by_name = fake_read_block_document_by_name
+
+        result = await resolve_block_document_references(
+            "{{ prefect.blocks.secret.first }} / {{ prefect.blocks.secret.second }}",
+            client=fake_client,
+        )
+
+        assert (
+            result
+            == "{{ prefect.blocks.secret.second }} / {{ prefect.blocks.secret.first }}"
+        )
+
     async def test_resolve_block_document_references_raises_on_inline_non_scalar_value(
         self, prefect_client, block_document_id
     ):
@@ -809,6 +855,27 @@ class TestResolveVariables:
         )
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
+
+    async def test_resolve_does_not_substitute_inserted_placeholders(self):
+        values = {
+            "first": "{{ prefect.variables.second }}",
+            "second": "{{ prefect.variables.first }}",
+        }
+
+        async def fake_read_variable_by_name(name: str) -> SimpleNamespace:
+            return SimpleNamespace(value=values[name])
+
+        fake_client = AsyncMock()
+        fake_client.read_variable_by_name = fake_read_variable_by_name
+
+        result = await resolve_variables(
+            "{{ prefect.variables.first }} / {{ prefect.variables.second }}",
+            client=fake_client,
+        )
+
+        assert (
+            result == "{{ prefect.variables.second }} / {{ prefect.variables.first }}"
+        )
 
     async def test_resolve_caches_variable_reads_within_single_call(self):
         """Repeated variable placeholders only trigger one API read per name."""

@@ -281,6 +281,29 @@ export const TypeIntegerWithEnum: Story = {
 };
 TypeIntegerWithEnum.storyName = "type:integer & enum";
 
+export const TypeIntegerWithEnumNames: Story = {
+	args: {
+		schema: {
+			type: "object",
+			properties: {
+				color: {
+					title: "Color",
+					$ref: "#/definitions/Color",
+				},
+			},
+			definitions: {
+				Color: {
+					title: "Color",
+					type: "integer",
+					enum: [1, 2, 3],
+					"x-enum-varnames": ["RED", "GREEN", "BLUE"],
+				},
+			},
+		},
+	},
+};
+TypeIntegerWithEnumNames.storyName = "type:integer & enum & x-enum-varnames";
+
 export const TypeNumber: Story = {
 	args: {
 		schema: {

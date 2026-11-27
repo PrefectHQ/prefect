@@ -316,4 +316,111 @@ describe("SchemaFormInputEnum", () => {
 			});
 		});
 	});
+	describe("with x-enum-varnames", () => {
+		const namedEnumSchema: PrefectSchemaObject = {
+			type: "object",
+			properties: {
+				color: { title: "Color", $ref: "#/definitions/Color" },
+			},
+			definitions: {
+				Color: {
+					title: "Color",
+					type: "integer",
+					enum: [1, 2],
+					"x-enum-varnames": ["RED", "GREEN"],
+				},
+			},
+		};
+
+		test("shows member names as options and submits the value", async () => {
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({});
+				spy.mockImplementation((v: Record<string, unknown>) => setValues(v));
+
+				return (
+					<TestSchemaForm
+						schema={namedEnumSchema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+			const trigger = screen.getByRole("button", { name: /select color/i });
+			await user.click(trigger);
+
+			expect(await screen.findByRole("option", { name: "RED" })).toBeVisible();
+			expect(screen.getByRole("option", { name: "GREEN" })).toBeVisible();
+
+			await user.click(screen.getByRole("option", { name: "GREEN" }));
+
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ color: 2 });
+				expect(trigger).toHaveTextContent("GREEN");
+			});
+		});
+
+		test("searches by member name", async () => {
+			const user = userEvent.setup();
+
+			render(<TestSchemaForm schema={namedEnumSchema} values={{}} />);
+			await user.click(screen.getByRole("button", { name: /select color/i }));
+			await user.type(screen.getByPlaceholderText("Search..."), "gre");
+
+			await waitFor(() => {
+				expect(
+					screen.queryByRole("option", { name: "RED" }),
+				).not.toBeInTheDocument();
+			});
+			expect(screen.getByRole("option", { name: "GREEN" })).toBeVisible();
+		});
+
+		test("shows member names on chips for multiple values", () => {
+			render(
+				<TestSchemaForm
+					schema={{
+						...namedEnumSchema,
+						properties: {
+							colors: {
+								title: "Colors",
+								type: "array",
+								items: { $ref: "#/definitions/Color" },
+							},
+						},
+					}}
+					values={{ colors: [1, 2] }}
+				/>,
+			);
+
+			expect(screen.getByTitle("RED")).toBeInTheDocument();
+			expect(screen.getByTitle("GREEN")).toBeInTheDocument();
+		});
+
+		test("shows values when names do not match the enum", () => {
+			render(
+				<TestSchemaForm
+					schema={{
+						type: "object",
+						properties: {
+							status: {
+								title: "Status",
+								type: "integer",
+								enum: [1, 2],
+								"x-enum-varnames": ["ONE"],
+							},
+						},
+					}}
+					values={{ status: 2 }}
+				/>,
+			);
+
+			expect(
+				screen.getByRole("button", { name: /select status/i }),
+			).toHaveTextContent("2");
+		});
+	});
 });

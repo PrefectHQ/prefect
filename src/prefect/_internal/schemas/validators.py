@@ -344,8 +344,8 @@ def normalize_rrule_string(
       cached datetimes to a handful.
 
     - **Everything else** (HOURLY/DAILY/WEEKLY/MONTHLY/YEARLY, anything
-      with `COUNT`, rrulesets with multiple components): we inject the
-      legacy `DTSTART:20200101T000000` so observable behavior is
+      with `COUNT` or `INTERVAL=0`, rrulesets with multiple components): we
+      inject the legacy `DTSTART:20200101T000000` so observable behavior is
       byte-for-byte preserved. These shapes don't suffer from the
       memory/CPU pain in practice (a 6-year HOURLY cache is ~50k
       datetimes, ~3 MB).
@@ -398,9 +398,11 @@ def normalize_rrule_string(
     # Only the high-frequency, no-COUNT shapes are eligible for advance.
     # If dateutil's internals ever stop exposing these, we fall through
     # to the safe 2020-anchor path.
+    # `INTERVAL=0` parses but has no period to advance by.
     if (
         freq is None
         or interval is None
+        or interval < 1
         or count is not None
         or freq not in (dateutil.rrule.SECONDLY, dateutil.rrule.MINUTELY)
     ):
@@ -482,6 +484,29 @@ def validate_rrule_schedule_timezone(schedule: _T) -> _T:
     """
     if isinstance(getattr(schedule, "rrule", None), str):
         default_timezone(getattr(schedule, "timezone", None))
+    return schedule
+
+
+def validate_rrule_schedule_interval(schedule: _T) -> _T:
+    """`AfterValidator` for server action-schema schedule fields.
+
+    dateutil accepts `INTERVAL=0`, but iterating such a rule never advances, so
+    the scheduler would hang on it. It is rejected on writes rather than on
+    `RRuleSchedule` so that schedules already stored with it stay readable and
+    replaceable.
+    """
+    import dateutil.rrule
+
+    rrule = getattr(schedule, "rrule", None)
+    if not isinstance(rrule, str):
+        return schedule
+    try:
+        parsed = dateutil.rrule.rrulestr(rrule, forceset=True, cache=False)
+    except (ValueError, TypeError):
+        return schedule
+    rules = [*getattr(parsed, "_rrule", []), *getattr(parsed, "_exrule", [])]
+    if any(getattr(rule, "_interval", 1) < 1 for rule in rules):
+        raise ValueError(f'Invalid RRule string "{rrule}": INTERVAL must be at least 1')
     return schedule
 
 

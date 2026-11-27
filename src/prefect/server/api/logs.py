@@ -2,7 +2,7 @@
 Routes for interacting with log objects.
 """
 
-from typing import Optional, Sequence
+from typing import Sequence
 
 from fastapi import Body, Depends, WebSocket, status
 from pydantic import TypeAdapter
@@ -10,7 +10,7 @@ from starlette.status import WS_1002_PROTOCOL_ERROR
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.logs import stream
 from prefect.server.schemas.actions import LogCreate
 from prefect.server.schemas.core import Log
@@ -25,7 +25,7 @@ router: PrefectRouter = PrefectRouter(prefix="/logs", tags=["Logs"])
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_logs(
     logs: Sequence[LogCreate],
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Create new logs from the provided schema.
@@ -43,10 +43,10 @@ logs_adapter: TypeAdapter[Sequence[Log]] = TypeAdapter(Sequence[Log])
 @router.post("/filter")
 async def read_logs(
     limit: int = dependencies.LimitBody(),
-    offset: int = Body(0, ge=0),
-    logs: Optional[LogFilter] = None,
+    offset: int | None = Body(0, ge=0),
+    logs: LogFilter | None = None,
     sort: LogSort = Body(LogSort.TIMESTAMP_ASC),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> Sequence[Log]:
     """
     Query for logs.
@@ -54,7 +54,11 @@ async def read_logs(
     async with db.session_context() as session:
         return logs_adapter.validate_python(
             await models.logs.read_logs(
-                session=session, log_filter=logs, offset=offset, limit=limit, sort=sort
+                session=session,
+                log_filter=logs,
+                offset=offset or 0,
+                limit=limit,
+                sort=sort,
             )
         )
 

@@ -14,17 +14,25 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 		() => JSON.parse(tableData) as Record<string, string>[],
 		[tableData],
 	);
-	const headers = useMemo(() => Object.keys(rows[0] ?? {}), [rows]);
+	const headers = useMemo(
+		() => [...new Set(rows.flatMap((row) => Object.keys(row)))],
+		[rows],
+	);
 	const [input, setInput] = useState<string>("");
 
 	const columns = useMemo(
 		() =>
-			headers.map((header) =>
+			headers.map((header, index) =>
 				columnHelper.display({
-					id: header,
+					id: `column-${index}`,
 					header: () => header,
 					cell: ({ row }) => {
-						const value = String(row.original[header] ?? "");
+						const value = Object.prototype.propertyIsEnumerable.call(
+							row.original,
+							header,
+						)
+							? String(row.original[header] ?? "")
+							: "";
 						return (
 							<span className="truncate block" title={value}>
 								{value}

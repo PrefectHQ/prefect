@@ -25,7 +25,20 @@ If components of the interface are not set, defaults will be inferred
 based on the dialect of the connection URL.
 
 
-### `inject_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aprovide_database_interface` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L142" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aprovide_database_interface() -> PrefectDBInterface
+```
+
+
+Get the current Prefect REST API database interface in a FastAPI dependency.
+
+FastAPI runs a sync dependency in a worker thread on every request, so API
+routes depend on this function to resolve the interface on the event loop.
+
+
+### `inject_db` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 inject_db(fn: Callable[P, R]) -> Callable[P, R]
@@ -38,7 +51,7 @@ The decorated function _must_ take a `db` kwarg and if a db is passed
 when called it will be used instead of creating a new one.
 
 
-### `db_injector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `db_injector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 db_injector(func: Union[_DBMethod[T, P, R], _DBFunction[P, R]]) -> Union[_Method[T, P, R], _Function[P, R]]
@@ -65,7 +78,7 @@ iscoroutinefunction() test.
 - binding transparently.
 
 
-### `temporary_database_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L346" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_database_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_database_config(tmp_database_config: Optional[BaseDatabaseConfiguration]) -> Generator[None, object, None]
@@ -80,7 +93,7 @@ be restored.
 - `tmp_database_config`: Prefect REST API database configuration to inject.
 
 
-### `temporary_query_components` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_query_components` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_query_components(tmp_queries: Optional['BaseQueryComponents']) -> Generator[None, object, None]
@@ -95,7 +108,7 @@ be restored.
 - `tmp_queries`: Prefect REST API query components to inject.
 
 
-### `temporary_orm_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_orm_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L398" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_orm_config(tmp_orm_config: Optional['BaseORMConfiguration']) -> Generator[None, object, None]
@@ -110,7 +123,7 @@ be restored.
 - `tmp_orm_config`: Prefect REST API ORM configuration to inject.
 
 
-### `temporary_interface_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L409" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_interface_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_interface_class(tmp_interface_class: Optional[type['PrefectDBInterface']]) -> Generator[None, object, None]
@@ -124,7 +137,7 @@ the existing interface will be restored.
 - `tmp_interface_class`: Prefect REST API interface class to inject.
 
 
-### `temporary_database_interface` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `temporary_database_interface` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 temporary_database_interface(tmp_database_config: Optional[BaseDatabaseConfiguration] = None, tmp_queries: Optional['BaseQueryComponents'] = None, tmp_orm_config: Optional['BaseORMConfiguration'] = None, tmp_interface_class: Optional[type['PrefectDBInterface']] = None) -> Generator[None, object, None]
@@ -147,7 +160,7 @@ be restored.
 - `tmp_interface_class`: Optional database interface class to inject
 
 
-### `set_database_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L464" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_database_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_database_config(database_config: Optional[BaseDatabaseConfiguration]) -> None
@@ -157,7 +170,7 @@ set_database_config(database_config: Optional[BaseDatabaseConfiguration]) -> Non
 Set Prefect REST API database configuration.
 
 
-### `set_query_components` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L469" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_query_components` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L479" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_query_components(query_components: Optional['BaseQueryComponents']) -> None
@@ -167,7 +180,7 @@ set_query_components(query_components: Optional['BaseQueryComponents']) -> None
 Set Prefect REST API query components.
 
 
-### `set_orm_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L474" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_orm_config` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L484" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_orm_config(orm_config: Optional['BaseORMConfiguration']) -> None
@@ -177,7 +190,7 @@ set_orm_config(orm_config: Optional['BaseORMConfiguration']) -> None
 Set Prefect REST API orm configuration.
 
 
-### `set_interface_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L479" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `set_interface_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_interface_class(interface_class: Optional[type['PrefectDBInterface']]) -> None
@@ -189,4 +202,4 @@ Set Prefect REST API interface class.
 
 ## Classes
 
-### `DBInjector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DBInjector` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/dependencies.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

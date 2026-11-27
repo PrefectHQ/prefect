@@ -82,9 +82,10 @@ def validate(
     allow_none_with_default: bool = False,
 ) -> list[JSONSchemaValidationError]:
     if preprocess:
-        schema = preprocess_schema(schema, allow_none_with_default)
-
-    if ignore_required:
+        schema = _preprocess_schema(
+            schema, allow_none_with_default, ignore_required=ignore_required
+        )
+    elif ignore_required:
         schema = remove_nested_keys(["required"], schema)
 
     if raise_on_error:
@@ -242,11 +243,13 @@ def _fix_tuple_items(schema: dict[str, Any]) -> None:
 
 
 def process_properties(
-    properties: dict[str, dict[str, Any]],
+    properties: dict[str, dict[str, Any] | bool],
     required_fields: list[str],
     allow_none_with_default: bool = False,
 ) -> None:
     for key, schema in properties.items():
+        if isinstance(schema, bool):
+            continue
         _fix_null_typing(key, schema, required_fields, allow_none_with_default)
         _fix_tuple_items(schema)
 
@@ -262,6 +265,16 @@ def preprocess_schema(
     schema: ObjectSchema,
     allow_none_with_default: bool = False,
 ) -> ObjectSchema:
+    return _preprocess_schema(schema, allow_none_with_default)
+
+
+def _preprocess_schema(
+    schema: ObjectSchema,
+    allow_none_with_default: bool = False,
+    *,
+    ignore_required: bool = False,
+) -> ObjectSchema:
+    """Apply compatibility fixes and requirement removal before adding block references."""
     schema = deepcopy(schema)
 
     if "properties" in schema:
@@ -270,19 +283,36 @@ def preprocess_schema(
             schema["properties"], required_fields, allow_none_with_default
         )
 
-    if "definitions" in schema:  # Also process definitions for reused models
-        definitions = cast(dict[str, Any], schema["definitions"])
-        for definition in list(definitions.values()):
+    # Pydantic v1 places reused models under `definitions`, Pydantic v2 under `$defs`
+    for definitions_key in ("definitions", "$defs"):
+        if definitions_key not in schema:
+            continue
+        definitions = cast(dict[str, Any], schema[definitions_key])
+        for definition in definitions.values():
+            if not isinstance(definition, dict):
+                continue
             if "properties" in definition:
                 required_fields = definition.get("required", [])
                 process_properties(
                     definition["properties"], required_fields, allow_none_with_default
                 )
-            # Allow block types to be referenced by their id
+
+    if ignore_required:
+        # Preserve synthetic reference requirements by adding them after removal.
+        schema = remove_nested_keys(["required"], schema)
+
+    for definitions_key in ("definitions", "$defs"):
+        definitions = cast(dict[str, Any], schema.get(definitions_key, {}))
+        for name, definition in definitions.items():
+            if not isinstance(definition, dict):
+                continue
+            # Allow block types to be referenced by their id. The block value
+            # branch excludes `$ref` so that malformed references are rejected
+            # for block schemas without required fields.
             if "block_type_slug" in definition:
-                schema["definitions"][definition["title"]] = {
-                    "oneOf": [
-                        definition,
+                definitions[name] = {
+                    "anyOf": [
+                        {"allOf": [definition, {"not": {"required": ["$ref"]}}]},
                         {
                             "type": "object",
                             "properties": {

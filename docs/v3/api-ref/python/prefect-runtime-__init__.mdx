@@ -16,3 +16,19 @@ Example usage:
     print(f"This script is running from deployment {deployment.id} with parameters {deployment.parameters}")
     ```
 
+
+## Functions
+
+### `get_logger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runtime/__init__.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+get_logger() -> Logger | LoggingAdapter
+```
+
+
+Get a logger for code that runs both inside and outside Prefect runs.
+
+Call this function where you log so it can use the current task or flow
+run. If no run is active, it falls back to the standard Prefect logger,
+which does not send logs to the Prefect API by default.
+

@@ -21,8 +21,12 @@ from prefect.server.api.validation import (
     validate_job_variables_for_deployment,
     validate_job_variables_for_deployment_flow_run,
 )
-from prefect.server.api.workers import WorkerLookups, schedule_readiness_update
-from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.api.workers import (
+    WorkerLookups,
+    provide_worker_lookups,
+    schedule_readiness_update,
+)
+from prefect.server.database import PrefectDBInterface, aprovide_database_interface
 from prefect.server.exceptions import MissingVariableError, ObjectNotFoundError
 from prefect.server.models.deployments import mark_deployments_ready
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
@@ -111,10 +115,14 @@ async def _hydrate_schedule_parameters(
 async def create_deployment(
     deployment: schemas.actions.DeploymentCreate,
     response: Response,
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
-    updated_by: Optional[schemas.core.UpdatedBy] = Depends(dependencies.get_updated_by),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
+    updated_by: Optional[schemas.core.UpdatedBy] = Depends(
+        dependencies.aget_updated_by
+    ),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Creates a new deployment from the provided schema. If a deployment with
@@ -257,11 +265,30 @@ async def create_deployment(
         )
 
 
-@router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
+@router.patch(
+    "/{id:uuid}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "The deployment parameters could not be hydrated."
+        },
+        status.HTTP_404_NOT_FOUND: {
+            "description": "The deployment or concurrency limit was not found."
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "The job variables are not valid for the work pool, or parameter"
+                " schema enforcement is enabled and the parameters do not match"
+                " the deployment's parameter schema, or the deployment does not"
+                " have a valid parameter schema."
+            )
+        },
+    },
+)
 async def update_deployment(
     deployment: schemas.actions.DeploymentUpdate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         existing_deployment = await models.deployments.read_deployment(
@@ -528,7 +555,7 @@ async def update_deployment(
 async def read_deployment_by_name(
     flow_name: str = Path(..., description="The name of the flow"),
     deployment_name: str = Path(..., description="The name of the deployment"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment using the name of the flow and the deployment.
@@ -549,7 +576,7 @@ async def read_deployment_by_name(
 @router.get("/{id:uuid}")
 async def read_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> schemas.responses.DeploymentResponse:
     """
     Get a deployment by id.
@@ -571,16 +598,16 @@ async def read_deployment(
 async def read_deployments(
     limit: int = dependencies.LimitBody(),
     offset: int = Body(0, ge=0),
-    flows: Optional[schemas.filters.FlowFilter] = None,
-    flow_runs: Optional[schemas.filters.FlowRunFilter] = None,
-    task_runs: Optional[schemas.filters.TaskRunFilter] = None,
-    deployments: Optional[schemas.filters.DeploymentFilter] = None,
-    work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
-    work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    sort: schemas.sorting.DeploymentSort = Body(
+    flows: schemas.filters.FlowFilter | None = None,
+    flow_runs: schemas.filters.FlowRunFilter | None = None,
+    task_runs: schemas.filters.TaskRunFilter | None = None,
+    deployments: schemas.filters.DeploymentFilter | None = None,
+    work_pools: schemas.filters.WorkPoolFilter | None = None,
+    work_pool_queues: schemas.filters.WorkQueueFilter | None = None,
+    sort: schemas.sorting.DeploymentSort | None = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.responses.DeploymentResponse]:
     """
     Query for deployments.
@@ -589,7 +616,7 @@ async def read_deployments(
         response = await models.deployments.read_deployments(
             session=session,
             offset=offset,
-            sort=sort,
+            sort=sort or schemas.sorting.DeploymentSort.NAME_ASC,
             limit=limit,
             flow_filter=flows,
             flow_run_filter=flow_runs,
@@ -619,7 +646,7 @@ async def paginate_deployments(
     sort: schemas.sorting.DeploymentSort = Body(
         schemas.sorting.DeploymentSort.NAME_ASC
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> DeploymentPaginationResponse:
     """
     Pagination query for flow runs.
@@ -676,7 +703,7 @@ async def get_scheduled_flow_runs_for_deployments(
         None, description="The maximum time to look for scheduled flow runs"
     ),
     limit: int = dependencies.LimitBody(),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> list[schemas.responses.FlowRunResponse]:
     """
     Get scheduled runs for a set of deployments. Used by a runner to poll for work.
@@ -733,7 +760,7 @@ async def count_deployments(
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
     work_pool_queues: Optional[schemas.filters.WorkQueueFilter] = None,
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
     Count deployments.
@@ -753,7 +780,7 @@ async def count_deployments(
 @router.delete("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Delete a deployment by id.
@@ -782,7 +809,7 @@ async def bulk_delete_deployments(
         le=BULK_OPERATION_LIMIT,
         description=f"Maximum number of deployments to delete. Defaults to {BULK_OPERATION_LIMIT}.",
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> DeploymentBulkDeleteResponse:
     """
     Bulk delete deployments matching the specified filter criteria.
@@ -829,7 +856,7 @@ async def schedule_deployment(
     ),
     min_runs: int = Body(None, description="The minimum number of runs to schedule"),
     max_runs: int = Body(None, description="The maximum number of runs to schedule"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Schedule runs for a deployment. For backfills, provide start/end times in the past.
@@ -862,7 +889,7 @@ async def schedule_deployment(
 @router.post("/{id:uuid}/resume_deployment")
 async def resume_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to active. Runs will be scheduled immediately.
@@ -881,7 +908,7 @@ async def resume_deployment(
 @router.post("/{id:uuid}/pause_deployment")
 async def pause_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     """
     Set a deployment schedule to inactive. Any auto-scheduled runs still in a Scheduled
@@ -910,13 +937,42 @@ async def pause_deployment(
         await session.commit()
 
 
-@router.post("/{id:uuid}/create_flow_run")
+@router.post(
+    "/{id:uuid}/create_flow_run",
+    responses={
+        status.HTTP_200_OK: {
+            "description": (
+                "An existing flow run with the same idempotency key was returned."
+            )
+        },
+        status.HTTP_201_CREATED: {
+            "description": "A new flow run was created.",
+            "model": schemas.responses.FlowRunResponse,
+        },
+        status.HTTP_400_BAD_REQUEST: {
+            "description": (
+                "The flow run parameters could not be hydrated, or a work queue"
+                " was given for a deployment that has no work pool."
+            )
+        },
+        status.HTTP_404_NOT_FOUND: {"description": "The deployment was not found."},
+        status.HTTP_409_CONFLICT: {
+            "description": (
+                "Parameter schema enforcement is enabled and the parameters do not"
+                " match the deployment's parameter schema, or the deployment does"
+                " not have a valid parameter schema."
+            )
+        },
+    },
+)
 async def create_flow_run_from_deployment(
     flow_run: schemas.actions.DeploymentFlowRunCreate,
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
-    db: PrefectDBInterface = Depends(provide_database_interface),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
     response: Response = None,
 ) -> schemas.responses.FlowRunResponse:
     """
@@ -1057,9 +1113,11 @@ async def bulk_create_flow_runs_from_deployment(
         ..., description="List of flow run configurations to create"
     ),
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
-    db: PrefectDBInterface = Depends(provide_database_interface),
-    worker_lookups: WorkerLookups = Depends(WorkerLookups),
+    created_by: Optional[schemas.core.CreatedBy] = Depends(
+        dependencies.aget_created_by
+    ),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
+    worker_lookups: WorkerLookups = Depends(provide_worker_lookups),
 ) -> FlowRunBulkCreateResponse:
     """
     Create multiple flow runs from a deployment.
@@ -1270,7 +1328,7 @@ async def bulk_create_flow_runs_from_deployment(
 @router.get("/{id:uuid}/work_queue_check", deprecated=True)
 async def work_queue_check_for_deployment(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.WorkQueue]:
     """
     Get list of work-queues that are able to pick up the specified deployment.
@@ -1296,7 +1354,7 @@ async def work_queue_check_for_deployment(
 @router.get("/{id:uuid}/schedules")
 async def read_deployment_schedules(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.DeploymentSchedule]:
     async with db.session_context() as session:
         deployment = await models.deployments.read_deployment(
@@ -1320,7 +1378,7 @@ async def create_deployment_schedules(
     schedules: List[schemas.actions.DeploymentScheduleCreate] = Body(
         default=..., description="The schedules to create"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.DeploymentSchedule]:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
@@ -1359,7 +1417,7 @@ async def update_deployment_schedule(
     schedule: schemas.actions.DeploymentScheduleUpdate = Body(
         default=..., description="The updated schedule"
     ),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(
@@ -1397,7 +1455,7 @@ async def update_deployment_schedule(
 async def delete_deployment_schedule(
     deployment_id: UUID = Path(..., description="The deployment id", alias="id"),
     schedule_id: UUID = Path(..., description="The schedule id", alias="schedule_id"),
-    db: PrefectDBInterface = Depends(provide_database_interface),
+    db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> None:
     async with db.session_context(begin_transaction=True) as session:
         deployment = await models.deployments.read_deployment(

@@ -1,8 +1,8 @@
 import asyncio
 import datetime
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncGenerator
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -20,6 +20,7 @@ from prefect.server.events.schemas.automations import (
     TriggeredAction,
     TriggerState,
 )
+from prefect.server.events.services.triggers import ReactiveTriggers
 from prefect.server.utilities.messaging import MessageHandler
 from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
@@ -288,6 +289,68 @@ async def test_reconcile_automations_reloads_when_snapshot_changes(
     assert triggers.automation_state_snapshot == current_snapshot
 
 
+@pytest.fixture
+def named_automation() -> Automation:
+    return Automation(
+        name="Named deployment",
+        trigger=EventTrigger(
+            expect={"prefect.flow-run.Completed"},
+            match_related={"prefect.resource.name": "deployment-0"},
+            posture=Posture.Reactive,
+            threshold=1,
+        ),
+        actions=[actions.DoNothing()],
+    )
+
+
+@pytest.fixture
+def named_event(frozen_time: DateTime) -> ReceivedEvent:
+    return ReceivedEvent(
+        occurred=frozen_time,
+        event="prefect.flow-run.Completed",
+        resource={"prefect.resource.id": "prefect.flow-run.example"},
+        related=[
+            {
+                "prefect.resource.id": "prefect.deployment.example",
+                "prefect.resource.role": "deployment",
+                "prefect.resource.name": "deployment-0",
+            }
+        ],
+        id=uuid4(),
+    )
+
+
+async def test_automation_update_replaces_name_matches(
+    named_automation: Automation,
+    named_event: ReceivedEvent,
+    open_automations_session: mock.Mock,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    triggers.load_automation(named_automation)
+    assert list(triggers.find_interested_triggers(named_event)) == [
+        named_automation.trigger
+    ]
+    updated = Automation.model_validate(
+        {
+            **named_automation.model_dump(),
+            "trigger": {
+                **named_automation.trigger.model_dump(),
+                "match_related": {"prefect.resource.name": "deployment-1"},
+            },
+        }
+    )
+    monkeypatch.setattr(
+        triggers, "read_automation", mock.AsyncMock(return_value=updated)
+    )
+
+    await triggers.automation_changed(named_automation.id, "automation__updated")
+
+    assert not triggers.find_interested_triggers(named_event)
+    updated_event = named_event.model_copy(deep=True)
+    updated_event.related[0]["prefect.resource.name"] = "deployment-1"
+    assert list(triggers.find_interested_triggers(updated_event)) == [updated.trigger]
+
+
 async def test_only_considers_messages_with_attributes(
     effective_automations,
     reactive_evaluation: mock.AsyncMock,
@@ -544,3 +607,38 @@ async def test_offset_is_resilient_to_low_volume(
     mock_now.return_value = base_time + timedelta(seconds=10)
     assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
+
+
+async def test_reactive_triggers_service_can_stop_while_loading_automations(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for a race where a short-lived server would shut down while
+    `ReactiveTriggers` was still loading automations, causing `stop()` to fail with
+    "Reactive triggers not started"."""
+    reconciling = asyncio.Event()
+
+    async def never_finish_reconciling(force: bool = False) -> None:
+        reconciling.set()
+        await asyncio.Event().wait()
+
+    listener_cancelled = asyncio.Event()
+
+    async def listen_forever() -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            listener_cancelled.set()
+            raise
+
+    monkeypatch.setattr(triggers, "reconcile_automations", never_finish_reconciling)
+    monkeypatch.setattr(triggers, "listen_for_automation_changes", listen_forever)
+
+    service = ReactiveTriggers()
+    start_task = asyncio.create_task(service.start())
+    await reconciling.wait()
+
+    await service.stop()
+    await start_task
+
+    assert service.consumer_task is None
+    assert listener_cancelled.is_set()

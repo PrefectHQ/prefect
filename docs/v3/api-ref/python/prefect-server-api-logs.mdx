@@ -15,7 +15,7 @@ Routes for interacting with log objects.
 ### `create_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/logs.py#L26" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-create_logs(logs: Sequence[LogCreate], db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+create_logs(logs: Sequence[LogCreate], db: PrefectDBInterface = Depends(aprovide_database_interface)) -> None
 ```
 
 
@@ -27,7 +27,7 @@ For more information, see https://www.prefect.io/docs/v3/how-to-guides/workflows
 ### `read_logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/logs.py#L44" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-read_logs(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), logs: Optional[LogFilter] = None, sort: LogSort = Body(LogSort.TIMESTAMP_ASC), db: PrefectDBInterface = Depends(provide_database_interface)) -> Sequence[Log]
+read_logs(limit: int = dependencies.LimitBody(), offset: int = Body(0, ge=0), logs: Optional[LogFilter] = None, sort: LogSort = Body(LogSort.TIMESTAMP_ASC), db: PrefectDBInterface = Depends(aprovide_database_interface)) -> Sequence[Log]
 ```
 
 

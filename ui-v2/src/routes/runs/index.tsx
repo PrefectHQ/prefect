@@ -4,7 +4,7 @@ import {
 	useSuspenseQueries,
 } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -36,7 +36,7 @@ import {
 } from "@/components/flow-runs/flow-runs-list/flow-runs-filters/state-filter-utils";
 import { RunsPage } from "@/components/runs/runs-page";
 import {
-	useApplyDefaultFilterOnMount,
+	defaultFilterSearch,
 	useRunsSavedFilters,
 } from "@/components/runs/use-runs-saved-filters";
 import {
@@ -455,9 +455,6 @@ export const Route = createFileRoute("/runs/")({
 			confirmSave,
 		} = useRunsSavedFilters();
 
-		// Apply default filter on initial page load (if one is set and no filters are active)
-		useApplyDefaultFilterOnMount();
-
 		// Use useSuspenseQueries for unfiltered count queries (stable keys, won't cause suspense on search change)
 		// These are used to determine if the app has ANY runs at all (for empty state)
 		const [{ data: flowRunsCountAll }, { data: taskRunsCountAll }] =
@@ -639,6 +636,18 @@ export const Route = createFileRoute("/runs/")({
 		taskRunsDeps: buildTaskRunsPaginationBody(search),
 		historyDeps: buildHistoryFilter(search),
 	}),
+	beforeLoad: ({ search, cause }) => {
+		if (cause === "stay") return;
+		const defaults = defaultFilterSearch(search);
+		if (defaults) {
+			redirect({
+				to: "/runs",
+				search: { ...search, ...defaults },
+				replace: true,
+				throw: true,
+			});
+		}
+	},
 	loader: ({ deps, context }) => {
 		// Prefetch all queries without blocking the loader
 		// This allows the component to render immediately and use placeholderData

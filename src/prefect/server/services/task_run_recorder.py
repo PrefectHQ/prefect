@@ -711,7 +711,13 @@ async def consumer(
                 exc_info=True,
             )
 
-            if dropped > 0 or isinstance(exc, asyncio.CancelledError):
+            if isinstance(exc, asyncio.CancelledError):
+                # Only propagate a real cancellation of this task; re-raising
+                # the driver's error would stop the inline flush's consumer
+                task = asyncio.current_task()
+                if task is None or task.cancelling():
+                    raise
+            elif dropped > 0:
                 raise
 
     stopping = False

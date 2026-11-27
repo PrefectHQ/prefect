@@ -92,7 +92,7 @@ dbt_cli_target_configs = TargetConfigs.load("BLOCK_NAME")
 #### `from_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cli/configs/base.py#L169" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-from_profiles_yml(cls: Type[Self], profile_name: Optional[str] = None, target_name: Optional[str] = None, profiles_dir: Optional[str] = None, allow_field_overrides: bool = False) -> 'TargetConfigs'
+from_profiles_yml(cls: type[Self], profile_name: str | None = None, target_name: str | None = None, profiles_dir: str | None = None, allow_field_overrides: bool = False) -> 'TargetConfigs'
 ```
 
 Create a TargetConfigs instance from a dbt profiles.yml file.

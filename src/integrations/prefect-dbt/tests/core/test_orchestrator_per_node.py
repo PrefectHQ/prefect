@@ -1597,6 +1597,9 @@ class TestPerNodeGraphEdges:
     @staticmethod
     def _fetch_task_runs(flow_run_id: Any):
         async def _fetch():
+            # The server records task runs asynchronously; give it a moment so
+            # the last nodes don't still carry their default `<name>-<hash>` name.
+            await asyncio.sleep(2)
             async with get_client() as client:
                 return await client.read_task_runs(
                     flow_run_filter=FlowRunFilter(
@@ -1673,6 +1676,9 @@ class TestPerNodeGraphEdges:
         flow_run_id = flow_run_ids[0]
 
         async def _graph():
+            # The server records task runs asynchronously; give it a moment so
+            # the last nodes don't still carry their default `<name>-<hash>` name.
+            await asyncio.sleep(2)
             async with get_client() as client:
                 response = await client._client.get(
                     f"/flow_runs/{flow_run_id}/graph-v2"

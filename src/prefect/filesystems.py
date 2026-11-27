@@ -376,12 +376,37 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     Supports any remote file system supported by `fsspec`. The file system is specified
     using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
-    Example:
+    Connection options for the file system are passed through `settings` as keyword
+    arguments to the `fsspec` implementation for the protocol. The accepted keys
+    depend on the implementation; see the
+    [fsspec implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations)
+    and [other known implementations](https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations)
+    for details. Protocols that use an external implementation require that package
+    to be installed, for example `s3fs` for `s3://` paths.
+
+    Values in `settings` are stored as plain text and are not obfuscated when the
+    block is displayed. Prefer to provide credentials through the environment where
+    the implementation supports it, or use a dedicated block, such as the `SMB` block
+    or the `S3Bucket` block from `prefect-aws`.
+
+    Examples:
         Load stored remote file system config:
         ```python
         from prefect.filesystems import RemoteFileSystem
 
         remote_file_system_block = RemoteFileSystem.load("BLOCK_NAME")
+        ```
+
+        Connect to an S3-compatible service, such as MinIO, by passing `s3fs` options
+        through `settings`. Credentials are read from the standard AWS environment
+        variables, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`:
+        ```python
+        from prefect.filesystems import RemoteFileSystem
+
+        remote_file_system_block = RemoteFileSystem(
+            basepath="s3://my-bucket/my-folder/",
+            settings={"client_kwargs": {"endpoint_url": "http://localhost:9000"}},
+        )
         ```
     """
 
@@ -396,7 +421,17 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
     )
     settings: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional settings to pass through to fsspec.",
+        description=(
+            "Additional connection options passed as keyword arguments to the fsspec"
+            " implementation for the base path's protocol. The accepted keys depend on"
+            " the implementation; see"
+            " https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations"
+            " and"
+            " https://filesystem-spec.readthedocs.io/en/latest/api.html#other-known-implementations."
+            " Values are stored as plain text and are not obfuscated, so avoid storing"
+            " credentials here."
+        ),
+        examples=[{"client_kwargs": {"endpoint_url": "http://localhost:9000"}}],
     )
 
     # Cache for the configured fsspec file system used for access

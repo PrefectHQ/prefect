@@ -37,18 +37,37 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 }: SchemaFormInputArrayComboboxProps<T>) {
 	const [search, setSearch] = useState("");
 
+	const getLabel = useMemo(() => {
+		const names: unknown = property["x-enum-varnames"];
+		const labels =
+			Array.isArray(names) &&
+			names.length === property.enum.length &&
+			names.every((name) => typeof name === "string")
+				? names
+				: undefined;
+
+		return (value: PrimitiveProperty | undefined): string => {
+			const index =
+				labels && value !== undefined ? property.enum.indexOf(value) : -1;
+
+			return labels && index !== -1 ? labels[index] : String(value);
+		};
+	}, [property]);
+
 	const options = useMemo(() => {
 		return Object.fromEntries(
 			Object.entries(property.enum).filter(([, value]) =>
-				String(value).toLowerCase().includes(search.toLowerCase()),
+				getLabel(value).toLowerCase().includes(search.toLowerCase()),
 			),
 		);
-	}, [property.enum, search]);
+	}, [property.enum, getLabel, search]);
 
 	const selected = props.multiple
 		? Boolean(props.values?.length)
 		: props.value !== undefined;
-	const label = props.multiple ? props.values?.join(", ") : String(props.value);
+	const label = props.multiple
+		? props.values?.map(getLabel).join(", ")
+		: getLabel(props.value);
 
 	function isSelected(key: string) {
 		const value = options[key] as T;
@@ -118,7 +137,7 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 								selected={isSelected(index)}
 								closeOnSelect={!props.multiple}
 							>
-								{String(value)}
+								{getLabel(value)}
 							</ComboboxCommandItem>
 						))}
 					</ComboboxCommandList>
@@ -129,7 +148,7 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 					{props.values.map((value) => (
 						<TagBadge
 							key={String(value)}
-							tag={String(value)}
+							tag={getLabel(value)}
 							onRemove={() => onSelectMultiple(value)}
 						/>
 					))}
