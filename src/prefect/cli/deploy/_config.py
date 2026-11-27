@@ -268,7 +268,12 @@ def _apply_cli_options_to_deploy_config(
             parameters: dict[str, Any] = {}
             if cli_option == "param":
                 for p in cli_value or []:
-                    k, unparsed_value = p.split("=", 1)
+                    k, separator, unparsed_value = p.partition("=")
+                    if not separator or not k:
+                        raise ValueError(
+                            f"Invalid parameter option {p!r}. Expected format"
+                            " 'key=value'."
+                        )
                     try:
                         v = json.loads(unparsed_value)
                         console.print(

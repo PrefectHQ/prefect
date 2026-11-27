@@ -1997,6 +1997,32 @@ class TestProjectDeploy:
         )
         assert deployment.parameters == {"number": 2, "message": "hello"}
 
+    @pytest.mark.parametrize("param", ["number", "=2"])
+    @pytest.mark.usefixtures("project_dir")
+    async def test_project_deploy_rejects_param_without_key_value(
+        self, prefect_client: PrefectClient, work_pool: WorkPool, param: str
+    ):
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=[
+                "deploy",
+                "./flows/hello.py:my_flow",
+                "-n",
+                "test-name",
+                "-p",
+                work_pool.name,
+                "--param",
+                param,
+            ],
+            expected_code=1,
+            expected_output_contains=(
+                f"Invalid parameter option {param!r}. Expected format 'key=value'."
+            ),
+        )
+
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name("An important name/test-name")
+
     @pytest.mark.usefixtures("project_dir")
     async def test_project_deploy_templates_pull_step_safely(
         self, prefect_client: PrefectClient, work_pool: WorkPool
