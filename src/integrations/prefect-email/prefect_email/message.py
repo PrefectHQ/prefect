@@ -99,12 +99,22 @@ async def email_send_message(
             val = ", ".join(val)
         message[key] = val
 
-    # First add the message in plain text, then the HTML version;
-    # email clients try to render the last part first
+    bodies = []
     if msg_plain:
-        message.attach(MIMEText(msg_plain, "plain"))
+        bodies.append(MIMEText(msg_plain, "plain"))
     if msg:
-        message.attach(MIMEText(msg, "html"))
+        bodies.append(MIMEText(msg, "html"))
+
+    if len(bodies) > 1:
+        # plain text and HTML are versions of the same content; email clients
+        # render the last part of a multipart/alternative they support
+        body = MIMEMultipart("alternative")
+        for part in bodies:
+            body.attach(part)
+        message.attach(body)
+    else:
+        for part in bodies:
+            message.attach(part)
 
     for filepath in attachments or []:
         with open(filepath, "rb") as attachment:
