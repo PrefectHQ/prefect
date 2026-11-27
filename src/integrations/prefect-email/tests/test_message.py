@@ -70,12 +70,13 @@ async def test_email_send_message(
     message = await test_flow()
     assert message["Subject"] == subject
     assert message["From"] == email_server_credentials.username
-    assert message.get_payload()[0].get_payload() == msg_plain
-    assert message.get_payload()[1].get_payload() == msg
-    attachment = message.get_payload()[2].get_payload()
+    plain_part, html_part = message.get_payload()[0].get_payload()
+    assert plain_part.get_payload() == msg_plain
+    assert html_part.get_payload() == msg
+    attachment = message.get_payload()[1].get_payload()
     assert base64.b64decode(attachment) == attachment_text
 
-    inline_image_part = message.get_payload()[3]
+    inline_image_part = message.get_payload()[2]
     assert inline_image_part["Content-ID"] == "<image1>"
     assert inline_image_part["Content-Disposition"] == "inline"
     image = inline_image_part.get_payload()
@@ -109,3 +110,33 @@ async def test_email_send_message_attachment_filename(
     # parse the message as a mail client would receive it
     received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
     assert [part.get_filename() for part in received.iter_attachments()] == [filename]
+
+
+async def test_email_send_message_plain_and_html_are_alternatives(
+    email_server_credentials,
+):
+    @flow
+    async def test_flow():
+        return await email_send_message(
+            email_server_credentials=email_server_credentials,
+            subject="Example Flow Notification",
+            msg="<h1>Hello</h1>",
+            msg_plain="Hello",
+            email_to="someone@email.com",
+        )
+
+    message = await test_flow()
+
+    # parse the message as a mail client would receive it; the two bodies must
+    # be alternatives, otherwise clients show both of them
+    received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
+    alternatives = [
+        part
+        for part in received.walk()
+        if part.get_content_type() == "multipart/alternative"
+    ]
+    assert len(alternatives) == 1
+    assert [
+        (part.get_content_type(), part.get_content().strip())
+        for part in alternatives[0].iter_parts()
+    ] == [("text/plain", "Hello"), ("text/html", "<h1>Hello</h1>")]
