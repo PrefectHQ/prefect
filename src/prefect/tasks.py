@@ -30,6 +30,7 @@ from typing import (
 from uuid import UUID, uuid4
 
 from typing_extensions import (
+    Concatenate,
     Literal,
     ParamSpec,
     Self,
@@ -91,6 +92,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the task
+_P = ParamSpec("_P")  # Parameters after binding descriptor self/cls
+_R = TypeVar("_R")  # Return type preserved across descriptor overloads
 
 NUM_CHARS_DYNAMIC_KEY = 8
 
@@ -655,7 +658,17 @@ class Task(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self, "_isstaticmethod", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
+    @overload
+    def __get__(self, instance: None, owner: Any) -> Self: ...
+
+    @overload
+    def __get__(
+        self: "Task[Concatenate[Any, _P], _R]", instance: object, owner: Any
+    ) -> "Task[_P, _R]": ...
+
+    def __get__(
+        self, instance: Any, owner: Any
+    ) -> Union["Task[P, R]", "Task[Any, Any]"]:
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
