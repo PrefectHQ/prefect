@@ -565,3 +565,21 @@ def test_get_client_from_loaded_key_pair_path_block(
         authenticator="snowflake",
         private_key=expected_der_key,
     )
+
+
+def test_get_client_none_kwarg_clears_saved_param(
+    credentials_params, snowflake_connect_mock: MagicMock
+):
+    SnowflakeCredentials(**credentials_params, role="SYSADMIN").save(
+        "loaded-role-creds", overwrite=True
+    )
+    loaded = SnowflakeCredentials.load("loaded-role-creds")
+
+    loaded.get_client(role=None, password=None, authenticator="externalbrowser")
+
+    snowflake_connect_mock.assert_called_once_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        authenticator="externalbrowser",
+    )

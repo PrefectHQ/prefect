@@ -393,10 +393,14 @@ class SnowflakeCredentials(CredentialsBlock):
             if not key.startswith("_")
         }
         connect_params = {
-            # required to track task's usage in the Snowflake Partner Network Portal
-            "application": "Prefect_Snowflake_Collection",
-            **dumped_params,
-            **{k: v for k, v in connect_kwargs.items() if v is not None},
+            key: value
+            for key, value in {
+                # required to track task's usage in the Snowflake Partner Network Portal
+                "application": "Prefect_Snowflake_Collection",
+                **dumped_params,
+                **connect_kwargs,
+            }.items()
+            if value is not None
         }
 
         for key, value in connect_params.items():
