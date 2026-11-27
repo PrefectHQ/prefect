@@ -655,7 +655,13 @@ class Task(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self, "_isstaticmethod", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Task[P, R]":
+    @overload
+    def __get__(self, instance: None, owner: Any) -> Task[P, R]: ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Any) -> _BoundTask[R]: ...
+
+    def __get__(self, instance: Any, owner: Any) -> Any:
         """
         Implement the descriptor protocol so that the task can be used as an instance method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -2213,6 +2219,31 @@ def task(
                 asset_deps=asset_deps,
             ),
         )
+
+
+if TYPE_CHECKING:
+
+    class _BoundTask(Task[..., R], Generic[R]):
+        @overload
+        def __call__(
+            self: "_BoundTask[Coroutine[Any, Any, T]]",
+            *args: Any,
+            return_state: Literal[True],
+            **kwargs: Any,
+        ) -> State[T]: ...
+
+        @overload
+        def __call__(  # pyright: ignore[reportOverlappingOverload]
+            self,
+            *args: Any,
+            return_state: Literal[True],
+            **kwargs: Any,
+        ) -> State[R]: ...
+
+        @overload
+        def __call__(self, *args: Any, **kwargs: Any) -> R: ...
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any: ...  # pyright: ignore[reportIncompatibleMethodOverride]
 
 
 class MaterializingTask(Task[P, R]):

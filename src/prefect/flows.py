@@ -434,7 +434,13 @@ class Flow(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self, "_isstaticmethod", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
+    @overload
+    def __get__(self, instance: None, owner: Any) -> Flow[P, R]: ...
+
+    @overload
+    def __get__(self, instance: Any, owner: Any) -> _BoundFlow[R]: ...
+
+    def __get__(self, instance: Any, owner: Any) -> Any:
         """
         Implement the descriptor protocol so that the flow can be used as an instance or class method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -2141,6 +2147,31 @@ class Flow(Generic[P, R]):
             new_exception = type(e)(str(e) + "\n" + msg)
             new_exception.__traceback__ = e.__traceback__
             raise new_exception
+
+
+if TYPE_CHECKING:
+
+    class _BoundFlow(Flow[..., R], Generic[R]):
+        @overload
+        def __call__(
+            self: "_BoundFlow[Coroutine[Any, Any, T]]",
+            *args: Any,
+            return_state: Literal[True],
+            **kwargs: Any,
+        ) -> Awaitable[State[T]]: ...
+
+        @overload
+        def __call__(  # pyright: ignore[reportOverlappingOverload]
+            self,
+            *args: Any,
+            return_state: Literal[True],
+            **kwargs: Any,
+        ) -> State[R]: ...
+
+        @overload
+        def __call__(self, *args: Any, **kwargs: Any) -> R: ...
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any: ...  # pyright: ignore[reportIncompatibleMethodOverride]
 
 
 class FlowDecorator:

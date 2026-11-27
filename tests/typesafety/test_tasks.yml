@@ -147,3 +147,72 @@
         # See https://github.com/PrefectHQ/prefect/issues/19469
         await async_task_no_return()
         await async_task_with_return()
+
+- case: prefect_task_bound_instance_method_call
+  checkers: [mypy, pyright, ty]
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+    service = Service()
+    reveal_type(service.run(value=1))  # R: int
+
+- case: prefect_task_bound_async_instance_method_call
+  checkers: [mypy, pyright, ty]
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        async def run(self, value: int) -> int:
+            return value
+
+    async def main() -> None:
+        reveal_type(await Service().run(value=1))  # R: int
+
+- case: prefect_task_class_access_keeps_parameters
+  checkers: [mypy, pyright, ty]
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+    reveal_type(Service.run(Service(), 1))  # R: int
+    Service.run(Service(), "bad")  # E:
+
+- case: prefect_task_bound_instance_keeps_task_api
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+    bound = Service().run
+    bound.with_options(name="renamed")
+    bound.fn
+    bound.name
+
+- case: prefect_task_bound_instance_return_state
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect import task
+    from prefect.client.schemas.objects import State
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+    result: State[int] = Service().run(1, return_state=True)
