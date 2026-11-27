@@ -1074,6 +1074,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         container: "Container" = docker_client.containers.get(container_id)
 
+        status = container.status
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )
@@ -1101,6 +1102,14 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         "An unexpected Docker API error occurred while streaming output "
                         f"from container {container.name}."
                     )
+
+            container.reload()
+            if container.status != status:
+                self._logger.info(
+                    f"Docker container {container.name!r} has status"
+                    f" {container.status!r}"
+                )
+            yield container
 
         wait_result = container.wait(timeout=configuration.container_wait_timeout)
         try:
