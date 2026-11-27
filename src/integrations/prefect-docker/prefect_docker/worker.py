@@ -1111,7 +1111,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 )
             yield container
 
-        container.wait(timeout=configuration.container_wait_timeout)
+        wait_result = container.wait(timeout=configuration.container_wait_timeout)
+        try:
+            container.reload()
+        finally:
+            # The wait response remains authoritative if auto-removal prevents
+            # inspecting the container after it exits.
+            container.attrs["State"]["ExitCode"] = wait_result["StatusCode"]
         self._logger.info(
             f"Docker container {container.name!r} has status {container.status!r}"
         )

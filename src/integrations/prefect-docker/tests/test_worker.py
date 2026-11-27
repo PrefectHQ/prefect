@@ -63,6 +63,7 @@ def mock_docker_client(monkeypatch: pytest.MonkeyPatch):
     fake_container = docker.models.containers.Container()
     fake_container.client = MagicMock(name="Container.client")
     fake_container.collection = MagicMock(name="Container.collection")
+    fake_container.client.api.wait.return_value = {"StatusCode": 0}
     attrs = {
         "Id": FAKE_CONTAINER_ID,
         "Name": "fake-name",
@@ -558,6 +559,44 @@ async def test_waits_indefinitely_by_default(
     fake_container.client.api.wait.assert_called_once_with(
         FAKE_CONTAINER_ID, timeout=None
     )
+
+
+@pytest.mark.parametrize("stream_output", [False, True])
+@pytest.mark.parametrize("auto_remove", [False, True])
+@pytest.mark.parametrize("exit_code", [0, 3])
+async def test_worker_result_uses_wait_exit_code(
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    stream_output,
+    auto_remove,
+    exit_code,
+):
+    configuration = default_docker_worker_job_configuration
+    configuration.stream_output = stream_output
+    configuration.auto_remove = auto_remove
+    container = mock_docker_client.containers.get.return_value
+    waited = False
+    reload = container.reload.side_effect
+
+    def wait(*args, **kwargs):
+        nonlocal waited
+        waited = True
+        return {"StatusCode": exit_code}
+
+    def reload_unless_removed():
+        if waited and auto_remove:
+            raise docker.errors.NotFound("container was automatically removed")
+        reload()
+
+    container.client.api.wait.side_effect = wait
+    container.reload.side_effect = reload_unless_removed
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        result = await worker.run(flow_run=flow_run, configuration=configuration)
+
+    assert result.status_code == exit_code
+    assert bool(result) is (exit_code == 0)
 
 
 async def test_container_wait_timeout_raises_when_exceeded(
@@ -1662,9 +1701,11 @@ async def test_worker_errors_out_on_ephemeral_apis():
                 await worker.run()
 
 
+@pytest.mark.parametrize("stream_output", [False, True])
 async def test_emits_events(
-    mock_docker_client, flow_run, default_docker_worker_job_configuration
+    mock_docker_client, flow_run, default_docker_worker_job_configuration, stream_output
 ):
+    default_docker_worker_job_configuration.stream_output = stream_output
     event_count = 0
 
     def event(*args, **kwargs):
@@ -1715,6 +1756,38 @@ async def test_emits_events(
             ),
         ]
     )
+
+
+async def test_emits_event_for_status_between_logs_and_wait(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    container = mock_docker_client.containers.get.return_value
+    status = "paused"
+
+    def reload():
+        container.attrs["State"]["Status"] = status
+
+    def wait(*args, **kwargs):
+        nonlocal status
+        status = "exited"
+        return {"StatusCode": 3}
+
+    container.reload.side_effect = reload
+    container.client.api.wait.side_effect = wait
+
+    with patch("prefect_docker.worker.emit_event") as mock_emit:
+        async with DockerWorker(work_pool_name="test") as worker:
+            result = await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+
+    assert [emitted.kwargs["event"] for emitted in mock_emit.call_args_list] == [
+        "prefect.docker.container.created",
+        "prefect.docker.container.running",
+        "prefect.docker.container.paused",
+        "prefect.docker.container.exited",
+    ]
+    assert result.status_code == 3
 
 
 async def test_emits_event_container_creation_failure(
