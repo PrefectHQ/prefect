@@ -4,7 +4,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { components } from "@/api/prefect";
-import { getApiUrl, getQueryService } from "@/api/service";
+import { applyRequestHeaders, getApiUrl, getQueryService } from "@/api/service";
 
 export type Automation = components["schemas"]["Automation"];
 export type AutomationsFilter = components["schemas"]["Body_read_automations"];
@@ -319,18 +319,19 @@ export const useValidateTemplate = () => {
 			template: string,
 		): Promise<{ valid: true } | { valid: false; error: string }> => {
 			// Use raw fetch to avoid the error-throwing middleware in getQueryService()
-			// since we want to handle 422 responses gracefully as validation errors
+			// since we want to handle 422 responses gracefully as validation errors.
+			// Auth and CSRF headers are applied manually to match the client.
 			const baseUrl = await getApiUrl();
-			const response = await fetch(
-				`${baseUrl}/automations/templates/validate`,
-				{
+			const request = await applyRequestHeaders(
+				new Request(`${baseUrl}/automations/templates/validate`, {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify(template),
-				},
+				}),
 			);
+			const response = await fetch(request);
 
 			if (response.ok) {
 				return { valid: true };

@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from "openapi-fetch";
-import { csrfMiddleware } from "./csrf";
+import { applyCsrfHeaders, csrfMiddleware } from "./csrf";
 import type { paths } from "./prefect.ts";
 import { uiSettings } from "./ui-settings";
 
@@ -28,13 +28,17 @@ const throwOnError: Middleware = {
 	},
 };
 
+const applyAuthHeader = (request: Request): Request => {
+	const password = localStorage.getItem(AUTH_STORAGE_KEY);
+	if (password) {
+		request.headers.set("Authorization", `Basic ${password}`);
+	}
+	return request;
+};
+
 const authMiddleware: Middleware = {
 	onRequest({ request }) {
-		const password = localStorage.getItem(AUTH_STORAGE_KEY);
-		if (password) {
-			request.headers.set("Authorization", `Basic ${password}`);
-		}
-		return request;
+		return applyAuthHeader(request);
 	},
 };
 
@@ -70,4 +74,14 @@ export const getQueryService = async () => {
  */
 export const getApiUrl = async (): Promise<string> => {
 	return uiSettings.getApiUrl();
+};
+
+/**
+ * Apply the auth and CSRF headers that `getQueryService()` adds via middleware.
+ * Use this for raw fetch calls so they work when auth or CSRF is enabled.
+ */
+export const applyRequestHeaders = async (
+	request: Request,
+): Promise<Request> => {
+	return applyCsrfHeaders(applyAuthHeader(request));
 };
