@@ -45,7 +45,7 @@ from uuid import UUID
 import pydantic
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
-from typing_extensions import Literal, ParamSpec
+from typing_extensions import Concatenate, Literal, ParamSpec
 
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
@@ -115,6 +115,8 @@ if TYPE_CHECKING:
 T = TypeVar("T")  # Generic type var for capturing the inner return type of async funcs
 R = TypeVar("R")  # The return type of the user's function
 P = ParamSpec("P")  # The parameters of the flow
+_P = ParamSpec("_P")  # Parameters after binding descriptor self/cls
+_R = TypeVar("_R")  # Return type preserved across descriptor overloads
 F = TypeVar("F", bound="Flow[Any, Any]")  # The type of the flow
 
 
@@ -434,7 +436,17 @@ class Flow(Generic[P, R]):
     def isstaticmethod(self) -> bool:
         return getattr(self, "_isstaticmethod", False)
 
-    def __get__(self, instance: Any, owner: Any) -> "Flow[P, R]":
+    @overload
+    def __get__(self, instance: None, owner: Any) -> "Flow[P, R]": ...
+
+    @overload
+    def __get__(
+        self: "Flow[Concatenate[Any, _P], _R]", instance: object, owner: Any
+    ) -> "Flow[_P, _R]": ...
+
+    def __get__(
+        self, instance: Any, owner: Any
+    ) -> Union["Flow[P, R]", "Flow[Any, Any]"]:
         """
         Implement the descriptor protocol so that the flow can be used as an instance or class method.
         When an instance method is loaded, this method is called with the "self" instance as
@@ -448,7 +460,7 @@ class Flow(Generic[P, R]):
 
         # if the task is being accessed on an instance, bind the instance to the __prefect_self__ attribute
         # of the task's function. This will allow it to be automatically added to the task's parameters
-        if instance:
+        if instance is not None:
             bound_task = copy(self)
             bound_task.fn.__prefect_self__ = instance  # type: ignore[attr-defined]
             return bound_task

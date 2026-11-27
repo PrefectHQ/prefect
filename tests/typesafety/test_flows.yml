@@ -190,3 +190,36 @@
 
     def rebind(bound_flow: InfrastructureBoundFlow[[], None]) -> None:
         bound_flow.with_options(task_runner=ThreadPoolTaskRunner(max_workers=3))
+
+- case: prefect_flow_instance_method_call
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect import flow
+
+    class Service:
+        @flow
+        def run(self, name: str) -> str:
+            return name
+
+        @flow
+        async def arun(self, name: str) -> str:
+            return name
+
+    async def main() -> None:
+        svc = Service()
+        a: str = svc.run("ok")
+        b: str = await svc.arun(name="ok")
+        c: str = Service.run(svc, "cls")
+
+- case: prefect_flow_instance_method_wrong_args
+  checkers: [mypy, pyright]
+  main: |
+    from prefect import flow
+
+    class Service:
+        @flow
+        def run(self, name: str) -> str:
+            return name
+
+    Service().run(123)  # E:

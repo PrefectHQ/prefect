@@ -147,3 +147,37 @@
         # See https://github.com/PrefectHQ/prefect/issues/19469
         await async_task_no_return()
         await async_task_with_return()
+
+- case: prefect_task_instance_method_call
+  checkers: [mypy, pyright, ty]
+  should_pass: true
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+        @task
+        async def arun(self, value: int) -> int:
+            return value
+
+    async def main() -> None:
+        svc = Service()
+        a: int = svc.run(1)
+        b: int = svc.run(value=1)
+        c: int = await svc.arun(value=2)
+        d: int = Service.run(svc, 3)
+
+- case: prefect_task_instance_method_wrong_args
+  checkers: [mypy, pyright]
+  main: |
+    from prefect import task
+
+    class Service:
+        @task
+        def run(self, value: int) -> int:
+            return value
+
+    Service().run("wrong")  # E:
