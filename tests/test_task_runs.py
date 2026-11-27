@@ -13,6 +13,8 @@ from websockets.exceptions import ConnectionClosedError
 from prefect import task
 from prefect.client.schemas.filters import TaskRunFilter
 from prefect.client.schemas.sorting import TaskRunSort
+from prefect.events import emit_event
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.states import Completed, State
 from prefect.task_engine import run_task_async
 from prefect.task_runs import TaskRunWaiter
@@ -68,6 +70,115 @@ class TestTaskRunWaiter:
         # TaskRunWaiter stopped waiting before the task finished
         assert not run.done()
         await run
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_in_cached_state(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A cached task run finishes in a `Cached` state, so its final event is
+        `prefect.task-run.Cached`. Regression test for
+        https://github.com/PrefectHQ/prefect/issues/15427
+        """
+        cache_key = str(uuid.uuid4())
+
+        @task(cache_key_fn=lambda *args, **kwargs: cache_key, persist_result=True)
+        async def test_task() -> int:
+            return 42
+
+        await run_task_async(task=test_task)
+
+        task_run_id = uuid.uuid4()
+        await run_task_async(task=test_task, task_run_id=task_run_id)
+        # Store the events so the waiter receives them when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert state.name == "Cached"
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_keeps_waiting_through_retries(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A retried task run passes through `AwaitingRetry` and `Retrying`, which are
+        not final states.
+        """
+        attempts = 0
+
+        @task(retries=1, retry_delay_seconds=2)
+        async def test_task() -> int:
+            nonlocal attempts
+            attempts += 1
+            await asyncio.sleep(1)
+            if attempts == 1:
+                raise ValueError("fail the first attempt")
+            return 42
+
+        task_run_id = uuid.uuid4()
+        run = asyncio.create_task(
+            run_task_async(task=test_task, task_run_id=task_run_id)
+        )
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert await run == 42
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_in_completed_state_named_pending(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A final state can have the name of a non-final state type, so its event is
+        `prefect.task-run.Pending`.
+        """
+
+        @task
+        async def test_task() -> State:
+            return Completed(name="Pending")
+
+        task_run_id = uuid.uuid4()
+        await run_task_async(task=test_task, task_run_id=task_run_id)
+        # Store the events so the waiter receives them when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
+        assert state.name == "Pending"
+
+    @pytest.mark.timeout(20)
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_wait_for_task_run_with_state_type_only_in_payload(
+        self, emitting_events_pipeline: EventsPipeline
+    ):
+        """
+        A final state event without a `prefect.state-type` label still wakes the
+        waiter through the state type in its payload.
+        """
+        task_run_id = uuid.uuid4()
+        emit_event(
+            event="prefect.task-run.Completed",
+            resource={"prefect.resource.id": f"prefect.task-run.{task_run_id}"},
+            payload={"validated_state": {"type": "COMPLETED", "name": "Completed"}},
+            id=uuid.uuid4(),
+        )
+        # Store the event so the waiter receives it when it subscribes
+        await emitting_events_pipeline.process_events()
+
+        state = await TaskRunWaiter.wait_for_task_run(task_run_id)
+
+        assert state is not None
+        assert state.is_completed()
 
     @pytest.mark.timeout(20)
     @pytest.mark.usefixtures("use_hosted_api_server")

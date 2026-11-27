@@ -24,7 +24,7 @@ from prefect.client.schemas.filters import (
     TaskRunFilterState,
     TaskRunFilterStateType,
 )
-from prefect.client.schemas.objects import TERMINAL_STATES
+from prefect.client.schemas.objects import TERMINAL_STATES, StateType
 from prefect.client.schemas.sorting import TaskRunSort
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
@@ -146,12 +146,7 @@ class TaskRunWaiter:
                 logger=self.logger,
                 subscriber_factory=lambda: get_events_subscriber(
                     filter=EventFilter(
-                        event=EventNameFilter(
-                            name=[
-                                f"prefect.task-run.{state.name.title()}"
-                                for state in TERMINAL_STATES
-                            ],
-                        )
+                        event=EventNameFilter(prefix=["prefect.task-run."])
                     ),
                     reconnection_attempts=0,
                 ),
@@ -180,6 +175,12 @@ class TaskRunWaiter:
 
     def _handle_event(self, event: Event) -> None:
         try:
+            state_type = event.resource.get("prefect.state-type")
+            if not state_type and "validated_state" in event.payload:
+                state_type = event.payload["validated_state"].get("type")
+            if not state_type or StateType(state_type) not in TERMINAL_STATES:
+                return
+
             self.logger.debug(
                 f"Received event: {event.resource['prefect.resource.id']}"
             )
