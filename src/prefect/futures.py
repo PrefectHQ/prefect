@@ -218,6 +218,24 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
         # so wait()/as_completed() do not depend on callback chain ordering.
         self._wrapped_future.add_done_callback(self._notify_prefect_done_callbacks)
 
+    @property
+    def state(self) -> State:
+        """The current state of the task run associated with this future"""
+        # Futures returned by `wait(timeout=...)` and `as_completed()` are
+        # done without having been waited on, so read the final state from
+        # the wrapped future instead of the API, which may lag behind.
+        wrapped_future = self._wrapped_future
+        if (
+            not self._final_state
+            and wrapped_future.done()
+            and not wrapped_future.cancelled()
+            and wrapped_future.exception() is None
+        ):
+            result = wrapped_future.result()
+            if isinstance(result, State):
+                self._final_state = result
+        return super().state
+
     def _add_prefect_done_callback(
         self, fn: Callable[[PrefectFuture[R]], None]
     ) -> None:
@@ -230,6 +248,13 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
 
         if call_immediately:
             fn(self)
+
+    def _remove_prefect_done_callback(
+        self, fn: Callable[[PrefectFuture[R]], None]
+    ) -> None:
+        with self._prefect_done_callbacks_lock:
+            if fn in self._prefect_done_callbacks:
+                self._prefect_done_callbacks.remove(fn)
 
     def _notify_prefect_done_callbacks(
         self, future: concurrent.futures.Future[R]
@@ -628,6 +653,16 @@ def _register_prefect_done_callback(
     future.add_done_callback(callback)
 
 
+def _unregister_prefect_done_callback(
+    future: PrefectFuture[R], callback: Callable[[PrefectFuture[R]], None]
+) -> None:
+    remove_prefect_done_callback = getattr(
+        future, "_remove_prefect_done_callback", None
+    )
+    if remove_prefect_done_callback is not None:
+        remove_prefect_done_callback(callback)
+
+
 def as_completed(
     futures: list[PrefectFuture[R]], timeout: float | None = None
 ) -> Generator[PrefectFuture[R], None]:
@@ -637,6 +672,7 @@ def as_completed(
     total_futures = len(unique_futures)
     pending = unique_futures
     deadline: float | None = None
+    registered_callback: Callable[[PrefectFuture[R]], None] | None = None
     try:
         with timeout_context(timeout or None, timeout_exc_type=_WaitTimeoutError):
             done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
@@ -652,6 +688,7 @@ def as_completed(
                     finished_futures.append(future)
                     finished_event.set()
 
+            registered_callback = add_to_done
             for future in pending:
                 _register_prefect_done_callback(future, add_to_done)
 
@@ -679,6 +716,10 @@ def as_completed(
         raise _WaitTimeoutError(
             "%d (of %d) futures unfinished" % (len(pending), total_futures)
         )
+    finally:
+        if registered_callback is not None:
+            for future in pending:
+                _unregister_prefect_done_callback(future, registered_callback)
 
 
 class DoneAndNotDoneFutures(NamedTuple, Generic[R]):
@@ -743,6 +784,7 @@ def wait(
         return DoneAndNotDoneFutures(done, not_done)
 
     # With timeout, monitor all futures concurrently
+    registered_callback: Callable[[PrefectFuture[R]], None] | None = None
     try:
         with timeout_context(timeout):
             deadline = time.monotonic() + timeout
@@ -756,6 +798,7 @@ def wait(
                     finished_event.set()
 
             # Add callbacks to all pending futures
+            registered_callback = mark_done
             for future in not_done:
                 _register_prefect_done_callback(future, mark_done)
 
@@ -788,6 +831,10 @@ def wait(
         logger.debug("Timed out waiting for all futures to complete.")
         raise_if_flow_run_suspension_requested()
         return DoneAndNotDoneFutures(done, not_done)
+    finally:
+        if registered_callback is not None:
+            for future in not_done:
+                _unregister_prefect_done_callback(future, registered_callback)
 
 
 def resolve_futures_to_states(
