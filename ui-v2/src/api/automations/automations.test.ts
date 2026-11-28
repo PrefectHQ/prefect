@@ -2,8 +2,9 @@ import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { csrfTokenManager } from "@/api/csrf";
 import { createFakeAutomation } from "@/mocks";
 
 import {
@@ -345,6 +346,66 @@ describe("automations queries and mutations", () => {
 			expect(validationResult).toEqual({
 				valid: false,
 				error: "Error on line 1: unexpected '}'",
+			});
+		});
+
+		describe("with auth and CSRF enabled", () => {
+			afterEach(() => {
+				vi.restoreAllMocks();
+				csrfTokenManager.reset();
+			});
+
+			it("sends Authorization and CSRF headers", async () => {
+				vi.spyOn(localStorage, "getItem").mockImplementation((key) =>
+					key === "prefect-password" ? "YWRtaW46cGFzcw==" : null,
+				);
+				let receivedHeaders: Headers | undefined;
+				server.use(
+					http.get("http://localhost:4200/ui-settings", () => {
+						return HttpResponse.json({
+							api_url: "http://localhost:4200/api",
+							csrf_enabled: true,
+							auth: "BASIC",
+							flags: [],
+						});
+					}),
+					http.post(
+						buildApiUrl("/automations/templates/validate"),
+						({ request }) => {
+							receivedHeaders = request.headers;
+							if (
+								request.headers.get("Authorization") !==
+								"Basic YWRtaW46cGFzcw=="
+							) {
+								return new HttpResponse(null, { status: 401 });
+							}
+							return new HttpResponse(null, { status: 204 });
+						},
+					),
+				);
+
+				const { result } = renderHook(useValidateTemplate, {
+					wrapper: createWrapper(),
+				});
+
+				let validationResult:
+					| { valid: true }
+					| { valid: false; error: string }
+					| undefined;
+				await act(async () => {
+					validationResult = await result.current.validateTemplate(
+						"Hello {{ flow.name }}",
+					);
+				});
+
+				expect(validationResult).toEqual({ valid: true });
+				expect(receivedHeaders?.get("Authorization")).toBe(
+					"Basic YWRtaW46cGFzcw==",
+				);
+				expect(receivedHeaders?.get("Prefect-Csrf-Token")).toBe(
+					"test-csrf-token",
+				);
+				expect(receivedHeaders?.get("Prefect-Csrf-Client")).toBeTruthy();
 			});
 		});
 

@@ -179,14 +179,21 @@ class CsrfTokenManager {
 export const csrfTokenManager = new CsrfTokenManager();
 
 /**
+ * Attach CSRF token headers to mutating requests (POST, PUT, PATCH, DELETE).
+ */
+export async function applyCsrfHeaders(request: Request): Promise<Request> {
+	if (MUTATING_METHODS.has(request.method)) {
+		await csrfTokenManager.addCsrfHeaders(request);
+	}
+	return request;
+}
+
+/**
  * openapi-fetch middleware that attaches CSRF token headers
  * to mutating requests (POST, PUT, PATCH, DELETE).
  */
 export const csrfMiddleware: Middleware = {
-	async onRequest({ request }) {
-		if (MUTATING_METHODS.has(request.method)) {
-			await csrfTokenManager.addCsrfHeaders(request);
-		}
-		return request;
+	onRequest({ request }) {
+		return applyCsrfHeaders(request);
 	},
 };
