@@ -103,6 +103,30 @@ S3Bucket(
 ).save("S3-BLOCK-NAME-PLACEHOLDER")
 ```
 
+#### S3-compatible object storage
+
+`S3Bucket` also works with object stores that implement the S3 API, such as Backblaze B2, Cloudflare R2, or MinIO.
+Set `endpoint_url` through `AwsClientParameters` on the credentials block, and set `region_name` to the region the endpoint expects:
+
+```python
+from prefect_aws import AwsClientParameters, AwsCredentials
+from prefect_aws.s3 import S3Bucket
+
+aws_credentials = AwsCredentials(
+    aws_access_key_id="PLACEHOLDER",
+    aws_secret_access_key="PLACEHOLDER",
+    region_name="REGION-PLACEHOLDER",
+    aws_client_parameters=AwsClientParameters(
+        endpoint_url="https://S3-ENDPOINT-PLACEHOLDER"
+    ),
+)
+
+S3Bucket(
+    bucket_name="BUCKET-NAME-PLACEHOLDER",
+    credentials=aws_credentials
+).save("S3-BLOCK-NAME-PLACEHOLDER")
+```
+
 ### Lambda
 Invoke AWS Lambdas, synchronously or asynchronously.
 
