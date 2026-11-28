@@ -29184,6 +29184,7 @@
                 "properties": {
                     "name": {
                         "type": "string",
+                        "minLength": 1,
                         "maxLength": 255,
                         "title": "Name",
                         "description": "The name of the variable",
@@ -29418,6 +29419,7 @@
                         "anyOf": [
                             {
                                 "type": "string",
+                                "minLength": 1,
                                 "maxLength": 255,
                                 "description": "The name of the variable",
                                 "examples": [
