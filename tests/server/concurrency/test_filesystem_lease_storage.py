@@ -1,6 +1,7 @@
 import asyncio
 import json
 import multiprocessing
+import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 from multiprocessing.connection import Connection
@@ -12,7 +13,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from prefect.locking import _filelock
-from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetadata
+from prefect.server.concurrency.lease_storage import (
+    RELEASED_LEASE_RETENTION,
+    ConcurrencyLimitLeaseMetadata,
+)
 from prefect.server.concurrency.lease_storage.filesystem import (
     ConcurrencyLeaseStorage,
 )
@@ -372,6 +376,42 @@ class TestFilesystemConcurrencyLeaseStorage:
         non_existing_id = uuid4()
         # Should not raise an exception
         await storage.revoke_lease(non_existing_id)
+
+    async def test_mark_lease_released(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        lease_id = uuid4()
+        assert await storage.is_lease_released(lease_id) is False
+
+        await storage.mark_lease_released(lease_id)
+
+        assert await storage.is_lease_released(lease_id) is True
+        assert await storage.is_lease_released(uuid4()) is False
+        # Another storage instance sharing the directory sees the record
+        assert (
+            await ConcurrencyLeaseStorage(storage_path=temp_dir).is_lease_released(
+                lease_id
+            )
+            is True
+        )
+
+    async def test_mark_lease_released_prunes_old_records(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        old_lease_id = uuid4()
+        await storage.mark_lease_released(old_lease_id)
+        old_timestamp = (
+            datetime.now(timezone.utc) - RELEASED_LEASE_RETENTION - timedelta(seconds=1)
+        ).timestamp()
+        for path in (
+            storage._released_marker_path(old_lease_id),
+            storage._released_dir_path() / ".pruned_at",
+        ):
+            os.utime(path, (old_timestamp, old_timestamp))
+
+        await storage.mark_lease_released(uuid4())
+
+        assert await storage.is_lease_released(old_lease_id) is False
 
     async def test_read_expired_lease_ids_no_expired(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]

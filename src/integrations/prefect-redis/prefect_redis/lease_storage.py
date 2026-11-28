@@ -21,6 +21,8 @@ from prefect_redis.client import cluster_key_prefix, get_async_redis_client
 
 logger = logging.getLogger(__name__)
 
+RELEASED_LEASE_RETENTION = timedelta(days=7)
+
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     """
@@ -33,6 +35,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.lease_prefix = f"{self.base_prefix}lease:"
         self.expirations_key = f"{self.base_prefix}expirations"
         self.expiration_prefix = f"{self.base_prefix}expiration:"
+        self.released_prefix = f"{self.base_prefix}released:"
         # Lua scripts registered on the server
         self._create_script: Any | None = None
         self._revoke_script: Any | None = None
@@ -44,6 +47,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _expiration_key(self, lease_id: UUID) -> str:
         """Generate Redis key for lease expiration."""
         return f"{self.expiration_prefix}{lease_id}"
+
+    def _released_key(self, lease_id: UUID) -> str:
+        """Generate Redis key for a released lease marker."""
+        return f"{self.released_prefix}{lease_id}"
 
     def _limit_holders_key(self, limit_id: UUID) -> str:
         return f"{self.base_prefix}limit:{limit_id}:holders"
@@ -295,6 +302,24 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
+            raise
+
+    async def mark_lease_released(self, lease_id: UUID) -> None:
+        try:
+            await self.redis_client.set(
+                self._released_key(lease_id),
+                "1",
+                ex=int(RELEASED_LEASE_RETENTION.total_seconds()),
+            )
+        except RedisError as e:
+            logger.error(f"Failed to mark lease {lease_id} as released: {e}")
+            raise
+
+    async def is_lease_released(self, lease_id: UUID) -> bool:
+        try:
+            return bool(await self.redis_client.exists(self._released_key(lease_id)))
+        except RedisError as e:
+            logger.error(f"Failed to check if lease {lease_id} was released: {e}")
             raise
 
     async def read_active_lease_ids(

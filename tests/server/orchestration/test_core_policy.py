@@ -35,12 +35,14 @@ from prefect.server.orchestration.core_policy import (
     CacheRetrieval,
     CopyScheduledTime,
     CopyTaskParametersID,
+    CoreFlowPolicy,
     EnforceCancellingToCancelledTransition,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
+    MinimalFlowPolicy,
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
@@ -4868,6 +4870,122 @@ class TestFlowConcurrencyLimits:
         await session.refresh(limit)
         if limit.active_slots != 1:
             raise ExpectedDeploymentConcurrencyAcquisitionAbortRace
+
+    async def _release_with_policy(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        policy: type[CoreFlowPolicy] | type[MinimalFlowPolicy],
+        deployment: orm.Deployment,
+        lease_id: UUID,
+    ) -> FlowOrchestrationContext:
+        crash_transition = (states.StateType.RUNNING, states.StateType.CRASHED)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *crash_transition,
+            deployment_id=deployment.id,
+            initial_details={"deployment_concurrency_lease_id": lease_id},
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in policy.compile_transition_rules(
+                ctx.initial_state_type, ctx.proposed_state_type
+            ):
+                ctx = await stack.enter_async_context(rule(ctx, *crash_transition))
+            await ctx.validate_proposed_state()
+        await session.commit()
+        return ctx
+
+    @pytest.mark.parametrize("policy", [CoreFlowPolicy, MinimalFlowPolicy])
+    async def test_terminal_release_after_repossession_preserves_replacement_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+        policy: type[CoreFlowPolicy] | type[MinimalFlowPolicy],
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        await session.commit()
+        lease_storage = get_concurrency_lease_storage()
+
+        orphan_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        orphan_lease_id = (
+            orphan_ctx.validated_state.state_details.deployment_concurrency_lease_id
+        )
+        assert orphan_lease_id is not None
+        await session.commit()
+
+        # The orphan's worker dies, its lease expires, and the repossessor
+        # returns its slot.
+        await lease_storage.renew_lease(orphan_lease_id, ttl=timedelta(seconds=-1))
+        await revoke_expired_lease(
+            orphan_lease_id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+        replacement_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        assert replacement_ctx.response_status == SetStateStatus.ACCEPT
+        await session.commit()
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        ctx = await self._release_with_policy(
+            session, initialize_orchestration, policy, deployment, orphan_lease_id
+        )
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+    async def test_terminal_release_of_lost_lease_uses_fallback(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        await session.commit()
+        lease_storage = get_concurrency_lease_storage()
+
+        secure_ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = (
+            secure_ctx.validated_state.state_details.deployment_concurrency_lease_id
+        )
+        assert lease_id is not None
+        await session.commit()
+
+        # The lease record is lost without its slot being returned, as when
+        # in-memory lease storage restarts.
+        await lease_storage.revoke_lease(lease_id)
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        await self._release_with_policy(
+            session, initialize_orchestration, CoreFlowPolicy, deployment, lease_id
+        )
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
 
     async def test_cancel_new_collision_strategy(
         self,

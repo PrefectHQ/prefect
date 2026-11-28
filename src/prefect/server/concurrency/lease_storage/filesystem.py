@@ -11,9 +11,11 @@ from typing import Any, TypedDict
 from uuid import UUID
 
 import anyio
+import anyio.to_thread
 
 from prefect.locking._filelock import FileLock
 from prefect.server.concurrency.lease_storage import (
+    RELEASED_LEASE_RETENTION,
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
@@ -22,6 +24,9 @@ from prefect.server.concurrency.lease_storage import (
 )
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
+
+RELEASED_PRUNE_INTERVAL = timedelta(hours=1)
+RELEASED_PRUNED_AT_FILENAME = ".pruned_at"
 
 
 class _LeaseFile(TypedDict):
@@ -49,6 +54,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     def _lease_file_path(self, lease_id: UUID) -> Path:
         return self.storage_path / f"{lease_id}.json"
+
+    def _released_dir_path(self) -> Path:
+        return self.storage_path / "released"
+
+    def _released_marker_path(self, lease_id: UUID) -> Path:
+        return self._released_dir_path() / str(lease_id)
 
     def _expiration_index_path(self) -> anyio.Path:
         return anyio.Path(self.storage_path / "expirations.json")
@@ -288,6 +299,45 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         # Remove from expiration index
         await self._remove_from_expiration_index(lease_id)
+
+    async def mark_lease_released(self, lease_id: UUID) -> None:
+        """
+        Record a released lease as an empty marker file.
+
+        The marker's modification time is the release time. Markers older than
+        `RELEASED_LEASE_RETENTION` are removed at most once per
+        `RELEASED_PRUNE_INTERVAL`.
+        """
+        released_dir = self._released_dir_path()
+        released_dir.mkdir(parents=True, exist_ok=True)
+        self._released_marker_path(lease_id).touch()
+        await anyio.to_thread.run_sync(self._prune_released_markers)
+
+    def _prune_released_markers(self) -> None:
+        released_dir = self._released_dir_path()
+        pruned_at_path = released_dir / RELEASED_PRUNED_AT_FILENAME
+        now = datetime.now(timezone.utc).timestamp()
+        try:
+            if now - pruned_at_path.stat().st_mtime < (
+                RELEASED_PRUNE_INTERVAL.total_seconds()
+            ):
+                return
+        except FileNotFoundError:
+            pass
+        pruned_at_path.touch()
+
+        cutoff = now - RELEASED_LEASE_RETENTION.total_seconds()
+        for marker in released_dir.iterdir():
+            if marker.name == RELEASED_PRUNED_AT_FILENAME:
+                continue
+            try:
+                if marker.stat().st_mtime < cutoff:
+                    marker.unlink(missing_ok=True)
+            except OSError:
+                continue
+
+    async def is_lease_released(self, lease_id: UUID) -> bool:
+        return self._released_marker_path(lease_id).exists()
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

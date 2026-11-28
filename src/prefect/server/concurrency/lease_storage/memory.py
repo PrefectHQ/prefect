@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from prefect.server.concurrency.lease_storage import (
+    RELEASED_LEASE_RETENTION,
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
@@ -32,6 +33,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         self.leases: dict[UUID, ResourceLease[ConcurrencyLimitLeaseMetadata]] = {}
         self.expirations: dict[UUID, datetime] = {}
+        self.released: dict[UUID, datetime] = {}
         self.__class__._initialized = True
 
     async def create_lease(
@@ -81,6 +83,20 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     async def revoke_lease(self, lease_id: UUID) -> None:
         self.leases.pop(lease_id, None)
         self.expirations.pop(lease_id, None)
+
+    async def mark_lease_released(self, lease_id: UUID) -> None:
+        now = datetime.now(timezone.utc)
+        cutoff = now - RELEASED_LEASE_RETENTION
+        # Records are kept in release order, so expired records are at the front.
+        for released_id, released_at in list(self.released.items()):
+            if released_at > cutoff:
+                break
+            del self.released[released_id]
+        self.released.pop(lease_id, None)
+        self.released[lease_id] = now
+
+    async def is_lease_released(self, lease_id: UUID) -> bool:
+        return lease_id in self.released
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

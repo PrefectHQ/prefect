@@ -131,6 +131,7 @@ async def clear_db(db, request):
     storage = ConcurrencyLeaseStorage()
     storage.leases.clear()
     storage.expirations.clear()
+    storage.released.clear()
 
     yield
 
