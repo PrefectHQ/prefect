@@ -46,6 +46,7 @@ from prefect.utilities.callables import (
     cloudpickle_wrapped_call,
     collapse_variadic_parameters,
     explode_variadic_parameter,
+    get_factory_parameter_defaults,
     get_parameter_defaults,
 )
 from prefect.utilities.collections import isiterable
@@ -197,6 +198,8 @@ class TaskRunner(abc.ABC, Generic[F]):
             )
 
         map_length = list(lengths)[0]
+        parameter_defaults = get_parameter_defaults(task.fn)
+        parameter_factories = get_factory_parameter_defaults(task.fn)
 
         futures: list[PrefectFuture[Any]] = []
         for i in range(map_length):
@@ -211,8 +214,11 @@ class TaskRunner(abc.ABC, Generic[F]):
 
             # Add default values for parameters; these are skipped earlier since they should
             # not be mapped over
-            for key, value in get_parameter_defaults(task.fn).items():
+            for key, value in parameter_defaults.items():
                 call_parameters.setdefault(key, value)
+
+            for key, factory in parameter_factories.items():
+                call_parameters.setdefault(key, factory())
 
             # Re-apply annotations to each key again
             for key, annotation in annotated_parameters.items():

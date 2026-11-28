@@ -94,6 +94,28 @@ def _resolve_field_info_default(value: Any) -> Any:
     default value. Other values are returned unchanged.
     """
     if isinstance(value, pydantic.fields.FieldInfo):
+        if value.default_factory is not None:
+            try:
+                sig = inspect.signature(value.default_factory)
+            except (ValueError, TypeError):
+                # Builtin types (list, dict, set, …) have no inspectable
+                # signature; they are always zero-argument constructors.
+                return value.default_factory()  # type: ignore[call-arg]
+            required_params = [
+                p
+                for p in sig.parameters.values()
+                if p.default is inspect.Parameter.empty
+                and p.kind
+                not in (
+                    inspect.Parameter.VAR_POSITIONAL,
+                    inspect.Parameter.VAR_KEYWORD,
+                )
+            ]
+            if required_params:
+                # Factory requires arguments we cannot supply here; return
+                # the callable so the caller can invoke it with the right data.
+                return value.default_factory
+            return value.default_factory()  # type: ignore[call-arg]
         return value.default
     return value
 
@@ -103,6 +125,11 @@ def get_parameter_defaults(
 ) -> dict[str, Any]:
     """
     Get default parameter values for a callable.
+
+    Parameters backed by a `default_factory` are excluded; use
+    `get_factory_parameter_defaults` to retrieve those separately so that
+    each call site can invoke the factory fresh rather than sharing one
+    resolved value.
     """
     signature = inspect.signature(fn)
 
@@ -110,9 +137,40 @@ def get_parameter_defaults(
 
     for name, param in signature.parameters.items():
         if param.default is not signature.empty:
+            if (
+                isinstance(param.default, pydantic.fields.FieldInfo)
+                and param.default.default_factory is not None
+            ):
+                continue  # handled by get_factory_parameter_defaults
             parameter_defaults[name] = _resolve_field_info_default(param.default)
 
     return parameter_defaults
+
+
+def get_factory_parameter_defaults(
+    fn: Callable[..., Any],
+) -> dict[str, Callable[..., Any]]:
+    """
+    Return a mapping of parameter name to its `default_factory` callable
+    for parameters backed by `Field(default_factory=...)`.
+
+    Unlike `get_parameter_defaults`, this returns the factory itself so the
+    caller can invoke it fresh for each use, preventing mutable defaults from
+    being shared across mapped calls.
+    """
+    signature = inspect.signature(fn)
+
+    factories: dict[str, Callable[..., Any]] = {}
+
+    for name, param in signature.parameters.items():
+        if param.default is not signature.empty:
+            if (
+                isinstance(param.default, pydantic.fields.FieldInfo)
+                and param.default.default_factory is not None
+            ):
+                factories[name] = param.default.default_factory
+
+    return factories
 
 
 def explode_variadic_parameter(
@@ -914,9 +972,11 @@ def expand_mapping_parameters(
         call_parameters.update({key: value for key, value in static_parameters.items()})
 
         # Add default values for parameters; these are skipped earlier since they should
-        # not be mapped over
-        for key, value in get_parameter_defaults(func).items():
-            call_parameters.setdefault(key, value)
+        # not be mapped over. Resolve factories only for parameters that are actually
+        # missing — calling them for supplied parameters is unnecessary and can fail.
+        for name, param in inspect.signature(func).parameters.items():
+            if name not in call_parameters and param.default is not param.empty:
+                call_parameters[name] = _resolve_field_info_default(param.default)
 
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
