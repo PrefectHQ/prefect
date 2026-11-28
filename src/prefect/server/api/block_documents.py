@@ -59,10 +59,6 @@ async def read_block_documents(
     block_documents: schemas.filters.BlockDocumentFilter | None = None,
     block_types: schemas.filters.BlockTypeFilter | None = None,
     block_schemas: schemas.filters.BlockSchemaFilter | None = None,
-    block_schema_type: str | None = Body(
-        default=None,
-        description="Deprecated legacy block schema type parameter sent by Prefect clients.",
-    ),
     include_secrets: bool = Body(
         False, description="Whether to include sensitive values in the block document."
     ),
@@ -71,6 +67,10 @@ async def read_block_documents(
     ),
     offset: int | None = Body(0, ge=0),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
+    block_schema_type: str | None = Body(
+        default=None,
+        description="Deprecated legacy block schema type parameter sent by Prefect clients.",
+    ),
 ) -> List[schemas.core.BlockDocument]:
     """
     Query for block documents.

@@ -72,8 +72,8 @@ async def count_flows(
     task_runs: schemas.filters.TaskRunFilter | None = None,
     deployments: schemas.filters.DeploymentFilter | None = None,
     work_pools: schemas.filters.WorkPoolFilter | None = None,
-    work_queues: schemas.filters.WorkQueueFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
 ) -> int:
     """
     Count flows.
@@ -133,9 +133,9 @@ async def read_flows(
     task_runs: schemas.filters.TaskRunFilter | None = None,
     deployments: schemas.filters.DeploymentFilter | None = None,
     work_pools: schemas.filters.WorkPoolFilter | None = None,
-    work_queues: schemas.filters.WorkQueueFilter | None = None,
     sort: schemas.sorting.FlowSort | None = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
 ) -> List[schemas.core.Flow]:
     """
     Query for flows.
@@ -225,9 +225,9 @@ async def paginate_flows(
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
-    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
 ) -> FlowPaginationResponse:
     """
     Pagination query for flows.

@@ -228,10 +228,10 @@ async def read_flows(
     task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
     deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
     work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
-    work_queue_filter: Union[schemas.filters.WorkQueueFilter, None] = None,
     sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
     offset: Union[int, None] = None,
     limit: Union[int, None] = None,
+    work_queue_filter: Union[schemas.filters.WorkQueueFilter, None] = None,
 ) -> Sequence[orm_models.Flow]:
     """
     Read multiple flows.
