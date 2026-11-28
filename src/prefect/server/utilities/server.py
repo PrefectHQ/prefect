@@ -8,8 +8,10 @@ from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING, Any, Callable, get_type_hints
 
 from fastapi import APIRouter, Request, Response, status
+from fastapi import params as fastapi_params
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
+from pydantic import BaseModel, ConfigDict
 from starlette.routing import BaseRoute
 
 
@@ -96,6 +98,103 @@ async def _reject_unpaired_surrogates(request: Request) -> None:
         )
 
 
+_STRICT_TOP_LEVEL_BODY_SUFFIXES = ("/filter", "/count", "/paginate")
+
+
+def _is_strict_top_level_body_path(path: str) -> bool:
+    trimmed = path.rstrip("/")
+    return trimmed.endswith(_STRICT_TOP_LEVEL_BODY_SUFFIXES) or "/count-by/" in trimmed
+
+
+def configure_strict_body_field(route_like: Any) -> frozenset[str] | None:
+    """
+    Mark generated multi-parameter body models on `/filter`, `/count`, and `/paginate`
+    routes with `extra="forbid"` (refreshing FastAPI's cached `TypeAdapter` so OpenAPI
+    emits `additionalProperties: false`) and return the allowed top-level JSON keys.
+    """
+    body_field = getattr(route_like, "body_field", None)
+    path = getattr(route_like, "path", None)
+    if (
+        body_field is None
+        or not isinstance(path, str)
+        or not getattr(route_like, "_embed_body_fields", False)
+        or isinstance(body_field.field_info, (fastapi_params.Form, fastapi_params.File))
+        or not _is_strict_top_level_body_path(path)
+    ):
+        return None
+
+    body_model = getattr(body_field.field_info, "annotation", None)
+    if not (isinstance(body_model, type) and issubclass(body_model, BaseModel)):
+        return None
+
+    body_model.model_config = ConfigDict(
+        **dict(body_model.model_config), extra="forbid"
+    )
+    body_model.model_rebuild(force=True)
+    if hasattr(body_field, "__post_init__"):
+        body_field.__post_init__()
+
+    allowed = set(body_model.model_fields.keys()) | {
+        (field_info.alias or name)
+        for name, field_info in body_model.model_fields.items()
+    }
+    if path.rstrip("/").endswith("/count"):
+        # The UI reuses shared `Body_read_*` filter objects (which include
+        # `limit`, `offset`, and `sort`) when calling `POST .../count`.
+        allowed.update(("limit", "offset", "sort"))
+    return frozenset(allowed)
+
+
+def enforce_strict_body_fields_on_routes(routes: Sequence[BaseRoute]) -> None:
+    """
+    Ensure effective route contexts created by `app.include_router(...)` also rebuild
+    their synthesized `Body_*` models with `extra="forbid"` for OpenAPI generation.
+    """
+    for route in routes:
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+        )
+        for candidate in candidates:
+            configure_strict_body_field(candidate)
+
+
+async def _reject_unknown_top_level_body_keys(
+    request: Request, allowed_keys: frozenset[str]
+) -> None:
+    """
+    Reject unknown top-level JSON object keys on `/filter`, `/count`, and `/paginate`
+    endpoints so misspelled filter or pagination keys return 422 (`extra_forbidden`)
+    instead of being silently dropped by FastAPI's parameter-by-parameter extraction.
+    """
+    body_bytes = await request.body()
+    if not body_bytes:
+        return
+    if "json" not in request.headers.get("content-type", "application/json").lower():
+        return
+    try:
+        body = await request.json()
+    except ValueError:
+        return
+    if not isinstance(body, dict):
+        return
+
+    extra_errors = [
+        {
+            "type": "extra_forbidden",
+            "loc": ("body", key),
+            "msg": "Extra inputs are not permitted",
+            "input": value,
+        }
+        for key, value in body.items()
+        if key not in allowed_keys
+    ]
+    if extra_errors:
+        raise RequestValidationError(extra_errors, body=body)
+
+
 class PrefectAPIRoute(APIRoute):
     """
     A FastAPIRoute class which attaches an async stack to requests that exits before
@@ -108,13 +207,20 @@ class PrefectAPIRoute(APIRoute):
     scope. This extension adds this stack at `request.state.response_scoped_stack`.
     """
 
+    _allowed_top_level_body_keys: frozenset[str] | None = None
+
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        if self._allowed_top_level_body_keys is None:
+            self._allowed_top_level_body_keys = configure_strict_body_field(self)
         default_handler = super().get_route_handler()
+        allowed_keys = self._allowed_top_level_body_keys
 
         async def handle_response_scoped_depends(request: Request) -> Response:
             # Create a new stack scoped to exit before the response is returned
             if self.body_field is not None:
                 await _reject_unpaired_surrogates(request)
+                if allowed_keys is not None:
+                    await _reject_unknown_top_level_body_keys(request, allowed_keys)
 
             response = None
             async with AsyncExitStack() as stack:

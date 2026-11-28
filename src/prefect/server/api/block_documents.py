@@ -67,6 +67,10 @@ async def read_block_documents(
     ),
     offset: int | None = Body(0, ge=0),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
+    block_schema_type: str | None = Body(
+        default=None,
+        description="Deprecated legacy block schema type parameter sent by Prefect clients.",
+    ),
 ) -> List[schemas.core.BlockDocument]:
     """
     Query for block documents.

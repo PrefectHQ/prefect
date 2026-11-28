@@ -160,6 +160,7 @@ async def _apply_flow_filters(
     task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
     deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
     work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
+    work_queue_filter: Union[schemas.filters.WorkQueueFilter, None] = None,
 ) -> Select[T]:
     """
     Applies filters to a flow query as a combination of EXISTS subqueries.
@@ -168,7 +169,7 @@ async def _apply_flow_filters(
     if flow_filter:
         query = query.where(flow_filter.as_sql_filter())
 
-    if deployment_filter or work_pool_filter:
+    if deployment_filter or work_pool_filter or work_queue_filter:
         deployment_exists_clause = select(db.Deployment).where(
             db.Deployment.flow_id == db.Flow.id
         )
@@ -178,11 +179,18 @@ async def _apply_flow_filters(
                 deployment_filter.as_sql_filter(),
             )
 
-        if work_pool_filter:
+        if work_pool_filter or work_queue_filter:
             deployment_exists_clause = deployment_exists_clause.join(
                 db.WorkQueue,
                 db.WorkQueue.id == db.Deployment.work_queue_id,
             )
+
+        if work_queue_filter:
+            deployment_exists_clause = deployment_exists_clause.where(
+                work_queue_filter.as_sql_filter(),
+            )
+
+        if work_pool_filter:
             deployment_exists_clause = deployment_exists_clause.join(
                 db.WorkPool,
                 db.WorkPool.id == db.WorkQueue.work_pool_id,
@@ -223,6 +231,7 @@ async def read_flows(
     sort: schemas.sorting.FlowSort = schemas.sorting.FlowSort.NAME_ASC,
     offset: Union[int, None] = None,
     limit: Union[int, None] = None,
+    work_queue_filter: Union[schemas.filters.WorkQueueFilter, None] = None,
 ) -> Sequence[orm_models.Flow]:
     """
     Read multiple flows.
@@ -251,6 +260,7 @@ async def read_flows(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
+        work_queue_filter=work_queue_filter,
     )
 
     if offset is not None:
@@ -272,6 +282,7 @@ async def count_flows(
     task_run_filter: Union[schemas.filters.TaskRunFilter, None] = None,
     deployment_filter: Union[schemas.filters.DeploymentFilter, None] = None,
     work_pool_filter: Union[schemas.filters.WorkPoolFilter, None] = None,
+    work_queue_filter: Union[schemas.filters.WorkQueueFilter, None] = None,
 ) -> int:
     """
     Count flows.
@@ -298,6 +309,7 @@ async def count_flows(
         task_run_filter=task_run_filter,
         deployment_filter=deployment_filter,
         work_pool_filter=work_pool_filter,
+        work_queue_filter=work_queue_filter,
     )
 
     result = await session.execute(query)

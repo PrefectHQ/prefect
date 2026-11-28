@@ -3816,7 +3816,7 @@ class TestPaginateFlowRuns:
             flow_runs=dict(tags=dict(all_=["blue"])),
             flows=dict(name=dict(any_=["another-test"])),
             limit=1,
-            offset=0,
+            page=1,
         )
         response = await client.post("/flow_runs/paginate", json=flow_run_filter)
 

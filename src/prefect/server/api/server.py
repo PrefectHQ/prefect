@@ -68,6 +68,7 @@ from prefect.server.schemas.responses import HTTPErrorResponse, InvalidRequestRe
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.utilities.database import get_dialect
+from prefect.server.utilities.server import enforce_strict_body_fields_on_routes
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_LOG_RETRYABLE_ERRORS,
@@ -631,6 +632,8 @@ def create_api_app(
             # originals must be kept.  The duplication no longer occurs in this
             # case either, so the optimisation is unnecessary.
             del router.routes
+
+    enforce_strict_body_fields_on_routes(api_app.routes)
 
     if final:
         gc.collect()
