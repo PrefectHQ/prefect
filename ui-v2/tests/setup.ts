@@ -63,6 +63,9 @@ class ResizeObserverMock {
 }
 vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
+// jsdom has no 2D canvas and logs "Not implemented" on every call
+HTMLCanvasElement.prototype.getContext = vi.fn(() => null);
+
 // Mock localStorage
 const localStorageMock: Storage = {
 	key: vi.fn(),
