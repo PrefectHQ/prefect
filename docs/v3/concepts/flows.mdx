@@ -98,6 +98,21 @@ You can also create a flow run by:
 However and wherever you run your flow, Prefect monitors the **flow run**, capturing its state for observability.
 To customize the default instrumentation of your workflow, you may [log a variety of metadata](/v3/how-to-guides/workflows/add-logging) or [emit events](/v3/advanced/use-custom-event-grammar) about flow runs for monitoring, troubleshooting, and auditing purposes.
 
+### Flow and deployment versions
+
+Set `@flow(version="1.2.0")` to label the code that executes a flow run.
+Prefect records this value in the run's `flow_version` field.
+If you omit the flow version, Prefect uses a hash of the file that defines the flow when that file is available.
+
+A deployment's `version` labels the deployment configuration.
+When you create a deployment from Python without an explicit deployment version, Prefect can infer one from Git or CI and falls back to the flow version when it cannot.
+For example, you can use `@flow(version="1.2.0")` for the flow code and `my_flow.to_deployment(name="prod", version="release-42")` for the deployment.
+
+<Note>
+[Deployment version history and rollback](/v3/how-to-guides/deployments/versioning) are only available in Prefect Cloud.
+To have a rolled-back deployment run the original code, pin the code source to a Git commit or a container image digest.
+</Note>
+
 ### Archive flows
 
 <span class="badge cloud"></span>
