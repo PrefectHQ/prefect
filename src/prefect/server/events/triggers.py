@@ -521,6 +521,13 @@ __events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
 
+# A restarted process starts without knowing where the event stream is relative to
+# wall time.  Until it handles an event (or has been idle long enough to assume it is
+# caught up) it must not sweep buckets by wall time: a lagging consumer's buckets are
+# still open in event time and would be deleted prematurely.
+_EVENTS_CLOCK_UNKNOWN_GRACE_SECONDS = 60.0
+_events_clock_reset_at: float = prefect.types._datetime.now("UTC").timestamp()
+
 
 def _events_clock_lock() -> asyncio.Lock:
     global __events_clock_lock
@@ -571,10 +578,28 @@ async def get_events_clock_offset() -> float:
 
 
 async def reset_events_clock() -> None:
-    global _events_clock, _events_clock_updated
+    global _events_clock, _events_clock_updated, _events_clock_reset_at
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
+        _events_clock_reset_at = prefect.types._datetime.now("UTC").timestamp()
+
+
+async def events_clock_is_unknown(
+    now: prefect.types._datetime.DateTime,
+) -> bool:
+    """Whether wall time can be trusted as a proxy for event time yet.
+
+    The clock is unknown immediately after a restart, before the first event has
+    been processed.  After a short grace period with no events, assume the
+    consumer is caught up so periodic cleanup cannot be suppressed forever.
+    """
+    async with _events_clock_lock():
+        if _events_clock is not None:
+            return False
+        return (
+            now.timestamp() - _events_clock_reset_at
+        ) < _EVENTS_CLOCK_UNKNOWN_GRACE_SECONDS
 
 
 async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
@@ -738,12 +763,15 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     for event in await get_lost_followers():
         await reactive_evaluation(event)
 
-    async with automations_session() as session:
-        await sweep_closed_buckets(
-            session,
-            as_of - PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER.value(),
-        )
-        await session.commit()
+    if await events_clock_is_unknown(now):
+        logger.debug("Skipping closed bucket sweep until the events clock is known")
+    else:
+        async with automations_session() as session:
+            await sweep_closed_buckets(
+                session,
+                as_of - PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER.value(),
+            )
+            await session.commit()
 
 
 async def evaluate_periodically(periodic_granularity: timedelta) -> None:
