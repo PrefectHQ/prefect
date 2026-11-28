@@ -5,12 +5,12 @@ from typing import Any, Dict, Optional
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Service, V1ServiceList
 
 from prefect import task
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import BaseKubernetesCredentials
 
 
 @task
 async def create_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     new_service: V1Service,
     namespace: Optional[str] = "default",
     **kube_kwargs: Optional[Dict[str, Any]],
@@ -53,7 +53,7 @@ async def create_namespaced_service(
 
 @task
 async def delete_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     delete_options: Optional[V1DeleteOptions] = None,
     namespace: Optional[str] = "default",
@@ -99,7 +99,7 @@ async def delete_namespaced_service(
 
 @task
 async def list_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     namespace: Optional[str] = "default",
     **kube_kwargs: Optional[Dict[str, Any]],
 ) -> V1ServiceList:
@@ -137,7 +137,7 @@ async def list_namespaced_service(
 
 @task
 async def patch_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     service_updates: V1Service,
     namespace: Optional[str] = "default",
@@ -184,7 +184,7 @@ async def patch_namespaced_service(
 
 @task
 async def read_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     namespace: Optional[str] = "default",
     **kube_kwargs: Optional[Dict[str, Any]],
@@ -226,7 +226,7 @@ async def read_namespaced_service(
 
 @task
 async def replace_namespaced_service(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     new_service: V1Service,
     namespace: Optional[str] = "default",

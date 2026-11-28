@@ -6,12 +6,12 @@ from kubernetes_asyncio.client.models import V1DeleteOptions, V1Pod, V1PodList
 from kubernetes_asyncio.watch import Watch
 
 from prefect import task
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import BaseKubernetesCredentials
 
 
 @task
 async def create_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     new_pod: V1Pod,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -54,7 +54,7 @@ async def create_namespaced_pod(
 
 @task
 async def delete_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     delete_options: Optional[V1DeleteOptions] = None,
     namespace: Optional[str] = "default",
@@ -101,7 +101,7 @@ async def delete_namespaced_pod(
 
 @task
 async def list_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
 ) -> V1PodList:
@@ -138,7 +138,7 @@ async def list_namespaced_pod(
 
 @task
 async def patch_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     pod_updates: V1Pod,
     namespace: Optional[str] = "default",
@@ -185,7 +185,7 @@ async def patch_namespaced_pod(
 
 @task
 async def read_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -226,7 +226,7 @@ async def read_namespaced_pod(
 
 @task
 async def read_namespaced_pod_log(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     container: str,
     namespace: Optional[str] = "default",
@@ -295,7 +295,7 @@ async def read_namespaced_pod_log(
 
 @task
 async def replace_namespaced_pod(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     new_pod: V1Pod,
     namespace: Optional[str] = "default",

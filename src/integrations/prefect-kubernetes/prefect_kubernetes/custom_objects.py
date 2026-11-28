@@ -1,12 +1,12 @@
 from typing import Any, Dict, Optional
 
 from prefect import task
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import BaseKubernetesCredentials
 
 
 @task
 async def create_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -69,7 +69,7 @@ async def create_namespaced_custom_object(
 
 @task
 async def delete_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -128,7 +128,7 @@ async def delete_namespaced_custom_object(
 
 @task
 async def get_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -188,7 +188,7 @@ async def get_namespaced_custom_object(
 
 @task
 async def get_namespaced_custom_object_status(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -247,7 +247,7 @@ async def get_namespaced_custom_object_status(
 
 @task
 async def list_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -301,7 +301,7 @@ async def list_namespaced_custom_object(
 
 @task
 async def patch_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,
@@ -374,7 +374,7 @@ async def patch_namespaced_custom_object(
 
 @task
 async def replace_namespaced_custom_object(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     group: str,
     version: str,
     plural: str,

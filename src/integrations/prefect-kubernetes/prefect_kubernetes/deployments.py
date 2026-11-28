@@ -9,12 +9,12 @@ from kubernetes_asyncio.client.models import (
 )
 
 from prefect import task
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect_kubernetes.credentials import BaseKubernetesCredentials
 
 
 @task
 async def create_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     new_deployment: V1Deployment,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -57,7 +57,7 @@ async def create_namespaced_deployment(
 
 @task
 async def delete_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     delete_options: Optional[V1DeleteOptions] = None,
     namespace: Optional[str] = "default",
@@ -104,7 +104,7 @@ async def delete_namespaced_deployment(
 
 @task
 async def list_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
 ) -> V1DeploymentList:
@@ -142,7 +142,7 @@ async def list_namespaced_deployment(
 
 @task
 async def patch_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     deployment_updates: V1Deployment,
     namespace: Optional[str] = "default",
@@ -189,7 +189,7 @@ async def patch_namespaced_deployment(
 
 @task
 async def read_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -230,7 +230,7 @@ async def read_namespaced_deployment(
 
 @task
 async def replace_namespaced_deployment(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     new_deployment: V1Deployment,
     namespace: Optional[str] = "default",

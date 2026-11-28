@@ -2,18 +2,23 @@
 
 from asyncio import sleep
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Type, Union, get_args
 
 import yaml
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
-from pydantic import Field
+from pydantic import Field, field_validator
 from typing_extensions import Self, TypeAlias
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.concurrency.api import create_call, from_sync
-from prefect.blocks.abstract import JobBlock, JobRun
-from prefect_kubernetes.credentials import KubernetesCredentials
+from prefect.blocks.abstract import CredentialsBlock, JobBlock, JobRun
+from prefect.utilities.dispatch import lookup_type
+from prefect_kubernetes.credentials import (
+    BaseKubernetesCredentials,
+    KubernetesApiKeyCredentials,
+    KubernetesCredentials,
+)
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
@@ -31,7 +36,7 @@ def _get_pod_selector(v1_job: V1Job) -> str:
 
 @task
 async def create_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     new_job: Union[V1Job, Dict[str, Any]],
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -75,7 +80,7 @@ async def create_namespaced_job(
 
 @task
 async def delete_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     delete_options: Optional[V1DeleteOptions] = None,
     namespace: Optional[str] = "default",
@@ -125,7 +130,7 @@ async def delete_namespaced_job(
 
 @task
 async def list_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
 ) -> V1JobList:
@@ -165,7 +170,7 @@ async def list_namespaced_job(
 
 @task
 async def patch_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     job_updates: V1Job,
     namespace: Optional[str] = "default",
@@ -218,7 +223,7 @@ async def patch_namespaced_job(
 
 @task
 async def read_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -264,7 +269,7 @@ async def read_namespaced_job(
 
 @task
 async def replace_namespaced_job(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     new_job: V1Job,
     namespace: Optional[str] = "default",
@@ -311,7 +316,7 @@ async def replace_namespaced_job(
 
 @task
 async def read_namespaced_job_status(
-    kubernetes_credentials: KubernetesCredentials,
+    kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     namespace: Optional[str] = "default",
     **kube_kwargs: Dict[str, Any],
@@ -554,10 +559,41 @@ class KubernetesJob(JobBlock):
         description="Additional arguments to include in Kubernetes API calls.",
         examples=[{"pretty": "true"}],
     )
-    credentials: KubernetesCredentials = Field(
+    credentials: Union[KubernetesApiKeyCredentials, KubernetesCredentials] = Field(
         default_factory=KubernetesCredentials,
         description="The credentials to configure a client from.",
     )
+
+    @field_validator("credentials", mode="before")
+    @classmethod
+    def validate_credentials(cls, value: Any) -> Any:
+        """Resolve dict payloads into the matching Kubernetes credentials block."""
+        if isinstance(value, dict):
+            value = value.copy()
+            block_type_slug = value.pop("block_type_slug", None)
+            if block_type_slug:
+                credential_classes = (
+                    lookup_type(CredentialsBlock, dispatch_key=block_type_slug),
+                )
+            else:
+                credential_classes = get_args(
+                    cls.model_fields["credentials"].annotation
+                )
+
+            for credentials_cls in credential_classes:
+                try:
+                    return credentials_cls(**value)
+                except ValueError:
+                    pass
+
+            valid_classes = ", ".join(c.__name__ for c in credential_classes)
+            raise ValueError(
+                f"Invalid credentials data: does not match any credential type. "
+                f"Valid types: {valid_classes}"
+            )
+
+        return value
+
     delete_after_completion: bool = Field(
         default=True,
         description="Whether to delete the job after it has completed.",

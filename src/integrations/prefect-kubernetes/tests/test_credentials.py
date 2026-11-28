@@ -11,6 +11,7 @@ from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
     BatchV1Api,
+    Configuration,
     CoreV1Api,
     CustomObjectsApi,
 )
@@ -18,9 +19,13 @@ from kubernetes_asyncio.config import ConfigException
 from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
 from OpenSSL import crypto
 from prefect_kubernetes.credentials import (
+    BaseKubernetesCredentials,
+    KubernetesApiKeyCredentials,
     KubernetesClusterConfig,
     KubernetesCredentials,
 )
+
+from prefect.blocks.core import InvalidBlockRegistration
 
 
 @pytest.fixture
@@ -162,6 +167,147 @@ class TestCredentials:
         async with kubernetes_credentials.get_client("batch"):
             assert mock_cluster_config.load_incluster_config.called
             assert mock_cluster_config.load_kube_config.called
+
+
+class TestBaseKubernetesCredentials:
+    def test_is_abstract(self):
+        with pytest.raises(TypeError):
+            BaseKubernetesCredentials()
+
+    def test_subclasses(self):
+        assert issubclass(KubernetesCredentials, BaseKubernetesCredentials)
+        assert issubclass(KubernetesApiKeyCredentials, BaseKubernetesCredentials)
+
+    async def test_cannot_register_abstract_base(self):
+        with pytest.raises(InvalidBlockRegistration):
+            await BaseKubernetesCredentials.aregister_type_and_schema()
+
+
+class TestKubernetesApiKeyCredentials:
+    @pytest.mark.parametrize(
+        "resource_type,client_type",
+        [
+            ("apps", AppsV1Api),
+            ("batch", BatchV1Api),
+            ("core", CoreV1Api),
+            ("custom_objects", CustomObjectsApi),
+        ],
+    )
+    async def test_client_return_type(self, resource_type, client_type):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+        )
+        async with credentials.get_client(resource_type) as client:
+            assert isinstance(client, client_type)
+
+    async def test_client_bad_resource_type(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+        )
+        with pytest.raises(
+            ValueError, match="Invalid client type provided 'shoo-ba-daba-doo'"
+        ):
+            async with credentials.get_client("shoo-ba-daba-doo"):
+                pass
+
+    async def test_client_configuration_defaults(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+        )
+        async with credentials.get_client("core") as client:
+            cfg = client.api_client.configuration
+            assert cfg.host == "https://k8s.example.com:6443"
+            assert cfg.api_key["BearerToken"] == "my-secret-token"
+            assert cfg.api_key_prefix["BearerToken"] == "Bearer"
+            assert cfg.verify_ssl is True
+            assert cfg.ssl_ca_cert is None
+            auth = await cfg.auth_settings()
+            assert auth["BearerToken"] == {
+                "type": "api_key",
+                "in": "header",
+                "key": "authorization",
+                "value": "Bearer my-secret-token",
+            }
+
+    async def test_client_configuration_custom_prefix(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+            api_key_prefix="Token",
+        )
+        async with credentials.get_client("core") as client:
+            auth = await client.api_client.configuration.auth_settings()
+            assert auth["BearerToken"]["value"] == "Token my-secret-token"
+
+    async def test_client_configuration_no_prefix(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="Bearer already-prefixed",
+            api_key_prefix=None,
+        )
+        async with credentials.get_client("core") as client:
+            cfg = client.api_client.configuration
+            assert "BearerToken" not in cfg.api_key_prefix
+            auth = await cfg.auth_settings()
+            assert auth["BearerToken"]["value"] == "Bearer already-prefixed"
+
+    async def test_client_configuration_ssl_options(self, create_temp_self_signed_cert):
+        cert_file, _ = create_temp_self_signed_cert
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+            ssl_ca_cert=cert_file,
+            verify_ssl=False,
+        )
+        async with credentials.get_client("core") as client:
+            cfg = client.api_client.configuration
+            assert cfg.ssl_ca_cert == cert_file
+            assert cfg.verify_ssl is False
+
+    async def test_client_configuration_preserves_passed_configuration(self):
+        custom_config = Configuration()
+        custom_config.proxy = "http://proxy.example.com:8080"
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="my-secret-token",
+        )
+        async with credentials.get_client(
+            "core", configuration=custom_config
+        ) as client:
+            cfg = client.api_client.configuration
+            assert cfg is custom_config
+            assert cfg.proxy == "http://proxy.example.com:8080"
+            assert cfg.host == "https://k8s.example.com:6443"
+            assert cfg.api_key["BearerToken"] == "my-secret-token"
+
+    def test_api_key_is_secret(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="super-secret-value",
+        )
+        assert "super-secret-value" not in repr(credentials)
+        assert (
+            "api_key"
+            in KubernetesApiKeyCredentials.model_json_schema()["secret_fields"]
+        )
+
+    async def test_save_and_load_block(self):
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="saved-secret-token",
+            api_key_prefix="Bearer",
+            verify_ssl=False,
+        )
+        await credentials.save("test-api-key-creds", overwrite=True)
+
+        loaded = await KubernetesApiKeyCredentials.load("test-api-key-creds")
+        assert loaded.host == "https://k8s.example.com:6443"
+        assert loaded.api_key.get_secret_value() == "saved-secret-token"
+        assert loaded.api_key_prefix == "Bearer"
+        assert loaded.verify_ssl is False
 
 
 class TestKubernetesClusterConfig:

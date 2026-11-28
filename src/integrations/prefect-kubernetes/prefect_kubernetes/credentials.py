@@ -1,6 +1,7 @@
 """Module for defining Kubernetes credential handling and client generation."""
 
-from contextlib import asynccontextmanager
+from abc import ABC, abstractmethod
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator, Dict, Optional, Type, Union
 
@@ -15,13 +16,14 @@ from kubernetes_asyncio.client import (
     CustomObjectsApi,
 )
 from kubernetes_asyncio.config.config_exception import ConfigException
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from typing_extensions import Literal, Self
 
+from prefect.blocks.abstract import CredentialsBlock
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
 
-KubernetesClient = Union[AppsV1Api, BatchV1Api, CoreV1Api]
+KubernetesClient = Union[AppsV1Api, BatchV1Api, CoreV1Api, CustomObjectsApi]
 
 K8S_CLIENT_TYPES = {
     "apps": AppsV1Api,
@@ -124,7 +126,60 @@ class KubernetesClusterConfig(Block):
         )
 
 
-class KubernetesCredentials(Block):
+class BaseKubernetesCredentials(CredentialsBlock, ABC):
+    """Abstract base class for Kubernetes credentials blocks.
+
+    Subclasses must implement `get_client` to yield an authenticated,
+    resource-specific Kubernetes API client.
+    """
+
+    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png"  # noqa
+    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-kubernetes"  # noqa
+
+    @abstractmethod
+    def get_client(
+        self,
+        client_type: Literal["apps", "batch", "core", "custom_objects"],
+        configuration: Optional[Configuration] = None,
+    ) -> AbstractAsyncContextManager[KubernetesClient]:
+        """Return an async context manager yielding a resource-specific Kubernetes client.
+
+        Args:
+            client_type: The resource-specific type of Kubernetes client to retrieve.
+            configuration: Optional `kubernetes_asyncio.client.Configuration` to use.
+
+        Yields:
+            An authenticated, resource-specific Kubernetes API client.
+        """
+
+    async def get_resource_specific_client(
+        self,
+        client_type: str,
+        api_client: ApiClient,
+    ) -> KubernetesClient:
+        """Instantiate a resource-specific Kubernetes API client.
+
+        Args:
+            client_type: The Kubernetes API client type for interacting with specific
+                Kubernetes resources.
+            api_client: A configured `ApiClient` instance.
+
+        Returns:
+            KubernetesClient: An authenticated, resource-specific Kubernetes client.
+
+        Raises:
+            ValueError: If `client_type` is not a valid Kubernetes API client type.
+        """
+        try:
+            return K8S_CLIENT_TYPES[client_type](api_client)
+        except KeyError:
+            raise ValueError(
+                f"Invalid client type provided '{client_type}'."
+                f" Must be one of {listrepr(K8S_CLIENT_TYPES.keys())}."
+            )
+
+
+class KubernetesCredentials(BaseKubernetesCredentials):
     """Credentials block for generating configured Kubernetes API clients.
 
     Attributes:
@@ -141,8 +196,6 @@ class KubernetesCredentials(Block):
     """
 
     _block_type_name = "Kubernetes Credentials"
-    _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png"  # noqa
-    _documentation_url = "https://www.prefect.io/docs/integrations/prefect-kubernetes"  # noqa
 
     cluster_config: Optional[KubernetesClusterConfig] = None
 
@@ -156,6 +209,7 @@ class KubernetesCredentials(Block):
 
         Args:
             client_type: The resource-specific type of Kubernetes client to retrieve.
+            configuration: Optional `kubernetes_asyncio.client.Configuration` to use.
 
         Yields:
             An authenticated, resource-specific Kubernetes API client.
@@ -201,7 +255,7 @@ class KubernetesCredentials(Block):
         self,
         client_type: str,
         api_client: ApiClient,
-    ) -> Union[AppsV1Api, BatchV1Api, CoreV1Api]:
+    ) -> KubernetesClient:
         """
         Utility function for configuring a generic Kubernetes client.
         It will attempt to connect to a Kubernetes cluster in three steps with
@@ -220,6 +274,7 @@ class KubernetesCredentials(Block):
         Args:
             client_type: The Kubernetes API client type for interacting with specific
                 Kubernetes resources.
+            api_client: A configured `ApiClient` instance.
 
         Returns:
             KubernetesClient: An authenticated, resource-specific Kubernetes Client.
@@ -236,10 +291,101 @@ class KubernetesCredentials(Block):
             except ConfigException:
                 await config.load_kube_config()
 
-        try:
-            return K8S_CLIENT_TYPES[client_type](api_client)
-        except KeyError:
-            raise ValueError(
-                f"Invalid client type provided '{client_type}'."
-                f" Must be one of {listrepr(K8S_CLIENT_TYPES.keys())}."
+        return await super().get_resource_specific_client(
+            client_type, api_client=api_client
+        )
+
+
+class KubernetesApiKeyCredentials(BaseKubernetesCredentials):
+    """Credentials block for authenticating with a Kubernetes cluster using an API key.
+
+    Attributes:
+        host: The URL of the Kubernetes API server.
+        api_key: The API key or bearer token for authenticating with the
+            Kubernetes API server.
+        api_key_prefix: The prefix for the API key in the Authorization header.
+            Defaults to `'Bearer'`. Set to `None` to send the API key without a prefix.
+        ssl_ca_cert: Path to a CA certificate file used to verify the Kubernetes
+            API server.
+        verify_ssl: Whether to verify SSL certificates when connecting to the
+            Kubernetes API server.
+
+    Example:
+        Load stored Kubernetes API key credentials:
+        ```python
+        from prefect_kubernetes.credentials import KubernetesApiKeyCredentials
+
+        kubernetes_credentials = KubernetesApiKeyCredentials.load("BLOCK_NAME")
+        ```
+    """
+
+    _block_type_name = "Kubernetes API Key Credentials"
+
+    host: str = Field(
+        default=...,
+        description="The URL of the Kubernetes API server.",
+    )
+    api_key: SecretStr = Field(
+        default=...,
+        description="The API key or bearer token for authenticating with the Kubernetes API server.",
+    )
+    api_key_prefix: Optional[str] = Field(
+        default="Bearer",
+        description="The prefix for the API key in the Authorization header.",
+    )
+    ssl_ca_cert: Optional[str] = Field(
+        default=None,
+        description="Path to a CA certificate file used to verify the Kubernetes API server.",
+    )
+    verify_ssl: bool = Field(
+        default=True,
+        description="Whether to verify SSL certificates when connecting to the Kubernetes API server.",
+    )
+
+    @asynccontextmanager
+    async def get_client(
+        self,
+        client_type: Literal["apps", "batch", "core", "custom_objects"],
+        configuration: Optional[Configuration] = None,
+    ) -> AsyncGenerator[KubernetesClient, None]:
+        """Convenience method for retrieving a Kubernetes API client authenticated with an API key.
+
+        Args:
+            client_type: The resource-specific type of Kubernetes client to retrieve.
+            configuration: Optional `kubernetes_asyncio.client.Configuration` to use.
+
+        Yields:
+            An authenticated, resource-specific Kubernetes API client.
+
+        Example:
+            ```python
+            from prefect_kubernetes.credentials import KubernetesApiKeyCredentials
+
+            credentials = KubernetesApiKeyCredentials(
+                host="https://my-cluster.example.com:6443",
+                api_key="my-token",
             )
+            async with credentials.get_client("core") as core_v1_client:
+                pods = await core_v1_client.list_namespaced_pod("default")
+            ```
+        """
+        if configuration is not None:
+            client_configuration = configuration
+            client_configuration.host = self.host
+        else:
+            client_configuration = Configuration(host=self.host)
+
+        client_configuration.api_key["BearerToken"] = self.api_key.get_secret_value()
+        if self.api_key_prefix is not None:
+            client_configuration.api_key_prefix["BearerToken"] = self.api_key_prefix
+        client_configuration.verify_ssl = self.verify_ssl
+        if self.ssl_ca_cert is not None:
+            client_configuration.ssl_ca_cert = self.ssl_ca_cert
+
+        async with ApiClient(configuration=client_configuration) as api_client:
+            try:
+                yield await self.get_resource_specific_client(
+                    client_type, api_client=api_client
+                )
+            finally:
+                await api_client.close()
