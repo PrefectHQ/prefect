@@ -16,6 +16,12 @@ from prefect.cli.transfer._migratable_resources.work_pools import MigratableWork
 from prefect.cli.transfer._migratable_resources.work_queues import MigratableWorkQueue
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.actions import DeploymentScheduleCreate
+from prefect.client.schemas.filters import (
+    DeploymentFilter,
+    DeploymentFilterName,
+    FlowFilter,
+    FlowFilterId,
+)
 from prefect.client.schemas.responses import DeploymentResponse
 from prefect.exceptions import (
     ObjectAlreadyExists,
@@ -174,6 +180,17 @@ class MigratableDeployment(MigratableResource[DeploymentResponse]):
                     )
                 else:
                     destination_infrastructure_document_id = None
+
+                existing_deployments = await client.read_deployments(
+                    flow_filter=FlowFilter(id=FlowFilterId(any_=[destination_flow_id])),
+                    deployment_filter=DeploymentFilter(
+                        name=DeploymentFilterName(any_=[self.source_deployment.name])
+                    ),
+                    limit=1,
+                )
+                if existing_deployments:
+                    self.destination_deployment = existing_deployments[0]
+                    raise TransferSkipped("Already exists")
 
                 destination_deployment_id = await client.create_deployment(
                     flow_id=destination_flow_id,

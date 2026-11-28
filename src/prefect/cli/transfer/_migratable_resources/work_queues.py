@@ -85,6 +85,9 @@ class MigratableWorkQueue(MigratableResource[WorkQueue]):
                         name=WorkQueueFilterName(any_=["default"]),
                     ),
                 )
+                if not work_queues:
+                    raise RuntimeError("Default work queue not found at destination")
+                self.destination_work_queue = work_queues[0]
                 raise TransferSkipped("Default work queues are created with work pools")
 
             try:

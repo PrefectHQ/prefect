@@ -256,6 +256,43 @@ class TransferDAG:
         limiter = anyio.CapacityLimiter(max_workers)
         processing: set[uuid.UUID] = set()
 
+        satisfied: set[uuid.UUID] = set()
+
+        def is_satisfied(nid: uuid.UUID) -> bool:
+            return self._status[nid].state == NodeState.COMPLETED or nid in satisfied
+
+        async def release_dependents(nid: uuid.UUID, tg: TaskGroup):
+            """Start dependents of `nid` whose dependencies are all satisfied."""
+            async with self._lock:
+                for did in self._status[nid].dependents:
+                    dst = self._status[did]
+                    if dst.state == NodeState.PENDING:
+                        if all(is_satisfied(d) for d in dst.dependencies):
+                            dst.state = NodeState.READY
+                            # Start the newly ready task immediately
+                            if did not in processing:
+                                processing.add(did)
+                                tg.start_soon(worker, did, tg)
+
+        def skip_descendants(nid: uuid.UUID, reason: str) -> None:
+            """Report every dependent of an unavailable resource as skipped."""
+            to_skip = deque([nid])
+            seen: set[uuid.UUID] = set()
+            while to_skip:
+                current = to_skip.popleft()
+                if current in seen:
+                    continue
+                seen.add(current)
+                for did in self._status[current].dependents:
+                    status = self._status[did]
+                    if status.state in {NodeState.PENDING, NodeState.READY}:
+                        status.state = NodeState.SKIPPED
+                        error = TransferSkipped(reason)
+                        status.error = error
+                        results[did] = error
+                        logger.debug(f"Skipped {self.nodes[did]}: {reason}")
+                        to_skip.append(did)
+
         async def worker(nid: uuid.UUID, tg: TaskGroup):
             """Process a single node."""
             node = self.nodes[nid]
@@ -276,26 +313,23 @@ class TransferDAG:
                     self._status[nid].state = NodeState.COMPLETED
                     logger.debug(f"Completed {node}")
 
-                    # Mark dependents as ready if all their dependencies are satisfied
-                    async with self._lock:
-                        for did in self._status[nid].dependents:
-                            dst = self._status[did]
-                            if dst.state == NodeState.PENDING:
-                                if all(
-                                    self._status[d].state == NodeState.COMPLETED
-                                    for d in dst.dependencies
-                                ):
-                                    dst.state = NodeState.READY
-                                    # Start the newly ready task immediately
-                                    if did not in processing:
-                                        processing.add(did)
-                                        tg.start_soon(worker, did, tg)
+                    await release_dependents(nid, tg)
 
                 except TransferSkipped as e:
                     results[nid] = e
                     self._status[nid].state = NodeState.SKIPPED
                     self._status[nid].error = e
                     logger.debug(f"Skipped {node}: {e}")
+
+                    # Only a resolved destination resource satisfies dependencies.
+                    # Unsupported resources also raise TransferSkipped, but have no ID.
+                    if node.destination_id is not None:
+                        satisfied.add(nid)
+                        await release_dependents(nid, tg)
+                    else:
+                        skip_descendants(
+                            nid, "Skipped because upstream resource is unavailable"
+                        )
 
                 except Exception as e:
                     results[nid] = e
@@ -304,28 +338,9 @@ class TransferDAG:
                     logger.debug(f"Failed to process {node}: {e}")
 
                     if skip_on_failure:
-                        # Skip all descendants of the failed node
-                        to_skip = deque([nid])
-                        seen_failed: set[uuid.UUID] = set()
-
-                        while to_skip:
-                            cur = to_skip.popleft()
-                            if cur in seen_failed:
-                                continue
-                            seen_failed.add(cur)
-
-                            for did in self._status[cur].dependents:
-                                st = self._status[did]
-                                # Skip nodes that haven't started yet
-                                if st.state in {NodeState.PENDING, NodeState.READY}:
-                                    st.state = NodeState.SKIPPED
-                                    results[did] = TransferSkipped(
-                                        "Skipped due to upstream resource failure"
-                                    )
-                                    logger.debug(
-                                        f"Skipped {self.nodes[did]} due to upstream failure"
-                                    )
-                                    to_skip.append(did)
+                        skip_descendants(
+                            nid, "Skipped due to upstream resource failure"
+                        )
                 finally:
                     processing.discard(nid)
 

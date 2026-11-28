@@ -2,11 +2,18 @@ import asyncio
 import uuid
 from collections import defaultdict
 from typing import Optional
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from prefect.cli.transfer._dag import NodeState, TransferDAG
 from prefect.cli.transfer._exceptions import TransferSkipped
 from prefect.cli.transfer._migratable_resources.base import MigratableProtocol
+from prefect.cli.transfer._migratable_resources.work_pools import MigratableWorkPool
+from prefect.cli.transfer._migratable_resources.work_queues import MigratableWorkQueue
+from prefect.client.base import ServerType
+from prefect.client.schemas.objects import WorkPool, WorkQueue
+from prefect.exceptions import ObjectAlreadyExists, ObjectUnsupported
 
 
 class MockMigratableResource:
@@ -318,6 +325,111 @@ class TestTransferDAG:
 
         # Should have TransferSkipped exception
         assert len([r for r in results.values() if isinstance(r, TransferSkipped)]) == 1
+
+    async def test_execute_processes_dependents_of_skipped_resource(self):
+        """A skipped resource already exists, so its dependents still run."""
+        dag = TransferDAG()
+        dependency = MockMigratableResource(
+            uuid.uuid4(), "dep_skip", migrate_success=False
+        )
+        dependency.destination_id = uuid.uuid4()
+        root = MockMigratableResource(uuid.uuid4(), "root")
+        dag.add_node(dependency)
+        dag.add_node(root)
+        dag.add_edge(root.source_id, dependency.source_id)  # root depends on dependency
+
+        async def process_node(node: MigratableProtocol):
+            await node.migrate()
+            return "success"
+
+        results = await dag.execute_concurrent(process_node)
+
+        assert dependency.migrate_called
+        assert isinstance(results[dependency.source_id], TransferSkipped)
+        assert root.migrate_called
+        assert results[root.source_id] == "success"
+        assert dag._status[root.source_id].state == NodeState.COMPLETED
+
+    @pytest.mark.parametrize("pool_kind", ["managed", "push", "tier_limit", "existing"])
+    @pytest.mark.parametrize("skip_on_failure", [True, False])
+    async def test_skipped_pool_only_releases_queues_when_resolved(
+        self, pool_kind: str, skip_on_failure: bool
+    ):
+        """Unavailable pools skip descendants; resolved pools still transfer queues."""
+        pool_type = (
+            f"test:{pool_kind}" if pool_kind in {"managed", "push"} else "process"
+        )
+        source_pool = WorkPool(
+            name="source-pool", type=pool_type, default_queue_id=uuid.uuid4()
+        )
+        default_queue = WorkQueue(
+            name="default", work_pool_name=source_pool.name, work_pool_id=source_pool.id
+        )
+        pool = MigratableWorkPool(source_pool, default_queue)
+        queue = MigratableWorkQueue(
+            WorkQueue(
+                name="custom",
+                work_pool_name=source_pool.name,
+                work_pool_id=source_pool.id,
+            )
+        )
+        descendant = MockMigratableResource(uuid.uuid4(), "descendant")
+        independent = MockMigratableResource(uuid.uuid4(), "independent")
+        dag = TransferDAG()
+        for node in [pool, queue, descendant, independent]:
+            dag.add_node(node)
+        dag.add_edge(queue.source_id, pool.source_id)
+        dag.add_edge(descendant.source_id, queue.source_id)
+
+        client = AsyncMock()
+        client.server_type = ServerType.SERVER
+        if pool_kind == "tier_limit":
+            client.create_work_pool.side_effect = ObjectUnsupported(
+                Exception("tier limit")
+            )
+        elif pool_kind == "existing":
+            client.create_work_pool.side_effect = ObjectAlreadyExists(
+                Exception("conflict")
+            )
+            client.read_work_pool.return_value = source_pool.model_copy(
+                update={"id": uuid.uuid4()}
+            )
+        client.create_work_queue.return_value = WorkQueue(
+            name="custom", work_pool_name=source_pool.name, work_pool_id=source_pool.id
+        )
+
+        async def process_node(node: MigratableProtocol):
+            await node.migrate()
+            return "success"
+
+        with (
+            patch(
+                "prefect.cli.transfer._migratable_resources.work_pools.get_client"
+            ) as pool_client,
+            patch(
+                "prefect.cli.transfer._migratable_resources.work_queues.get_client"
+            ) as queue_client,
+        ):
+            pool_client.return_value.__aenter__.return_value = client
+            queue_client.return_value.__aenter__.return_value = client
+            results = await dag.execute_concurrent(
+                process_node, skip_on_failure=skip_on_failure
+            )
+
+        assert isinstance(results[pool.source_id], TransferSkipped)
+        assert independent.migrate_called
+        assert len(results) == 4
+        if pool_kind == "existing":
+            client.create_work_queue.assert_awaited_once()
+            assert descendant.migrate_called
+            assert results[queue.source_id] == "success"
+            assert results[descendant.source_id] == "success"
+        else:
+            client.create_work_queue.assert_not_awaited()
+            assert not descendant.migrate_called
+            for node in [queue, descendant]:
+                assert isinstance(results[node.source_id], TransferSkipped)
+                assert dag._status[node.source_id].state == NodeState.SKIPPED
 
     async def test_execute_with_failed_resource(self):
         """Test execution with failed resource."""
