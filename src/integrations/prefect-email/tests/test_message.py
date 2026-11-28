@@ -70,12 +70,14 @@ async def test_email_send_message(
     message = await test_flow()
     assert message["Subject"] == subject
     assert message["From"] == email_server_credentials.username
-    assert message.get_payload()[0].get_payload() == msg_plain
-    assert message.get_payload()[1].get_payload() == msg
-    attachment = message.get_payload()[2].get_payload()
+    body = message.get_payload()[0]
+    assert body.get_content_type() == "multipart/alternative"
+    assert body.get_payload()[0].get_payload() == msg_plain
+    assert body.get_payload()[1].get_payload() == msg
+    attachment = message.get_payload()[1].get_payload()
     assert base64.b64decode(attachment) == attachment_text
 
-    inline_image_part = message.get_payload()[3]
+    inline_image_part = message.get_payload()[2]
     assert inline_image_part["Content-ID"] == "<image1>"
     assert inline_image_part["Content-Disposition"] == "inline"
     image = inline_image_part.get_payload()
@@ -109,3 +111,68 @@ async def test_email_send_message_attachment_filename(
     # parse the message as a mail client would receive it
     received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
     assert [part.get_filename() for part in received.iter_attachments()] == [filename]
+
+
+async def test_email_send_message_plain_and_html_are_alternatives(
+    email_server_credentials,
+):
+    attachment = pathlib.Path(__file__).parent.absolute() / "attachment.txt"
+    inline_image_path = pathlib.Path(__file__).parent.absolute() / "image.png"
+
+    @flow
+    async def test_flow():
+        return await email_send_message(
+            email_server_credentials=email_server_credentials,
+            subject="Example Flow Notification",
+            msg='<h1>Hello</h1><img src="cid:image1">',
+            msg_plain="Hello",
+            attachments=[str(attachment)],
+            inline_images={"image1": str(inline_image_path)},
+            email_to="someone@email.com",
+        )
+
+    message = await test_flow()
+
+    received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
+    assert [part.get_content_type() for part in received.walk()] == [
+        "multipart/mixed",
+        "multipart/alternative",
+        "text/plain",
+        "text/html",
+        "application/octet-stream",
+        "image/png",
+    ]
+    assert (
+        received.get_body(preferencelist=("html",)).get_content()
+        == '<h1>Hello</h1><img src="cid:image1">'
+    )
+    assert received.get_body(preferencelist=("plain",)).get_content() == "Hello"
+
+
+@pytest.mark.parametrize(
+    "msg, msg_plain, content_type",
+    [
+        ("<h1>Hello</h1>", None, "text/html"),
+        ("", "Hello", "text/plain"),
+    ],
+)
+async def test_email_send_message_single_body(
+    msg, msg_plain, content_type, email_server_credentials
+):
+    @flow
+    async def test_flow():
+        return await email_send_message(
+            email_server_credentials=email_server_credentials,
+            subject="Example Flow Notification",
+            msg=msg,
+            msg_plain=msg_plain,
+            email_to="someone@email.com",
+        )
+
+    message = await test_flow()
+
+    received = email.message_from_bytes(message.as_bytes(), policy=email.policy.default)
+    assert [part.get_content_type() for part in received.walk()] == [
+        "multipart/mixed",
+        content_type,
+    ]
