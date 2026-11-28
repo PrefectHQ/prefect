@@ -218,6 +218,24 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
         # so wait()/as_completed() do not depend on callback chain ordering.
         self._wrapped_future.add_done_callback(self._notify_prefect_done_callbacks)
 
+    @property
+    def state(self) -> State:
+        """The current state of the task run associated with this future"""
+        # Futures returned by `wait(timeout=...)` and `as_completed()` are
+        # done without having been waited on, so read the final state from
+        # the wrapped future instead of the API, which may lag behind.
+        wrapped_future = self._wrapped_future
+        if (
+            not self._final_state
+            and wrapped_future.done()
+            and not wrapped_future.cancelled()
+            and wrapped_future.exception() is None
+        ):
+            result = wrapped_future.result()
+            if isinstance(result, State):
+                self._final_state = result
+        return super().state
+
     def _add_prefect_done_callback(
         self, fn: Callable[[PrefectFuture[R]], None]
     ) -> None:
@@ -241,13 +259,6 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
     def _notify_prefect_done_callbacks(
         self, future: concurrent.futures.Future[R]
     ) -> None:
-        # Record the final state before notifying so futures yielded by
-        # `wait()`/`as_completed()` report it from `.state`.
-        if not future.cancelled() and future.exception() is None:
-            result = future.result()
-            if isinstance(result, State):
-                self._final_state = result
-
         with self._prefect_done_callbacks_lock:
             self._prefect_done_event.set()
             callbacks = self._prefect_done_callbacks[:]
