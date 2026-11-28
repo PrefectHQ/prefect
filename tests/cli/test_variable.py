@@ -275,6 +275,24 @@ def test_set_variable():
     )
 
 
+def test_set_variable_with_invalid_name():
+    invoke_and_assert(
+        ["variable", "set", "My-Variable", "my-value"],
+        expected_output_contains=[
+            "Invalid variable:",
+            "name: Variable name must only contain lowercase letters, numbers, and"
+            " dashes or underscores.",
+        ],
+        expected_output_does_not_contain="Traceback",
+        expected_code=1,
+    )
+    invoke_and_assert(
+        ["variable", "get", "My-Variable"],
+        expected_output_contains="Variable 'My-Variable' not found.",
+        expected_code=1,
+    )
+
+
 def test_set_existing_variable_without_overwrite(variable):
     invoke_and_assert(
         ["variable", "set", variable.name, "new-value"],

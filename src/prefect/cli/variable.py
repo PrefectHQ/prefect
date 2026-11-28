@@ -171,12 +171,24 @@ async def _set(
 
     If the variable already exists, use `--overwrite` to update it.
     """
+    from pydantic import ValidationError
+
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import VariableCreate, VariableUpdate
 
+    var_dict = {"name": name, "value": _parse_value(value), "tags": tag or []}
+    try:
+        VariableCreate(**var_dict)
+    except ValidationError as exc:
+        errors = "\n".join(
+            f"{'.'.join(str(part) for part in error['loc'])}: "
+            f"{error['msg'].removeprefix('Value error, ')}"
+            for error in exc.errors()
+        )
+        exit_with_error(f"Invalid variable:\n{errors}")
+
     async with get_client() as client:
         variable = await client.read_variable_by_name(name)
-        var_dict = {"name": name, "value": _parse_value(value), "tags": tag or []}
         if variable:
             if not overwrite:
                 exit_with_error(
