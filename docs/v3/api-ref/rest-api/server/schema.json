@@ -23026,6 +23026,11 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit"
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "title": "Active",
+                        "default": true
                     }
                 },
                 "type": "object",

@@ -485,6 +485,7 @@ class MinimalConcurrencyLimitResponse(PrefectBaseModel):
     id: UUID
     name: str
     limit: int
+    active: bool = True
 
 
 class ConcurrencyLimitWithLeaseResponse(PrefectBaseModel):

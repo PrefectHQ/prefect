@@ -388,6 +388,27 @@ class TestAcquiringAndReleasing:
 class TestV1ToV2Adapter:
     """Test the V1 API adapter that routes to V2 system."""
 
+    @pytest.mark.parametrize("active", [True, False])
+    async def test_decrement_preserves_v2_limit_active_status(
+        self, client: AsyncClient, active: bool
+    ):
+        create_response = await client.post(
+            "/v2/concurrency_limits/",
+            json={"name": "tag:active-status", "limit": 1, "active": active},
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED
+
+        response = await client.post(
+            "/concurrency_limits/decrement",
+            json={"names": ["active-status"], "task_run_id": str(uuid4())},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        limits = response.json()
+        assert len(limits) == 1
+        assert limits[0]["id"] == create_response.json()["id"]
+        assert limits[0]["active"] is active
+
     async def test_create_creates_v2_limit_only(self, session, client):
         """Creating via V1 API should only create V2 limit, no V1 record."""
         data = ConcurrencyLimitCreate(

@@ -2,11 +2,13 @@ from typing import Any
 from unittest import mock
 from uuid import UUID
 
+import anyio
 import pytest
 from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._sync import (
     acquire_concurrency_slots,
     acquire_concurrency_slots_with_lease,
@@ -14,6 +16,7 @@ from prefect.concurrency._sync import (
     release_concurrency_slots_with_lease,
 )
 from prefect.concurrency.asyncio import ConcurrencySlotAcquisitionError
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import rate_limit
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
@@ -177,6 +180,98 @@ def test_concurrency_strict_within_a_flow():
     assert state.is_failed()
     with pytest.raises(ConcurrencySlotAcquisitionError):
         state.result()
+
+
+def test_concurrency_releases_lease_without_renewal_when_limits_are_inactive(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    """Inactive limits are not enforced, so the lease is handed back right away
+    and no renewal thread is started for it.
+    """
+    executed = False
+
+    with mock.patch.object(
+        PrefectClient,
+        "release_concurrency_slots_with_lease",
+        autospec=True,
+        side_effect=PrefectClient.release_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._sync.maintain_concurrency_lease",
+        ) as renew_spy:
+            with concurrency(inactive_concurrency_limit.name, occupy=1):
+                release_spy.assert_called_once()
+                executed = True
+
+            renew_spy.assert_not_called()
+            release_spy.assert_called_once()
+
+    assert executed
+
+
+def test_concurrency_proceeds_when_inactive_lease_release_fails(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    executed = False
+
+    with mock.patch.object(
+        PrefectClient,
+        "release_concurrency_slots_with_lease",
+        side_effect=RuntimeError("server unavailable"),
+    ) as release_spy:
+        with concurrency(inactive_concurrency_limit.name, occupy=1):
+            executed = True
+
+    release_spy.assert_called_once()
+    assert executed
+
+
+def test_concurrency_proceeds_when_inactive_lease_release_is_slow(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    release_completed = False
+    release_finished = False
+
+    async def slow_release(*args: Any, **kwargs: Any) -> None:
+        nonlocal release_completed, release_finished
+        try:
+            await anyio.sleep(1.5)
+            release_completed = True
+        finally:
+            release_finished = True
+
+    with ConcurrencyContext() as ctx:
+        with mock.patch.object(
+            PrefectClient,
+            "release_concurrency_slots_with_lease",
+            side_effect=slow_release,
+        ) as release_spy:
+            with concurrency(inactive_concurrency_limit.name, strict=True):
+                assert release_finished
+                assert not release_completed
+                assert len(ctx.cleanup_lease_ids) == 1
+
+            release_spy.assert_called_once()
+
+
+def test_concurrency_maintains_lease_when_any_limit_is_active(
+    concurrency_limit: ConcurrencyLimitV2,
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    with mock.patch(
+        "prefect.concurrency._sync.release_concurrency_slots_with_lease",
+        wraps=release_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._sync.maintain_concurrency_lease",
+        ) as renew_spy:
+            with concurrency(
+                [concurrency_limit.name, inactive_concurrency_limit.name], occupy=1
+            ):
+                release_spy.assert_not_called()
+
+            renew_spy.assert_called_once()
+            release_spy.assert_called_once()
 
 
 @pytest.mark.parametrize("names", [[], None])

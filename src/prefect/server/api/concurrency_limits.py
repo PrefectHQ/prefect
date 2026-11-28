@@ -623,7 +623,10 @@ async def decrement_concurrency_limits_v1(
             results.extend(
                 [
                     MinimalConcurrencyLimitResponse(
-                        id=limit.id, name=limit.name, limit=limit.limit
+                        id=limit.id,
+                        name=limit.name,
+                        limit=limit.limit,
+                        active=bool(limit.active),
                     )
                     for limit in v2_limits
                 ]

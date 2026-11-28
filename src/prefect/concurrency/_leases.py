@@ -1,4 +1,5 @@
 import contextvars
+import logging
 import threading
 from contextlib import asynccontextmanager, contextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Generator
@@ -29,13 +30,16 @@ def _renew_concurrency_lease_with_retries(
     lease_id: UUID,
     lease_duration: float,
     stop_event: threading.Event,
+    suppress_warnings: bool = False,
 ) -> bool:
     """
     Renew a concurrency lease, retrying transient failures.
 
-    Returns `False` when shutdown is requested during retry backoff.
+    Returns `False` when shutdown is requested during retry backoff. Raises the
+    last error once all attempts fail; the caller is responsible for logging it.
     """
     logger = get_logger("concurrency")
+    retry_log_level = logging.DEBUG if suppress_warnings else logging.WARNING
 
     for attempt in range(_RENEWAL_MAX_ATTEMPTS):
         try:
@@ -45,10 +49,6 @@ def _renew_concurrency_lease_with_retries(
             return True
         except Exception as exc:
             if attempt == _RENEWAL_MAX_ATTEMPTS - 1:
-                logger.exception(
-                    "Function 'concurrency lease renewal' failed after %s attempts",
-                    _RENEWAL_MAX_ATTEMPTS,
-                )
                 raise
 
             delay = exponential_backoff_with_jitter(
@@ -56,7 +56,8 @@ def _renew_concurrency_lease_with_retries(
                 _RENEWAL_RETRY_BASE_DELAY,
                 _RENEWAL_RETRY_MAX_DELAY,
             )
-            logger.warning(
+            logger.log(
+                retry_log_level,
                 "Attempt %s of function 'concurrency lease renewal' failed with "
                 "%s: %s. Retrying in %.2f seconds...",
                 attempt + 1,
@@ -74,6 +75,7 @@ def _lease_renewal_loop(
     lease_id: UUID,
     lease_duration: float,
     stop_event: threading.Event,
+    suppress_warnings: bool = False,
 ) -> None:
     """
     Maintain a concurrency lease until stopped.
@@ -82,11 +84,12 @@ def _lease_renewal_loop(
         lease_id: The ID of the lease to maintain.
         lease_duration: The duration of the lease in seconds.
         stop_event: Event set by the owning context manager on exit.
+        suppress_warnings: Log failed renewal attempts at DEBUG instead of WARNING.
     """
     with get_client(sync_client=True) as client:
         while not stop_event.is_set():
             renewed = _renew_concurrency_lease_with_retries(
-                client, lease_id, lease_duration, stop_event
+                client, lease_id, lease_duration, stop_event, suppress_warnings
             )
             if not renewed:
                 return
@@ -193,7 +196,7 @@ def _start_lease_renewal_thread(
         # message falls back to the plain "prefect.concurrency" logger,
         # never reaching the run logs API.
         try:
-            _lease_renewal_loop(lease_id, lease_duration, stop_event)
+            _lease_renewal_loop(lease_id, lease_duration, stop_event, suppress_warnings)
         except Exception as exc:
             if stop_event.is_set() or _lease_released_by_final_flow_run(
                 exc, lease_id, flow_run_id

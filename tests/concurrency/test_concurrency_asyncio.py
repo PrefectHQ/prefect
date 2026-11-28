@@ -2,11 +2,14 @@ from typing import Any
 from unittest import mock
 from uuid import UUID
 
+import anyio
 import pytest
 from httpx import HTTPStatusError, Request, Response
 from starlette import status
 
 from prefect import flow, task
+from prefect._internal.concurrency.cancellation import CancelledError
+from prefect.client.orchestration import PrefectClient
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
@@ -17,6 +20,7 @@ from prefect.concurrency.asyncio import (
     concurrency,
     rate_limit,
 )
+from prefect.concurrency.context import ConcurrencyContext
 from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimitV2
@@ -362,6 +366,111 @@ async def test_rate_limit_emits_events(
         ),
         "prefect.resource.role": "concurrency-limit",
     }
+
+
+async def test_concurrency_releases_lease_without_renewal_when_limits_are_inactive(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    """Inactive limits are not enforced, so the lease is handed back right away
+    and no renewal thread is started for it.
+    """
+    executed = False
+
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        wraps=arelease_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+        ) as renew_spy:
+            async with concurrency(inactive_concurrency_limit.name, occupy=1):
+                release_spy.assert_called_once()
+                executed = True
+
+            renew_spy.assert_not_called()
+            release_spy.assert_called_once()
+
+    assert executed
+
+
+async def test_concurrency_proceeds_when_inactive_lease_release_fails(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    executed = False
+
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        side_effect=RuntimeError("server unavailable"),
+    ) as release_spy:
+        async with concurrency(inactive_concurrency_limit.name, occupy=1):
+            executed = True
+
+    release_spy.assert_called_once()
+    assert executed
+
+
+async def test_concurrency_proceeds_when_inactive_lease_release_is_slow(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    release_completed = False
+    release_finished = False
+
+    async def slow_release(*args: Any, **kwargs: Any) -> None:
+        nonlocal release_completed, release_finished
+        try:
+            await anyio.sleep(1.5)
+            release_completed = True
+        finally:
+            release_finished = True
+
+    with ConcurrencyContext() as ctx:
+        with mock.patch.object(
+            PrefectClient,
+            "release_concurrency_slots_with_lease",
+            side_effect=slow_release,
+        ) as release_spy:
+            async with concurrency(inactive_concurrency_limit.name, strict=True):
+                assert release_finished
+                assert not release_completed
+                assert len(ctx.cleanup_lease_ids) == 1
+
+            release_spy.assert_called_once()
+
+
+async def test_concurrency_propagates_cancellation_during_inactive_lease_release(
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    with ConcurrencyContext() as ctx:
+        with mock.patch.object(
+            PrefectClient,
+            "release_concurrency_slots_with_lease",
+            side_effect=CancelledError,
+        ):
+            with pytest.raises(CancelledError):
+                async with concurrency(inactive_concurrency_limit.name, strict=True):
+                    pytest.fail("Caller cancellation must prevent context entry")
+
+        assert len(ctx.cleanup_lease_ids) == 1
+
+
+async def test_concurrency_maintains_lease_when_any_limit_is_active(
+    concurrency_limit: ConcurrencyLimitV2,
+    inactive_concurrency_limit: ConcurrencyLimitV2,
+):
+    with mock.patch(
+        "prefect.concurrency._asyncio.arelease_concurrency_slots_with_lease",
+        wraps=arelease_concurrency_slots_with_lease,
+    ) as release_spy:
+        with mock.patch(
+            "prefect.concurrency._asyncio.amaintain_concurrency_lease",
+        ) as renew_spy:
+            async with concurrency(
+                [concurrency_limit.name, inactive_concurrency_limit.name], occupy=1
+            ):
+                release_spy.assert_not_called()
+
+            renew_spy.assert_called_once()
+            release_spy.assert_called_once()
 
 
 @pytest.mark.parametrize("names", [[], None])

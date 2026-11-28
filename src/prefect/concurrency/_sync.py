@@ -12,6 +12,7 @@ from prefect.client.schemas.responses import (
 )
 from prefect.concurrency._asyncio import (
     _discard_cleanup_lease,
+    _release_inactive_concurrency_lease,
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
     arelease_concurrency_slots_with_lease,
@@ -138,6 +139,13 @@ def concurrency(
     )
 
     if not acquisition_response.limits:
+        yield
+        return
+
+    if not any(limit.active for limit in acquisition_response.limits):
+        run_coro_as_sync(
+            _release_inactive_concurrency_lease(acquisition_response.lease_id)
+        )
         yield
         return
 
