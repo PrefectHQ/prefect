@@ -1,13 +1,13 @@
 """Module to define tasks for interacting with Kubernetes jobs."""
 
 from asyncio import sleep
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Type, Union, get_args
+from typing import Any, Self, TypeAlias, get_args
 
 import yaml
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Job, V1JobList, V1Status
 from pydantic import Field, field_validator
-from typing_extensions import Self, TypeAlias
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
@@ -22,7 +22,7 @@ from prefect_kubernetes.credentials import (
 from prefect_kubernetes.exceptions import KubernetesJobTimeoutError
 from prefect_kubernetes.pods import list_namespaced_pod, read_namespaced_pod_log
 
-KubernetesManifest: TypeAlias = Union[Dict, Path, str]
+KubernetesManifest: TypeAlias = dict | Path | str
 
 
 def _get_pod_selector(v1_job: V1Job) -> str:
@@ -37,9 +37,9 @@ def _get_pod_selector(v1_job: V1Job) -> str:
 @task
 async def create_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
-    new_job: Union[V1Job, Dict[str, Any]],
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    new_job: V1Job | dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Job:
     """Task for creating a namespaced Kubernetes job.
 
@@ -82,9 +82,9 @@ async def create_namespaced_job(
 async def delete_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
-    delete_options: Optional[V1DeleteOptions] = None,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    delete_options: V1DeleteOptions | None = None,
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Status:
     """Task for deleting a namespaced Kubernetes job.
 
@@ -131,8 +131,8 @@ async def delete_namespaced_job(
 @task
 async def list_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1JobList:
     """Task for listing namespaced Kubernetes jobs.
 
@@ -173,8 +173,8 @@ async def patch_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     job_updates: V1Job,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Job:
     """Task for patching a namespaced Kubernetes job.
 
@@ -225,8 +225,8 @@ async def patch_namespaced_job(
 async def read_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Job:
     """Task for reading a namespaced Kubernetes job.
 
@@ -272,8 +272,8 @@ async def replace_namespaced_job(
     kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
     new_job: V1Job,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Job:
     """Task for replacing a namespaced Kubernetes job.
 
@@ -318,8 +318,8 @@ async def replace_namespaced_job(
 async def read_namespaced_job_status(
     kubernetes_credentials: BaseKubernetesCredentials,
     job_name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Job:
     """Task for fetching status of a namespaced Kubernetes job.
 
@@ -357,13 +357,13 @@ async def read_namespaced_job_status(
         )
 
 
-class KubernetesJobRun(JobRun[Dict[str, Any]]):
+class KubernetesJobRun(JobRun[dict[str, Any]]):
     """A container representing a run of a Kubernetes job."""
 
     def __init__(
         self,
         kubernetes_job: "KubernetesJob",
-        v1_job_model: Union[V1Job, Dict[str, Any]],
+        v1_job_model: V1Job | dict[str, Any],
     ):
         self.pod_logs = None
 
@@ -394,7 +394,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         )
         self.logger.info(f"Job {job_name} deleted with {deleted_v1_job.status!r}.")
 
-    async def await_for_completion(self, print_func: Optional[Callable] = None):
+    async def await_for_completion(self, print_func: Callable | None = None):
         """Async implementation: waits for the job to complete.
 
         If the job has `delete_after_completion` set to `True`,
@@ -493,7 +493,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
             await self._cleanup()
 
     @async_dispatch(await_for_completion)
-    def wait_for_completion(self, print_func: Optional[Callable] = None):
+    def wait_for_completion(self, print_func: Callable | None = None):
         """Waits for the job to complete.
 
         If the job has `delete_after_completion` set to `True`,
@@ -508,7 +508,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
             create_call(self.await_for_completion, print_func)
         ).result()
 
-    async def afetch_result(self) -> Dict[str, Any]:
+    async def afetch_result(self) -> dict[str, Any]:
         """Async implementation: fetch the results of the job.
 
         Returns:
@@ -527,7 +527,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
         return self.pod_logs
 
     @async_dispatch(afetch_result)
-    def fetch_result(self) -> Dict[str, Any]:
+    def fetch_result(self) -> dict[str, Any]:
         """Fetch the results of the job.
 
         Returns:
@@ -545,7 +545,7 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
 class KubernetesJob(JobBlock):
     """A block representing a Kubernetes job configuration."""
 
-    v1_job: Dict[str, Any] = Field(
+    v1_job: dict[str, Any] = Field(
         default=...,
         title="Job Manifest",
         description=(
@@ -553,13 +553,13 @@ class KubernetesJob(JobBlock):
             "using `yaml.safe_load`."
         ),
     )
-    api_kwargs: Dict[str, Any] = Field(
+    api_kwargs: dict[str, Any] = Field(
         default_factory=dict,
         title="Additional API Arguments",
         description="Additional arguments to include in Kubernetes API calls.",
         examples=[{"pretty": "true"}],
     )
-    credentials: Union[KubernetesApiKeyCredentials, KubernetesCredentials] = Field(
+    credentials: KubernetesApiKeyCredentials | KubernetesCredentials = Field(
         default_factory=KubernetesCredentials,
         description="The credentials to configure a client from.",
     )
@@ -612,7 +612,7 @@ class KubernetesJob(JobBlock):
         default="default",
         description="The namespace to create and run the job in.",
     )
-    timeout_seconds: Optional[int] = Field(
+    timeout_seconds: int | None = Field(
         default=None,
         description="The number of seconds to wait for the job run before timing out.",
     )
@@ -641,9 +641,7 @@ class KubernetesJob(JobBlock):
         return from_sync.call_soon_in_loop_thread(create_call(self.atrigger)).result()
 
     @classmethod
-    def from_yaml_file(
-        cls: Type[Self], manifest_path: Union[Path, str], **kwargs
-    ) -> Self:
+    def from_yaml_file(cls: type[Self], manifest_path: Path | str, **kwargs) -> Self:
         """Create a `KubernetesJob` from a YAML file.
 
         Args:
