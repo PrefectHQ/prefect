@@ -576,9 +576,15 @@ class KubernetesJob(JobBlock):
                     lookup_type(CredentialsBlock, dispatch_key=block_type_slug),
                 )
             else:
-                credential_classes = get_args(
-                    cls.model_fields["credentials"].annotation
+                api_key_fields = set(KubernetesApiKeyCredentials.model_fields) - set(
+                    KubernetesCredentials.model_fields
                 )
+                if api_key_fields.intersection(value):
+                    credential_classes = (KubernetesApiKeyCredentials,)
+                else:
+                    credential_classes = get_args(
+                        cls.model_fields["credentials"].annotation
+                    )
 
             for credentials_cls in credential_classes:
                 try:

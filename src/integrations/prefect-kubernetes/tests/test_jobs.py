@@ -286,6 +286,23 @@ def test_job_block_validates_credentials_from_dict():
     assert isinstance(default_job.credentials, KubernetesCredentials)
 
 
+@pytest.mark.parametrize(
+    "incomplete_credentials",
+    [
+        {"host": "https://k8s.example.com:6443"},
+        {"api_key": "dict-token"},
+        {"host": "https://k8s.example.com:6443", "api_key_prefix": "Token"},
+        {"verify_ssl": False},
+    ],
+)
+def test_job_block_rejects_incomplete_api_key_credentials_dict(incomplete_credentials):
+    with pytest.raises(ValueError, match="Invalid credentials data"):
+        KubernetesJob(
+            v1_job={"metadata": {"name": "test-job"}},
+            credentials=incomplete_credentials,
+        )
+
+
 async def test_create_namespaced_job_with_api_key_credentials(monkeypatch):
     batch_client = AsyncMock(spec=BatchV1Api)
     monkeypatch.setattr(

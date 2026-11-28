@@ -378,6 +378,8 @@ class KubernetesApiKeyCredentials(BaseKubernetesCredentials):
         client_configuration.api_key["BearerToken"] = self.api_key.get_secret_value()
         if self.api_key_prefix is not None:
             client_configuration.api_key_prefix["BearerToken"] = self.api_key_prefix
+        else:
+            client_configuration.api_key_prefix.pop("BearerToken", None)
         client_configuration.verify_ssl = self.verify_ssl
         if self.ssl_ca_cert is not None:
             client_configuration.ssl_ca_cert = self.ssl_ca_cert

@@ -254,6 +254,22 @@ class TestKubernetesApiKeyCredentials:
             auth = await cfg.auth_settings()
             assert auth["BearerToken"]["value"] == "Bearer already-prefixed"
 
+    async def test_client_configuration_no_prefix_clears_inherited_prefix(self):
+        custom_config = Configuration()
+        custom_config.api_key_prefix["BearerToken"] = "Bearer"
+        credentials = KubernetesApiKeyCredentials(
+            host="https://k8s.example.com:6443",
+            api_key="raw-token",
+            api_key_prefix=None,
+        )
+        async with credentials.get_client(
+            "core", configuration=custom_config
+        ) as client:
+            cfg = client.api_client.configuration
+            assert "BearerToken" not in cfg.api_key_prefix
+            auth = await cfg.auth_settings()
+            assert auth["BearerToken"]["value"] == "raw-token"
+
     async def test_client_configuration_ssl_options(self, create_temp_self_signed_cert):
         cert_file, _ = create_temp_self_signed_cert
         credentials = KubernetesApiKeyCredentials(
