@@ -1,6 +1,6 @@
 """Tasks for working with Kubernetes services."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Service, V1ServiceList
 
@@ -12,8 +12,8 @@ from prefect_kubernetes.credentials import BaseKubernetesCredentials
 async def create_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
     new_service: V1Service,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1Service:
     """Create a namespaced Kubernetes service.
 
@@ -55,9 +55,9 @@ async def create_namespaced_service(
 async def delete_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
-    delete_options: Optional[V1DeleteOptions] = None,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    delete_options: V1DeleteOptions | None = None,
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1Service:
     """Delete a namespaced Kubernetes service.
 
@@ -100,8 +100,8 @@ async def delete_namespaced_service(
 @task
 async def list_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1ServiceList:
     """List namespaced Kubernetes services.
 
@@ -140,8 +140,8 @@ async def patch_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     service_updates: V1Service,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1Service:
     """Patch a namespaced Kubernetes service.
 
@@ -186,8 +186,8 @@ async def patch_namespaced_service(
 async def read_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1Service:
     """Read a namespaced Kubernetes service.
 
@@ -229,8 +229,8 @@ async def replace_namespaced_service(
     kubernetes_credentials: BaseKubernetesCredentials,
     service_name: str,
     new_service: V1Service,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Optional[Dict[str, Any]],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any] | None,
 ) -> V1Service:
     """Replace a namespaced Kubernetes service.
 

@@ -1,6 +1,7 @@
 """Module for interacting with Kubernetes pods from Prefect flows."""
 
-from typing import Any, Callable, Dict, Optional, Union
+from collections.abc import Callable
+from typing import Any
 
 from kubernetes_asyncio.client.models import V1DeleteOptions, V1Pod, V1PodList
 from kubernetes_asyncio.watch import Watch
@@ -13,8 +14,8 @@ from prefect_kubernetes.credentials import BaseKubernetesCredentials
 async def create_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
     new_pod: V1Pod,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Pod:
     """Create a Kubernetes pod in a given namespace.
 
@@ -56,9 +57,9 @@ async def create_namespaced_pod(
 async def delete_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
-    delete_options: Optional[V1DeleteOptions] = None,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    delete_options: V1DeleteOptions | None = None,
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Pod:
     """Delete a Kubernetes pod in a given namespace.
 
@@ -102,8 +103,8 @@ async def delete_namespaced_pod(
 @task
 async def list_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1PodList:
     """List all pods in a given namespace.
 
@@ -141,8 +142,8 @@ async def patch_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     pod_updates: V1Pod,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Pod:
     """Patch a Kubernetes pod in a given namespace.
 
@@ -187,8 +188,8 @@ async def patch_namespaced_pod(
 async def read_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Pod:
     """Read information on a Kubernetes pod in a given namespace.
 
@@ -229,10 +230,10 @@ async def read_namespaced_pod_log(
     kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     container: str,
-    namespace: Optional[str] = "default",
-    print_func: Optional[Callable] = None,
-    **kube_kwargs: Dict[str, Any],
-) -> Union[str, None]:
+    namespace: str | None = "default",
+    print_func: Callable | None = None,
+    **kube_kwargs: dict[str, Any],
+) -> str | None:
     """Read logs from a Kubernetes pod in a given namespace.
 
     If `print_func` is provided, the logs will be streamed using that function.
@@ -298,8 +299,8 @@ async def replace_namespaced_pod(
     kubernetes_credentials: BaseKubernetesCredentials,
     pod_name: str,
     new_pod: V1Pod,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Pod:
     """Replace a Kubernetes pod in a given namespace.
 

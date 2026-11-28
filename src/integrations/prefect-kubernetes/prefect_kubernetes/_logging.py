@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from pythonjsonlogger.core import RESERVED_ATTRS
 from pythonjsonlogger.json import JsonFormatter
@@ -18,7 +18,7 @@ class KopfObjectJsonFormatter(JsonFormatter):
     def __init__(
         self,
         *args: Any,
-        refkey: Optional[str] = None,
+        refkey: str | None = None,
         **kwargs: Any,
     ) -> None:
         # Avoid type checking, as the args are not in the parent constructor.

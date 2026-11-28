@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 from prefect import task
 from prefect_kubernetes.credentials import BaseKubernetesCredentials
@@ -10,9 +10,9 @@ async def create_namespaced_custom_object(
     group: str,
     version: str,
     plural: str,
-    body: Dict[str, Any],
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    body: dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for creating a namespaced custom object.
 
@@ -74,8 +74,8 @@ async def delete_namespaced_custom_object(
     version: str,
     plural: str,
     name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for deleting a namespaced custom object.
 
@@ -133,8 +133,8 @@ async def get_namespaced_custom_object(
     version: str,
     plural: str,
     name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for reading a namespaced Kubernetes custom object.
 
@@ -194,7 +194,7 @@ async def get_namespaced_custom_object_status(
     plural: str,
     name: str,
     namespace: str = "default",
-    **kube_kwargs: Dict[str, Any],
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for fetching status of a namespaced custom object.
 
@@ -252,7 +252,7 @@ async def list_namespaced_custom_object(
     version: str,
     plural: str,
     namespace: str = "default",
-    **kube_kwargs: Dict[str, Any],
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for listing namespaced custom objects.
 
@@ -306,9 +306,9 @@ async def patch_namespaced_custom_object(
     version: str,
     plural: str,
     name: str,
-    body: Dict[str, Any],
+    body: dict[str, Any],
     namespace: str = "default",
-    **kube_kwargs: Dict[str, Any],
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for patching a namespaced custom resource.
 
@@ -379,9 +379,9 @@ async def replace_namespaced_custom_object(
     version: str,
     plural: str,
     name: str,
-    body: Dict[str, Any],
+    body: dict[str, Any],
     namespace: str = "default",
-    **kube_kwargs: Dict[str, Any],
+    **kube_kwargs: dict[str, Any],
 ) -> object:
     """Task for replacing a namespaced custom resource.
 

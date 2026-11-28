@@ -1,6 +1,6 @@
 """Module for interacting with Kubernetes deployments from Prefect flows."""
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from kubernetes_asyncio.client.models import (
     V1DeleteOptions,
@@ -16,8 +16,8 @@ from prefect_kubernetes.credentials import BaseKubernetesCredentials
 async def create_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
     new_deployment: V1Deployment,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Deployment:
     """Create a Kubernetes deployment in a given namespace.
 
@@ -59,9 +59,9 @@ async def create_namespaced_deployment(
 async def delete_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
-    delete_options: Optional[V1DeleteOptions] = None,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    delete_options: V1DeleteOptions | None = None,
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Deployment:
     """Delete a Kubernetes deployment in a given namespace.
 
@@ -105,8 +105,8 @@ async def delete_namespaced_deployment(
 @task
 async def list_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1DeploymentList:
     """List all deployments in a given namespace.
 
@@ -145,8 +145,8 @@ async def patch_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     deployment_updates: V1Deployment,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Deployment:
     """Patch a Kubernetes deployment in a given namespace.
 
@@ -191,8 +191,8 @@ async def patch_namespaced_deployment(
 async def read_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Deployment:
     """Read information on a Kubernetes deployment in a given namespace.
 
@@ -233,8 +233,8 @@ async def replace_namespaced_deployment(
     kubernetes_credentials: BaseKubernetesCredentials,
     deployment_name: str,
     new_deployment: V1Deployment,
-    namespace: Optional[str] = "default",
-    **kube_kwargs: Dict[str, Any],
+    namespace: str | None = "default",
+    **kube_kwargs: dict[str, Any],
 ) -> V1Deployment:
     """Replace a Kubernetes deployment in a given namespace.
 

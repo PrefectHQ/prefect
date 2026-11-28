@@ -108,16 +108,14 @@ import base64
 import enum
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncGenerator,
-    Dict,
-    List,
-    Optional,
+    Literal,
+    Self,
     TypeVar,
-    Union,
 )
 
 import anyio
@@ -152,7 +150,6 @@ from tenacity import (
     wait_fixed,
     wait_random,
 )
-from typing_extensions import Literal, Self
 
 import prefect
 from prefect.client.schemas.objects import Flow as APIFlow
@@ -193,7 +190,7 @@ R = TypeVar("R")
 JOB_SECRET_CLEANUP_TIMEOUT_SECONDS = 30
 
 
-def _get_default_job_manifest_template() -> Dict[str, Any]:
+def _get_default_job_manifest_template() -> dict[str, Any]:
     """Returns the default job manifest template used by the Kubernetes worker."""
     return {
         "apiVersion": "batch/v1",
@@ -345,7 +342,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         stream_output: Whether or not to stream the job's output.
     """
 
-    annotations: Dict[str, str] = Field(
+    annotations: dict[str, str] = Field(
         default_factory=dict,
         description=(
             "Annotations applied to infrastructure created by the worker using "
@@ -353,21 +350,19 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         ),
     )
     namespace: str = Field(default="default")
-    job_manifest: Dict[str, Any] = Field(
+    job_manifest: dict[str, Any] = Field(
         json_schema_extra=dict(template=_get_default_job_manifest_template())
     )
-    cluster_config: Optional[KubernetesClusterConfig] = Field(default=None)
-    job_watch_timeout_seconds: Optional[int] = Field(default=None)
+    cluster_config: KubernetesClusterConfig | None = Field(default=None)
+    job_watch_timeout_seconds: int | None = Field(default=None)
     pod_watch_timeout_seconds: int = Field(default=60)
     stream_output: bool = Field(default=True)
-    registry_credentials: Optional[KubernetesRegistryCredentials] = Field(default=None)
+    registry_credentials: KubernetesRegistryCredentials | None = Field(default=None)
 
-    env: Union[Dict[str, Optional[str]], List[Dict[str, Any]]] = Field(
-        default_factory=dict
-    )
+    env: dict[str, str | None] | list[dict[str, Any]] = Field(default_factory=dict)
 
     # internal-use only
-    _api_dns_name: Optional[str] = None  # Replaces 'localhost' in API URL
+    _api_dns_name: str | None = None  # Replaces 'localhost' in API URL
 
     @model_validator(mode="after")
     def _validate_job_manifest(self) -> Self:
@@ -425,7 +420,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         return {k: str(v) if v is not None else None for k, v in v.items()}
 
     @staticmethod
-    def _base_flow_run_labels(flow_run: "FlowRun") -> Dict[str, str]:
+    def _base_flow_run_labels(flow_run: "FlowRun") -> dict[str, str]:
         """
         Generate a dictionary of labels for a flow run job.
         """
@@ -440,7 +435,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         }
 
     @staticmethod
-    def _base_flow_labels(flow: "APIFlow | None") -> Dict[str, str]:
+    def _base_flow_labels(flow: "APIFlow | None") -> dict[str, str]:
         """
         Generate a dictionary of labels for a flow run job, including standard
         app.kubernetes.io labels.
@@ -453,7 +448,7 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
     @staticmethod
     def _base_deployment_labels(
         deployment: "DeploymentResponse | None",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
         Generate a dictionary of labels for a deployment, including standard
         app.kubernetes.io labels.
@@ -785,20 +780,20 @@ class KubernetesWorkerVariables(BaseVariables):
     base job template.
     """
 
-    annotations: Dict[str, str] = Field(
+    annotations: dict[str, str] = Field(
         default_factory=dict,
         description="Annotations applied to Kubernetes jobs and pods created by the worker.",
     )
     namespace: str = Field(
         default="default", description="The Kubernetes namespace to create jobs within."
     )
-    image: Optional[str] = Field(
+    image: str | None = Field(
         default=None,
         description="The image reference of a container image to use for created jobs. "
         "If not set, the latest Prefect image will be used.",
         examples=["docker.io/prefecthq/prefect:3-latest"],
     )
-    service_account_name: Optional[str] = Field(
+    service_account_name: str | None = Field(
         default=None,
         description="The Kubernetes service account to use for job creation.",
     )
@@ -817,14 +812,14 @@ class KubernetesWorkerVariables(BaseVariables):
             "Otherwise Kubernetes retries the Job and Prefect relinquishes the run."
         ),
     )
-    finished_job_ttl: Optional[int] = Field(
+    finished_job_ttl: int | None = Field(
         default=None,
         title="Finished Job TTL",
         description="The number of seconds to retain jobs after completion. If set, "
         "finished jobs will be cleaned up by Kubernetes after the given delay. If not "
         "set, jobs will be retained indefinitely.",
     )
-    job_watch_timeout_seconds: Optional[int] = Field(
+    job_watch_timeout_seconds: int | None = Field(
         default=None,
         description=(
             "Number of seconds to wait for each event emitted by a job before "
@@ -841,11 +836,11 @@ class KubernetesWorkerVariables(BaseVariables):
             "If set, output will be streamed from the job to local standard output."
         ),
     )
-    cluster_config: Optional[KubernetesClusterConfig] = Field(
+    cluster_config: KubernetesClusterConfig | None = Field(
         default=None,
         description="The Kubernetes cluster config to use for job creation.",
     )
-    registry_credentials: Optional[KubernetesRegistryCredentials] = Field(
+    registry_credentials: KubernetesRegistryCredentials | None = Field(
         default=None,
         description=(
             "Credentials for pulling the job's image from a private registry, such as "
@@ -854,7 +849,7 @@ class KubernetesWorkerVariables(BaseVariables):
             "worker needs permission to create, patch and delete Secrets."
         ),
     )
-    cpu_request: Optional[str] = Field(
+    cpu_request: str | None = Field(
         default=None,
         title="CPU Request",
         description=(
@@ -863,7 +858,7 @@ class KubernetesWorkerVariables(BaseVariables):
             " '2' for two CPUs). If not provided, no CPU request is configured."
         ),
     )
-    cpu_limit: Optional[str] = Field(
+    cpu_limit: str | None = Field(
         default=None,
         title="CPU Limit",
         description=(
@@ -872,7 +867,7 @@ class KubernetesWorkerVariables(BaseVariables):
             " '2' for two CPUs). If not provided, no CPU limit is configured."
         ),
     )
-    memory_request: Optional[str] = Field(
+    memory_request: str | None = Field(
         default=None,
         title="Memory Request",
         description=(
@@ -881,7 +876,7 @@ class KubernetesWorkerVariables(BaseVariables):
             " provided, no memory request is configured."
         ),
     )
-    memory_limit: Optional[str] = Field(
+    memory_limit: str | None = Field(
         default=None,
         title="Memory Limit",
         description=(

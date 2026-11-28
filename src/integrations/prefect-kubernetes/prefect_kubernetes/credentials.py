@@ -1,9 +1,10 @@
 """Module for defining Kubernetes credential handling and client generation."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator, Dict, Optional, Type, Union
+from typing import Literal, Self, TypeAlias
 
 import yaml
 from kubernetes_asyncio import config
@@ -17,13 +18,12 @@ from kubernetes_asyncio.client import (
 )
 from kubernetes_asyncio.config.config_exception import ConfigException
 from pydantic import Field, SecretStr, field_validator
-from typing_extensions import Literal, Self
 
 from prefect.blocks.abstract import CredentialsBlock
 from prefect.blocks.core import Block
 from prefect.utilities.collections import listrepr
 
-KubernetesClient = Union[AppsV1Api, BatchV1Api, CoreV1Api, CustomObjectsApi]
+KubernetesClient: TypeAlias = AppsV1Api | BatchV1Api | CoreV1Api | CustomObjectsApi
 
 K8S_CLIENT_TYPES = {
     "apps": AppsV1Api,
@@ -55,7 +55,7 @@ class KubernetesClusterConfig(Block):
     _block_type_name = "Kubernetes Cluster Config"
     _logo_url = "https://raw.githubusercontent.com/PrefectHQ/prefect/420d0d6a78bb6df1fc18bcf188fdad43c1d22ea9/assets/block-logos/kubernetes.png"
     _documentation_url = "https://www.prefect.io/docs/integrations/prefect-kubernetes"  # noqa
-    config: Dict = Field(
+    config: dict = Field(
         default=..., description="The entire contents of a kubectl config file."
     )
     context_name: str = Field(
@@ -71,7 +71,7 @@ class KubernetesClusterConfig(Block):
 
     @classmethod
     def from_file(
-        cls: Type[Self], path: Optional[Path] = None, context_name: Optional[str] = None
+        cls: type[Self], path: Path | None = None, context_name: str | None = None
     ) -> Self:
         """
         Create a cluster config from the a Kubernetes config file.
@@ -140,7 +140,7 @@ class BaseKubernetesCredentials(CredentialsBlock, ABC):
     def get_client(
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
-        configuration: Optional[Configuration] = None,
+        configuration: Configuration | None = None,
     ) -> AbstractAsyncContextManager[KubernetesClient]:
         """Return an async context manager yielding a resource-specific Kubernetes client.
 
@@ -197,13 +197,13 @@ class KubernetesCredentials(BaseKubernetesCredentials):
 
     _block_type_name = "Kubernetes Credentials"
 
-    cluster_config: Optional[KubernetesClusterConfig] = None
+    cluster_config: KubernetesClusterConfig | None = None
 
     @asynccontextmanager
     async def get_client(
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
-        configuration: Optional[Configuration] = None,
+        configuration: Configuration | None = None,
     ) -> AsyncGenerator[KubernetesClient, None]:
         """Convenience method for retrieving a Kubernetes API client for deployment resources.
 
@@ -329,11 +329,11 @@ class KubernetesApiKeyCredentials(BaseKubernetesCredentials):
         default=...,
         description="The API key or bearer token for authenticating with the Kubernetes API server.",
     )
-    api_key_prefix: Optional[str] = Field(
+    api_key_prefix: str | None = Field(
         default="Bearer",
         description="The prefix for the API key in the Authorization header.",
     )
-    ssl_ca_cert: Optional[str] = Field(
+    ssl_ca_cert: str | None = Field(
         default=None,
         description="Path to a CA certificate file used to verify the Kubernetes API server.",
     )
@@ -346,7 +346,7 @@ class KubernetesApiKeyCredentials(BaseKubernetesCredentials):
     async def get_client(
         self,
         client_type: Literal["apps", "batch", "core", "custom_objects"],
-        configuration: Optional[Configuration] = None,
+        configuration: Configuration | None = None,
     ) -> AsyncGenerator[KubernetesClient, None]:
         """Convenience method for retrieving a Kubernetes API client authenticated with an API key.
 
