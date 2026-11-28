@@ -120,6 +120,32 @@ with k8s_credentials.get_client("core") as v1_core_client:
         print(namespace.metadata.name)
 ```
 
+### Authenticate with an API key using `KubernetesApiKeyCredentials`
+
+Use `KubernetesApiKeyCredentials` to connect to a Kubernetes API server with a bearer token instead of a kubeconfig file.
+Set `host` to the API server URL and `api_key` to the token. `api_key_prefix` defaults to `Bearer`; set it to `None` to send the token without a prefix.
+Use `ssl_ca_cert` to point to a CA certificate file, or set `verify_ssl` to `False` to skip certificate verification.
+
+```python
+from prefect_kubernetes.credentials import KubernetesApiKeyCredentials
+
+k8s_credentials = KubernetesApiKeyCredentials(
+    host="https://my-cluster.example.com:6443",
+    api_key="my-service-account-token",
+    ssl_ca_cert="/path/to/ca.crt",
+)
+k8s_credentials.save("k8s-api-key-creds", overwrite=True)
+
+
+async def list_pods():
+    async with k8s_credentials.get_client("core") as v1_core_client:
+        pods = await v1_core_client.list_namespaced_pod("default")
+        for pod in pods.items:
+            print(pod.metadata.name)
+```
+
+You can pass `KubernetesApiKeyCredentials` anywhere `KubernetesCredentials` is accepted, including the `credentials` field of a `KubernetesJob` block and the `kubernetes_credentials` argument of the tasks in `prefect_kubernetes.jobs`, `pods`, `services`, `deployments`, and `custom_objects`.
+
 ### List jobs in a namespace
 
 ```python
