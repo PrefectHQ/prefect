@@ -94,6 +94,28 @@ def _resolve_field_info_default(value: Any) -> Any:
     default value. Other values are returned unchanged.
     """
     if isinstance(value, pydantic.fields.FieldInfo):
+        if value.default_factory is not None:
+            try:
+                sig = inspect.signature(value.default_factory)
+            except (ValueError, TypeError):
+                # Builtin types (list, dict, set, …) have no inspectable
+                # signature; they are always zero-argument constructors.
+                return value.default_factory()  # type: ignore[call-arg]
+            required_params = [
+                p
+                for p in sig.parameters.values()
+                if p.default is inspect.Parameter.empty
+                and p.kind
+                not in (
+                    inspect.Parameter.VAR_POSITIONAL,
+                    inspect.Parameter.VAR_KEYWORD,
+                )
+            ]
+            if required_params:
+                # Factory requires arguments we cannot supply here; return
+                # the callable so the caller can invoke it with the right data.
+                return value.default_factory
+            return value.default_factory()  # type: ignore[call-arg]
         return value.default
     return value
 
@@ -757,6 +779,16 @@ def _generate_signature_from_source(
                 default = None  # Set to None if evaluation fails
             parameters[parameters.index(param)] = param.replace(default=default)
 
+    # Handle annotations for varargs e.g. def func(*args: int)
+    if vararg := func_def.args.vararg:
+        parameters.append(
+            inspect.Parameter(
+                vararg.arg,
+                inspect.Parameter.VAR_POSITIONAL,
+                annotation=_evaluate_annotation(vararg, namespace),
+            )
+        )
+
     # Handle annotations for keyword only args e.g. def func(*, a: int, b: str)
     for kwarg in func_def.args.kwonlyargs:
         name = kwarg.arg
@@ -783,15 +815,7 @@ def _generate_signature_from_source(
                 default = None
             parameters[parameters.index(param)] = param.replace(default=default)
 
-    # Handle annotations for varargs and kwargs e.g. def func(*args: int, **kwargs: str)
-    if vararg := func_def.args.vararg:
-        parameters.append(
-            inspect.Parameter(
-                vararg.arg,
-                inspect.Parameter.VAR_POSITIONAL,
-                annotation=_evaluate_annotation(vararg, namespace),
-            )
-        )
+    # Handle kwargs e.g. def func(**kwargs: str)
     if varkw := func_def.args.kwarg:
         parameters.append(
             inspect.Parameter(
@@ -914,9 +938,11 @@ def expand_mapping_parameters(
         call_parameters.update({key: value for key, value in static_parameters.items()})
 
         # Add default values for parameters; these are skipped earlier since they should
-        # not be mapped over
-        for key, value in get_parameter_defaults(func).items():
-            call_parameters.setdefault(key, value)
+        # not be mapped over. Resolve factories only for parameters that are actually
+        # missing — calling them for supplied parameters is unnecessary and can fail.
+        for name, param in inspect.signature(func).parameters.items():
+            if name not in call_parameters and param.default is not param.empty:
+                call_parameters[name] = _resolve_field_info_default(param.default)
 
         # Re-apply annotations to each key again
         for key, annotation in annotated_parameters.items():
