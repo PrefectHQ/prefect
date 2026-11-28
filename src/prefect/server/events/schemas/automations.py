@@ -731,6 +731,19 @@ class Firing(PrefectBaseModel):
             "change event (for a Metric trigger)."
         ),
     )
+    triggering_events: List[ReceivedEvent] = Field(
+        default_factory=list,
+        description=(
+            "The events that counted toward this Firing, in the order they "
+            "occurred.  For an EventTrigger this holds every event the bucket "
+            "counted, up to the trigger threshold, so an action template can "
+            "use every contributing payload through `events`.  Empty for "
+            "firings recorded before this field existed, and for firings "
+            "whose counted events were only held events, which carry no "
+            "payload; in those cases `all_events` falls back to the "
+            "singular `triggering_event` as before."
+        ),
+    )
     triggering_value: Optional[Any] = Field(
         default=None,
         description=(
@@ -753,7 +766,12 @@ class Firing(PrefectBaseModel):
         ]
 
     def all_events(self) -> Sequence[ReceivedEvent]:
-        events = [self.triggering_event] if self.triggering_event else []
+        if self.triggering_events:
+            events = list(self.triggering_events)
+        elif self.triggering_event:
+            events = [self.triggering_event]
+        else:
+            events = []
         return events + [
             e for child in self.triggering_firings for e in child.all_events()
         ]
