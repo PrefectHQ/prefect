@@ -82,18 +82,35 @@ def _decode_output(data: bytes, fallback: str) -> str:
 async def _receive_lines(
     source: AsyncIterable[bytes], fallback: str
 ) -> AsyncGenerator[str, None]:
-    """Decode shell output with `_decode_output` as it is received.
+    """Decode shell output as it is received.
 
-    Only whole lines are decoded, so a character split across two chunks is
-    never decoded in halves.
+    Lines that have ended are decoded with `_decode_output`. The rest of a
+    chunk is decoded right away, so output without a newline is not held back,
+    keeping only the bytes of a character split across two chunks.
     """
     pending = b""
     async for chunk in source:
-        lines, newline, pending = (pending + chunk).rpartition(b"\n")
-        if newline:
-            yield _decode_output(lines + newline, fallback)
+        lines, newline, rest = (pending + chunk).rpartition(b"\n")
+        text = _decode_output(lines + newline, fallback)
+        partial, pending = _decode_partial_line(rest, fallback)
+        if text or partial:
+            yield text + partial
     if pending:
         yield _decode_output(pending, fallback)
+
+
+def _decode_partial_line(data: bytes, fallback: str) -> tuple[str, bytes]:
+    """Decode the start of a line, as UTF-8 if it is valid so far.
+
+    Returns the text and the trailing bytes of an incomplete character.
+    """
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    try:
+        text = decoder.decode(data)
+    except UnicodeDecodeError:
+        decoder = codecs.getincrementaldecoder(fallback)(errors="replace")
+        text = decoder.decode(data)
+    return text, decoder.getstate()[0]
 
 
 def _receive_text(source: Any) -> AsyncIterable[str]:

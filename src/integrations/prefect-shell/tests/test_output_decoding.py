@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 
+import anyio
 import pytest
 from prefect_shell.commands import (
     _decode_output,
@@ -59,7 +60,34 @@ async def test_receive_lines_character_split_across_chunks(encoding: str):
         assert "".join(received) == text
 
 
-async def test_receive_lines_yields_whole_lines():
-    source = chunks(b"one\ntw", b"o\nthree\nfo", b"ur")
+async def test_receive_lines_decides_each_line_once_it_ends():
+    source = chunks(b"one\ntw", "o\ncafé\nfo".encode("cp437"), b"ur")
     received = [text async for text in _receive_lines(source, "cp437")]
-    assert received == ["one\n", "two\nthree\n", "four"]
+    assert received == ["one\ntw", "o\ncafé\nfo", "ur"]
+
+
+@pytest.mark.parametrize("fallback,text", [("cp437", "café "), ("cp932", "あい ")])
+async def test_receive_lines_streams_output_without_newlines(fallback: str, text: str):
+    # Output from `Write-Host -NoNewline` or a progress line redrawn with `\r`
+    # is received while the command still runs, not at the next newline.
+    resume = anyio.Event()
+
+    async def source() -> AsyncIterator[bytes]:
+        yield text.encode(fallback)
+        yield b"ready\r"
+        await resume.wait()
+        yield b"done"
+
+    received = _receive_lines(source(), fallback)
+    with anyio.fail_after(5):
+        assert await received.__anext__() == text
+        assert await received.__anext__() == "ready\r"
+    resume.set()
+    assert [part async for part in received] == ["done"]
+
+
+async def test_receive_lines_holds_only_an_incomplete_character():
+    data = "é".encode()
+    source = chunks(b"a" * 4096 + data[:1], data[1:] + b"b" * 4096)
+    received = [text async for text in _receive_lines(source, "cp437")]
+    assert received == ["a" * 4096, "é" + "b" * 4096]
