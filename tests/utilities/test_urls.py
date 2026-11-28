@@ -842,6 +842,231 @@ class TestSSRFProtectedBackendTimeoutBudget:
             assert t <= 5.0
         assert inner.timeouts[1] <= inner.timeouts[0]
 
+    @pytest.mark.parametrize("timeout", [0.0, -1.0])
+    async def test_async_backend_nonpositive_timeout_raises_connect_timeout(
+        self, timeout: float
+    ):
+        class UnusedBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self) -> None:
+                self.called = False
+
+            async def connect_tcp(
+                self,
+                host: str,
+                port: int,
+                timeout: float | None = None,
+                local_address: str | None = None,
+                socket_options: Any = None,
+            ) -> httpcore.AsyncNetworkStream:
+                self.called = True
+                raise httpcore.ConnectError("should not be called")
+
+            async def connect_unix_socket(
+                self, *args: Any, **kwargs: Any
+            ) -> httpcore.AsyncNetworkStream:
+                raise NotImplementedError
+
+            async def sleep(self, seconds: float) -> None:
+                pass
+
+        inner = UnusedBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["93.184.216.34"]),
+        ):
+            with pytest.raises(httpcore.ConnectTimeout, match="example.com"):
+                await backend.connect_tcp("example.com", 443, timeout=timeout)
+
+        assert inner.called is False
+
+    @pytest.mark.parametrize("timeout", [0.0, -1.0])
+    def test_sync_backend_nonpositive_timeout_raises_connect_timeout(
+        self, timeout: float
+    ):
+        class UnusedBackend(httpcore.NetworkBackend):
+            def __init__(self) -> None:
+                self.called = False
+
+            def connect_tcp(
+                self,
+                host: str,
+                port: int,
+                timeout: float | None = None,
+                local_address: str | None = None,
+                socket_options: Any = None,
+            ) -> httpcore.NetworkStream:
+                self.called = True
+                raise httpcore.ConnectError("should not be called")
+
+            def connect_unix_socket(
+                self, *args: Any, **kwargs: Any
+            ) -> httpcore.NetworkStream:
+                raise NotImplementedError
+
+            def sleep(self, seconds: float) -> None:
+                pass
+
+        inner = UnusedBackend()
+        backend = _SSRFProtectedSyncBackend(inner)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["93.184.216.34"]),
+        ):
+            with pytest.raises(httpcore.ConnectTimeout, match="example.com"):
+                backend.connect_tcp("example.com", 443, timeout=timeout)
+
+        assert inner.called is False
+
+    async def test_async_backend_raises_connect_timeout_when_dns_exhausts_budget(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        now_monotonic = 100.0
+
+        def fake_monotonic() -> float:
+            return now_monotonic
+
+        def slow_getaddrinfo(
+            host: str, *_args: Any, **_kwargs: Any
+        ) -> list[tuple[int, int, int, str, tuple[str, int]]]:
+            nonlocal now_monotonic
+            now_monotonic += 2.0
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
+
+        class UnusedBackend(httpcore.AsyncNetworkBackend):
+            def __init__(self) -> None:
+                self.called = False
+
+            async def connect_tcp(
+                self,
+                host: str,
+                port: int,
+                timeout: float | None = None,
+                local_address: str | None = None,
+                socket_options: Any = None,
+            ) -> httpcore.AsyncNetworkStream:
+                self.called = True
+                raise httpcore.ConnectError("should not be called")
+
+            async def connect_unix_socket(
+                self, *args: Any, **kwargs: Any
+            ) -> httpcore.AsyncNetworkStream:
+                raise NotImplementedError
+
+            async def sleep(self, seconds: float) -> None:
+                pass
+
+        inner = UnusedBackend()
+        backend = _SSRFProtectedAsyncBackend(inner)
+        monkeypatch.setattr("prefect.utilities.urls.time.monotonic", fake_monotonic)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=slow_getaddrinfo,
+        ):
+            with pytest.raises(httpcore.ConnectTimeout, match="example.com"):
+                await backend.connect_tcp("example.com", 443, timeout=1.0)
+
+        assert inner.called is False
+
+    def test_sync_backend_raises_connect_timeout_when_dns_exhausts_budget(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        now_monotonic = 100.0
+
+        def fake_monotonic() -> float:
+            return now_monotonic
+
+        def slow_getaddrinfo(
+            host: str, *_args: Any, **_kwargs: Any
+        ) -> list[tuple[int, int, int, str, tuple[str, int]]]:
+            nonlocal now_monotonic
+            now_monotonic += 2.0
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("93.184.216.34", 0))]
+
+        class UnusedBackend(httpcore.NetworkBackend):
+            def __init__(self) -> None:
+                self.called = False
+
+            def connect_tcp(
+                self,
+                host: str,
+                port: int,
+                timeout: float | None = None,
+                local_address: str | None = None,
+                socket_options: Any = None,
+            ) -> httpcore.NetworkStream:
+                self.called = True
+                raise httpcore.ConnectError("should not be called")
+
+            def connect_unix_socket(
+                self, *args: Any, **kwargs: Any
+            ) -> httpcore.NetworkStream:
+                raise NotImplementedError
+
+            def sleep(self, seconds: float) -> None:
+                pass
+
+        inner = UnusedBackend()
+        backend = _SSRFProtectedSyncBackend(inner)
+        monkeypatch.setattr("prefect.utilities.urls.time.monotonic", fake_monotonic)
+
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=slow_getaddrinfo,
+        ):
+            with pytest.raises(httpcore.ConnectTimeout, match="example.com"):
+                backend.connect_tcp("example.com", 443, timeout=1.0)
+
+        assert inner.called is False
+
+    async def test_async_transport_zero_connect_timeout_raises_httpx_connect_timeout(
+        self,
+    ):
+        transport = SSRFProtectedAsyncHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["93.184.216.34"]),
+        ):
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=httpx.Timeout(5.0, connect=0.0),
+            ) as client:
+                with pytest.raises(httpx.ConnectTimeout):
+                    await client.get("http://example.com")
+
+    def test_sync_transport_zero_connect_timeout_raises_httpx_connect_timeout(self):
+        transport = SSRFProtectedHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["93.184.216.34"]),
+        ):
+            with httpx.Client(
+                transport=transport,
+                timeout=httpx.Timeout(5.0, connect=0.0),
+            ) as client:
+                with pytest.raises(httpx.ConnectTimeout):
+                    client.get("http://example.com")
+
+    async def test_async_transport_zero_connect_timeout_still_rejects_private_ip(
+        self,
+    ):
+        transport = SSRFProtectedAsyncHTTPTransport()
+        with patch(
+            "prefect.utilities.urls.socket.getaddrinfo",
+            side_effect=_fake_getaddrinfo(["127.0.0.1"]),
+        ):
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=httpx.Timeout(5.0, connect=0.0),
+            ) as client:
+                with pytest.raises(
+                    httpx.ConnectError, match="private address 127.0.0.1"
+                ):
+                    await client.get("http://example.com")
+
 
 class TestSSRFProtectedAsyncBackendNonBlockingDNS:
     """`_SSRFProtectedAsyncBackend.connect_tcp` must not block the event loop
