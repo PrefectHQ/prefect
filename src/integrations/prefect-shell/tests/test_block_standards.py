@@ -12,6 +12,9 @@ def find_module_blocks():
         block
         for block in blocks.values()
         if to_qualified_name(block).startswith("prefect_shell")
+        # `ShellOperation(JobBlock[list[str]])` registers the parametrized
+        # `JobBlock[list[str]]` too, which is not a block of this package
+        and not block.__pydantic_generic_metadata__["origin"]
     ]
     return module_blocks
 
