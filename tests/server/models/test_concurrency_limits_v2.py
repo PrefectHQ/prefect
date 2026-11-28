@@ -484,30 +484,45 @@ async def test_increment_active_slots_without_decay_slots_do_not_decay(
 
 async def test_increment_active_slots_denied_slots_decay_over_time(
     session: AsyncSession,
-    concurrency_limit: ConcurrencyLimitV2,
+    db: PrefectDBInterface,
 ):
-    assert await bulk_update_denied_slots(
-        session=session, concurrency_limit_ids=[concurrency_limit.id], slots=10
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="test-denied-slots-decay",
+            limit=10,
+            # 30s is the maximum occupancy before clamping for non-tag limits.
+            avg_slot_occupancy_seconds=30.0,
+        ),
     )
     await session.commit()
 
-    assert concurrency_limit.avg_slot_occupancy_seconds == 0.5
+    assert await bulk_update_denied_slots(
+        session=session, concurrency_limit_ids=[limit.id], slots=10
+    )
+    await session.commit()
 
-    await asyncio.sleep(0.5)
+    # Backdate `updated` rather than sleeping so the elapsed time doesn't depend
+    # on wall-clock timing. With a decay rate of 1/30 slots/second, 45 seconds
+    # decays floor(1.5) = 1 slot, leaving 15 seconds of slack in either
+    # direction for slow CI runners or app/database clock skew.
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == limit.id)
+        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=45))
+    )
+    await session.commit()
 
     # The decay of `denied_slots` is calculated during updates, so we have
     # to make an update to trigger recalculation.
     assert await bulk_increment_active_slots(
-        session=session, concurrency_limit_ids=[concurrency_limit.id], slots=1
+        session=session, concurrency_limit_ids=[limit.id], slots=1
     )
 
     refreshed = await read_concurrency_limit(
-        session=session, concurrency_limit_id=concurrency_limit.id
+        session=session, concurrency_limit_id=limit.id
     )
     assert refreshed
-
-    # `concurrency_limit` has an avg_slot_occpancy_seconds of 0.5, so after
-    # 0.5 seconds, the denied slots should be 9 (10 - 1)
     assert refreshed.denied_slots == 9
 
 
