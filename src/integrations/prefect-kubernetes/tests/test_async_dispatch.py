@@ -4,7 +4,7 @@ These tests verify the critical behavior from issue #15008 where
 @sync_compatible would incorrectly return coroutines in sync context.
 """
 
-from typing import Coroutine
+from collections.abc import Coroutine
 
 import pytest
 from prefect_kubernetes.jobs import KubernetesJob, KubernetesJobRun

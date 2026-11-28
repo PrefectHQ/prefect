@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Annotated, Optional, Union
+from typing import Annotated
 
 from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
 
@@ -21,10 +21,10 @@ def _validate_label_filters(value: dict[str, str] | str | None) -> dict[str, str
 
 
 LabelFilters = Annotated[
-    Union[dict[str, str], str, None], BeforeValidator(_validate_label_filters)
+    dict[str, str] | str | None, BeforeValidator(_validate_label_filters)
 ]
 Namespaces = Annotated[
-    Union[set[str], str, None],
+    set[str] | str | None,
     BeforeValidator(partial(validate_set_T_from_delim_string, type_=str)),
 ]
 
@@ -111,22 +111,22 @@ class KubernetesWorkerCreateJobRetrySettings(PrefectBaseSettings):
 class KubernetesWorkerSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes", "worker"))
 
-    api_key_secret_name: Optional[str] = Field(
+    api_key_secret_name: str | None = Field(
         default=None,
         description="The name of the secret the worker's API key is stored in.",
     )
 
-    api_key_secret_key: Optional[str] = Field(
+    api_key_secret_key: str | None = Field(
         default=None,
         description="The key of the secret the worker's API key is stored in.",
     )
 
-    api_auth_string_secret_name: Optional[str] = Field(
+    api_auth_string_secret_name: str | None = Field(
         default=None,
         description="The name of the secret the worker's API auth string is stored in.",
     )
 
-    api_auth_string_secret_key: Optional[str] = Field(
+    api_auth_string_secret_key: str | None = Field(
         default=None,
         description="The key of the secret the worker's API auth string is stored in.",
     )
@@ -172,7 +172,7 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
 class KubernetesSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "kubernetes"))
 
-    cluster_uid: Optional[str] = Field(
+    cluster_uid: str | None = Field(
         default=None,
         description="A unique identifier for the current cluster being used.",
         validation_alias=AliasChoices(

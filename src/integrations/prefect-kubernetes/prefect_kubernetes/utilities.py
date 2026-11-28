@@ -2,7 +2,7 @@
 
 import socket
 import sys
-from typing import Optional, TypeVar
+from typing import TypeVar
 
 import aiohttp
 from aiohttp import ClientResponse
@@ -49,7 +49,7 @@ class KeepAliveClientRequest(ClientRequest):
         return await super().send(conn)
 
 
-def _slugify_name(name: str, max_length: int = 45) -> Optional[str]:
+def _slugify_name(name: str, max_length: int = 45) -> str | None:
     """
     Slugify text for use as a name.
 

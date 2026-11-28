@@ -1,7 +1,8 @@
 """A module to define flows interacting with Kubernetes resources."""
 
 import asyncio
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 from prefect import flow, task
 from prefect_kubernetes.jobs import KubernetesJob
@@ -9,8 +10,8 @@ from prefect_kubernetes.jobs import KubernetesJob
 
 @flow
 def run_namespaced_job(
-    kubernetes_job: KubernetesJob, print_func: Optional[Callable] = None
-) -> Dict[str, Any]:
+    kubernetes_job: KubernetesJob, print_func: Callable | None = None
+) -> dict[str, Any]:
     """Flow for running a namespaced Kubernetes job.
 
     Args:
@@ -46,8 +47,8 @@ def run_namespaced_job(
 
 @flow
 async def run_namespaced_job_async(
-    kubernetes_job: KubernetesJob, print_func: Optional[Callable] = None
-) -> Dict[str, Any]:
+    kubernetes_job: KubernetesJob, print_func: Callable | None = None
+) -> dict[str, Any]:
     """Flow for running a namespaced Kubernetes job.
 
     Args:

@@ -1,12 +1,16 @@
+import datetime
 import os
 import tempfile
 from pathlib import Path
-from typing import Dict
 from unittest.mock import AsyncMock, MagicMock
 
 import pydantic
 import pytest
 import yaml
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 from kubernetes_asyncio.client import (
     ApiClient,
     AppsV1Api,
@@ -17,7 +21,6 @@ from kubernetes_asyncio.client import (
 )
 from kubernetes_asyncio.config import ConfigException
 from kubernetes_asyncio.config.kube_config import list_kube_config_contexts
-from OpenSSL import crypto
 from prefect_kubernetes.credentials import (
     BaseKubernetesCredentials,
     KubernetesApiKeyCredentials,
@@ -39,30 +42,37 @@ def create_temp_self_signed_cert(tmp_path):
     It is the caller's responsibility to delete the files after use
     """
     # create a key pair
-    key = crypto.PKey()
-    key.generate_key(crypto.TYPE_RSA, 2048)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
     # create a self-signed cert
-    cert = crypto.X509()
-    cert.get_subject().C = "US"
-    cert.get_subject().ST = "Chicago"
-    cert.get_subject().L = "Chicago"
-    cert.get_subject().O = "myapp"
-    cert.get_subject().OU = "myapp"
-    cert.get_subject().CN = "localhost"
-    cert.set_serial_number(1000)
-    cert.gmtime_adj_notBefore(0)
-    cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
-    cert.set_issuer(cert.get_subject())
-    cert.set_pubkey(key)
-    cert.sign(key, "sha1")
+    name = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Chicago"),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, "Chicago"),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "myapp"),
+            x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, "myapp"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+        ]
+    )
+    now = datetime.datetime.now(datetime.timezone.utc)
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1000)
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=10 * 365))
+        .sign(key, hashes.SHA256())
+    )
 
     # Save certificate in temporary file
     (cert_file_fd, cert_file_name) = tempfile.mkstemp(
         suffix=".crt", prefix="cert", dir=tmp_path
     )
     cert_file = os.fdopen(cert_file_fd, "wb")
-    cert_file.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+    cert_file.write(cert.public_bytes(serialization.Encoding.PEM))
     cert_file.close()
 
     # Save key in temporary file
@@ -71,7 +81,13 @@ def create_temp_self_signed_cert(tmp_path):
     )
 
     key_file = os.fdopen(key_file_fd, "wb")
-    key_file.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, key))
+    key_file.write(
+        key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption(),
+        )
+    )
     key_file.close()
 
     # Return file names
@@ -331,7 +347,7 @@ class TestKubernetesClusterConfig:
         cluster_config = KubernetesClusterConfig.from_file(path=config_file)
 
         assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
+        assert isinstance(cluster_config.config, dict)
         assert isinstance(cluster_config.context_name, str)
 
         assert cluster_config.config == yaml.safe_load(config_context)
@@ -344,7 +360,7 @@ class TestKubernetesClusterConfig:
         )
 
         assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
+        assert isinstance(cluster_config.config, dict)
         assert isinstance(cluster_config.context_name, str)
 
         assert cluster_config.config == yaml.safe_load(config_context)
@@ -356,7 +372,7 @@ class TestKubernetesClusterConfig:
         )
 
         assert isinstance(cluster_config, KubernetesClusterConfig)
-        assert isinstance(cluster_config.config, Dict)
+        assert isinstance(cluster_config.config, dict)
         assert isinstance(cluster_config.context_name, str)
 
         assert cluster_config.config == yaml.safe_load(config_context)
