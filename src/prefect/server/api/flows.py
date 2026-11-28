@@ -72,6 +72,7 @@ async def count_flows(
     task_runs: schemas.filters.TaskRunFilter | None = None,
     deployments: schemas.filters.DeploymentFilter | None = None,
     work_pools: schemas.filters.WorkPoolFilter | None = None,
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> int:
     """
@@ -85,6 +86,7 @@ async def count_flows(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
+            work_queue_filter=work_queues,
         )
 
 
@@ -131,6 +133,7 @@ async def read_flows(
     task_runs: schemas.filters.TaskRunFilter | None = None,
     deployments: schemas.filters.DeploymentFilter | None = None,
     work_pools: schemas.filters.WorkPoolFilter | None = None,
+    work_queues: schemas.filters.WorkQueueFilter | None = None,
     sort: schemas.sorting.FlowSort | None = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> List[schemas.core.Flow]:
@@ -145,6 +148,7 @@ async def read_flows(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
+            work_queue_filter=work_queues,
             sort=sort or schemas.sorting.FlowSort.NAME_ASC,
             offset=offset,
             limit=limit,
@@ -221,6 +225,7 @@ async def paginate_flows(
     task_runs: Optional[schemas.filters.TaskRunFilter] = None,
     deployments: Optional[schemas.filters.DeploymentFilter] = None,
     work_pools: Optional[schemas.filters.WorkPoolFilter] = None,
+    work_queues: Optional[schemas.filters.WorkQueueFilter] = None,
     sort: schemas.sorting.FlowSort = Body(schemas.sorting.FlowSort.NAME_ASC),
     db: PrefectDBInterface = Depends(aprovide_database_interface),
 ) -> FlowPaginationResponse:
@@ -237,6 +242,7 @@ async def paginate_flows(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
+            work_queue_filter=work_queues,
             sort=sort,
             offset=offset,
             limit=limit,
@@ -249,6 +255,7 @@ async def paginate_flows(
             task_run_filter=task_runs,
             deployment_filter=deployments,
             work_pool_filter=work_pools,
+            work_queue_filter=work_queues,
         )
 
     return FlowPaginationResponse(

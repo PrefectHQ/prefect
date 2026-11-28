@@ -4475,6 +4475,7 @@ export interface components {
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
         };
         /** Body_count_latest_artifacts */
         Body_count_latest_artifacts: {
@@ -4700,6 +4701,7 @@ export interface components {
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["FlowSort"];
             /**
@@ -4781,6 +4783,11 @@ export interface components {
             block_documents?: components["schemas"]["BlockDocumentFilter"] | null;
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
+            /**
+             * Block Schema Type
+             * @description Deprecated legacy block schema type parameter sent by Prefect clients.
+             */
+            block_schema_type?: string | null;
             /**
              * Include Secrets
              * @description Whether to include sensitive values in the block document.
@@ -4936,6 +4943,7 @@ export interface components {
             task_runs?: components["schemas"]["TaskRunFilter"] | null;
             deployments?: components["schemas"]["DeploymentFilter"] | null;
             work_pools?: components["schemas"]["WorkPoolFilter"] | null;
+            work_queues?: components["schemas"]["WorkQueueFilter"] | null;
             /** @default NAME_ASC */
             sort: components["schemas"]["FlowSort"] | null;
             /**

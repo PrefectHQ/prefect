@@ -618,6 +618,8 @@ def create_api_app(
     else:
         dependencies.append(Depends(enforce_minimum_version))
 
+    from prefect.server.utilities.server import enforce_strict_body_fields_on_routes
+
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
         if final and _FASTAPI_COPIES_ROUTES_ON_INCLUDE:
@@ -631,6 +633,8 @@ def create_api_app(
             # originals must be kept.  The duplication no longer occurs in this
             # case either, so the optimisation is unnecessary.
             del router.routes
+
+    enforce_strict_body_fields_on_routes(api_app.routes)
 
     if final:
         gc.collect()
