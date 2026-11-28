@@ -353,5 +353,6 @@ async def concurrency(
             pass
         else:
             _discard_cleanup_lease(response.lease_id)
+            ConcurrencySlotAcquisitionWithLeaseService._wake_waiters(names)  # pyright: ignore[reportPrivateUsage]
 
         emit_concurrency_release_events(response.limits, occupy, emitted_events)
