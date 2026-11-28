@@ -12,6 +12,10 @@ type ArtifactDataDisplayProps = {
 
 export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 	const [showData, setShowData] = useState(false);
+	const rawData =
+		typeof artifact.data === "string"
+			? artifact.data
+			: (JSON.stringify(artifact.data, null, 2) ?? "");
 
 	const toggleShowData = () => {
 		setShowData((val) => !val);
@@ -27,7 +31,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 	const { setContainer } = useCodeMirror({
 		container: editor.current,
 		extensions: [EditorView.lineWrapping],
-		value: String(artifact.data),
+		value: rawData,
 		indentWithTab: false,
 		editable: true,
 		basicSetup,
@@ -67,7 +71,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 				data-testid="raw-data-display"
 			>
 				<Button
-					onClick={() => handleCopy(artifact.data as string)}
+					onClick={() => handleCopy(rawData)}
 					variant="ghost"
 					size="icon"
 					className="absolute top-0 right-0 z-10"
