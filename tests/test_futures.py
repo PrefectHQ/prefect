@@ -302,6 +302,68 @@ class TestUtilityFunctions:
         assert len(callback_errors) == 1
         assert isinstance(callback_errors[0], KeyboardInterrupt)
 
+    @pytest.mark.timeout(method="thread")
+    def test_wait_with_timeout_records_final_state_of_done_futures(self):
+        completed_future = Future()
+        failed_future = Future()
+        futures = [
+            PrefectConcurrentFuture(uuid.uuid4(), completed_future),
+            PrefectConcurrentFuture(uuid.uuid4(), failed_future),
+        ]
+
+        def resolve_futures():
+            completed_future.set_result(Completed(data=1))
+            failed_future.set_result(Failed(data=ValueError("oops")))
+
+        thread = threading.Thread(target=resolve_futures)
+        thread.start()
+        done, not_done = wait(futures, timeout=5)
+        thread.join()
+
+        assert not not_done
+        assert sorted(f.state.type.value for f in done) == ["COMPLETED", "FAILED"]
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_records_final_state_of_yielded_futures(self):
+        completed_future = Future()
+        failed_future = Future()
+        futures = [
+            PrefectConcurrentFuture(uuid.uuid4(), completed_future),
+            PrefectConcurrentFuture(uuid.uuid4(), failed_future),
+        ]
+
+        def resolve_futures():
+            completed_future.set_result(Completed(data=1))
+            failed_future.set_result(Failed(data=ValueError("oops")))
+
+        thread = threading.Thread(target=resolve_futures)
+        thread.start()
+        states = [f.state.type.value for f in as_completed(futures, timeout=5)]
+        thread.join()
+
+        assert sorted(states) == ["COMPLETED", "FAILED"]
+
+    def test_wait_with_timeout_removes_callbacks_from_unfinished_futures(self):
+        hanging_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), hanging_future)
+
+        _, not_done = wait([future], timeout=0.01)
+
+        assert not_done == {future}
+        assert future._prefect_done_callbacks == []
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_timeout_removes_callbacks_from_unfinished_futures(
+        self,
+    ):
+        hanging_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), hanging_future)
+
+        with pytest.raises(TimeoutError):
+            list(as_completed([future], timeout=0.01))
+
+        assert future._prefect_done_callbacks == []
+
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
         async def my_task(seconds):
