@@ -108,8 +108,10 @@ A deployment's `version` labels the deployment configuration.
 When you create a deployment from Python without an explicit deployment version, Prefect can infer one from Git or CI and falls back to the flow version when it cannot.
 For example, you can use `@flow(version="1.2.0")` for the flow code and `my_flow.to_deployment(name="prod", version="release-42")` for the deployment.
 
-Prefect Cloud keeps a [deployment version history](/v3/how-to-guides/deployments/versioning) for rollback.
+<Note>
+[Deployment version history and rollback](/v3/how-to-guides/deployments/versioning) are only available in Prefect Cloud.
 To have a rolled-back deployment run the original code, pin the code source to a Git commit or a container image digest.
+</Note>
 
 ### Archive flows
 
