@@ -3,11 +3,12 @@ Schemas for special responses from the Prefect REST API.
 """
 
 import datetime
+import math
 from datetime import timedelta
-from typing import Any, ClassVar, Dict, List, Optional, Type, Union
+from typing import Annotated, Any, ClassVar, Dict, List, Optional, Type, Union
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 from typing_extensions import Literal, Self
 
 import prefect.server.schemas as schemas
@@ -22,6 +23,23 @@ from prefect.types import DateTime, KeyValueLabelsField
 from prefect.types._datetime import create_datetime_instance
 from prefect.utilities.collections import AutoEnum
 from prefect.utilities.names import generate_slug
+
+
+def _sanitize_read_labels(value: Any) -> Any:
+    """Drop null or non-finite label values from pre-existing database rows."""
+    if isinstance(value, dict):
+        return {
+            k: v
+            for k, v in value.items()
+            if v is not None and not (isinstance(v, float) and not math.isfinite(v))
+        }
+    return value
+
+
+ReadableKeyValueLabelsField = Annotated[
+    KeyValueLabelsField,
+    BeforeValidator(_sanitize_read_labels),
+]
 
 
 class SetStateStatus(AutoEnum):
@@ -230,7 +248,7 @@ class FlowRunResponse(ORMBaseModel):
         description="A list of tags on the flow run",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabelsField
+    labels: ReadableKeyValueLabelsField
     parent_task_run_id: Optional[UUID] = Field(
         default=None,
         description=(
@@ -456,7 +474,7 @@ class DeploymentResponse(ORMBaseModel):
         description="A list of tags for the deployment",
         examples=[["tag-1", "tag-2"]],
     )
-    labels: KeyValueLabelsField
+    labels: ReadableKeyValueLabelsField
     work_queue_name: Optional[str] = Field(
         default=None,
         description=(
