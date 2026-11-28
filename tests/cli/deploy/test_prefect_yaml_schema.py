@@ -3,6 +3,7 @@
 import json
 import uuid
 
+import pydantic
 import pytest
 from jsonschema import Draft202012Validator, ValidationError, validate
 
@@ -105,6 +106,26 @@ class TestPrefectYamlSchema:
         with pytest.raises(ValidationError) as exc_info:
             validate(config, schema)
         assert "not of type 'array'" in str(exc_info.value)
+
+    def test_schema_validates_scalar_labels(self, schema):
+        config = {
+            "deployments": [
+                {
+                    "name": "labeled",
+                    "labels": {"sig": "abc", "build": 42, "ratio": 0.5, "ok": True},
+                }
+            ]
+        }
+        validate(config, schema)
+        PrefectYamlModel.model_validate(config)
+
+    @pytest.mark.parametrize("value", [["a", "b"], {"nested": "x"}, None])
+    def test_non_scalar_labels_are_rejected(self, schema, value: object):
+        config = {"deployments": [{"name": "labeled", "labels": {"sig": value}}]}
+        with pytest.raises(ValidationError):
+            validate(config, schema)
+        with pytest.raises(pydantic.ValidationError):
+            PrefectYamlModel.model_validate(config)
 
     def test_schema_matches_pydantic_model(self, schema):
         """The generated schema should match what PrefectYamlModel produces."""

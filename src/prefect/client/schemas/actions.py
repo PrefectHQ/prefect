@@ -44,6 +44,7 @@ from prefect.schedules import Schedule
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 from prefect.types import (
     DateTime,
+    KeyValueLabels,
     KeyValueLabelsField,
     Name,
     NameOrEmpty,
@@ -378,6 +379,10 @@ class DeploymentUpdate(ActionBaseModel):
         description="The concurrency options for the deployment.",
     )
     tags: list[str] = Field(default_factory=list)
+    labels: Optional[KeyValueLabels] = Field(
+        default=None,
+        description="A dictionary of key-value labels. Values can be strings, numbers, or booleans.",
+    )
     work_queue_name: Optional[str] = Field(default=None)
     work_pool_name: Optional[str] = Field(
         default=None,

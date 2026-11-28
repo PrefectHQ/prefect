@@ -6629,6 +6629,17 @@ export interface components {
              *     ]
              */
             tags?: string[];
+            /**
+             * Labels
+             * @description A dictionary of key-value labels. Values can be strings, numbers, or booleans.
+             * @example {
+             *       "key": "value1",
+             *       "key2": 42
+             *     }
+             */
+            labels?: {
+                [key: string]: boolean | number | string;
+            } | null;
             /** Work Queue Name */
             work_queue_name?: string | null;
             /**

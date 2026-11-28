@@ -72,6 +72,7 @@ class DeploymentClient(BaseClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        labels: "KeyValueLabelsField | None" = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -81,6 +82,8 @@ class DeploymentClient(BaseClient):
             name: the name of the deployment
             version: an optional version string for the deployment
             tags: an optional list of tags to apply to the deployment
+            labels: an optional dictionary of key-value labels to apply to the
+                deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
@@ -106,6 +109,7 @@ class DeploymentClient(BaseClient):
             version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            labels=dict(labels or {}),
             work_queue_name=work_queue_name,
             description=description,
             storage_document_id=storage_document_id,
@@ -786,6 +790,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
         branch: str | None = None,
         base: UUID | None = None,
         root: UUID | None = None,
+        labels: "KeyValueLabelsField | None" = None,
     ) -> UUID:
         """
         Create a deployment.
@@ -795,6 +800,8 @@ class DeploymentAsyncClient(BaseAsyncClient):
             name: the name of the deployment
             version: an optional version string for the deployment
             tags: an optional list of tags to apply to the deployment
+            labels: an optional dictionary of key-value labels to apply to the
+                deployment
             storage_document_id: an reference to the storage block document
                 used for the deployed flow
             infrastructure_document_id: an reference to the infrastructure block document
@@ -820,6 +827,7 @@ class DeploymentAsyncClient(BaseAsyncClient):
             version_info=version_info,
             parameters=dict(parameters or {}),
             tags=list(tags or []),
+            labels=dict(labels or {}),
             work_queue_name=work_queue_name,
             description=description,
             storage_document_id=storage_document_id,
