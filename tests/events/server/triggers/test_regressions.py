@@ -1141,3 +1141,227 @@ async def test_increment_bucket_returns_fresh_bucket_from_identity_map(
 
     assert incremented is bucket
     assert incremented.count == 3
+
+
+async def test_restarting_while_behind_keeps_buckets_open_in_event_time(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23942, where a
+    restarted triggers process assumed it was caught up and swept buckets that were
+    still open in event time"""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="no heartbeat for 10 minutes",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "some.*"},
+                after={"heartbeat"},
+                expect={"heartbeat"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    # The consumer is 2 hours behind and handles a heartbeat.
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time - timedelta(hours=2),
+            event="heartbeat",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    # The process restarts and runs its first periodic pass.
+    await triggers.reset_events_clock()
+    await triggers.periodic_evaluation(frozen_time)
+
+    trigger = triggers.triggers[automation.trigger.id]
+    assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
+
+
+async def test_periodic_evaluation_uses_the_offset_it_checked(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23942, where a
+    reset between checking the clock and reading its offset swept with wall time"""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="no heartbeat for 10 minutes",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "some.*"},
+                after={"heartbeat"},
+                expect={"heartbeat"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    # The consumer is 2 hours behind and handles a heartbeat.
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time - timedelta(hours=2),
+            event="heartbeat",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    original_get_offset = triggers.get_known_events_clock_offset
+
+    async def reset_after_checking(now: DateTime) -> float | None:
+        offset = await original_get_offset(now)
+        # Consumer shutdown can reset the clock right after the check.
+        await triggers.reset_events_clock()
+        return offset
+
+    monkeypatch.setattr(triggers, "get_known_events_clock_offset", reset_after_checking)
+    await triggers.periodic_evaluation(frozen_time)
+
+    trigger = triggers.triggers[automation.trigger.id]
+    assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
+
+
+async def test_lost_followers_on_restart_do_not_sweep_buckets_open_in_event_time(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/23942, where
+    handling a lost follower during the first periodic pass made the clock known,
+    but the sweep still used the wall-time cutoff computed before it"""
+    automation = await automations.create_automation(
+        automations_session,
+        Automation(
+            name="no heartbeat for 10 minutes",
+            trigger=EventTrigger(
+                match={"prefect.resource.id": "some.*"},
+                after={"heartbeat"},
+                expect={"heartbeat"},
+                for_each={"prefect.resource.id"},
+                posture=Posture.Proactive,
+                threshold=1,
+                within=timedelta(minutes=10),
+            ),
+            actions=[actions.DoNothing()],
+        ),
+    )
+    triggers.load_automation(automation)
+    await automations_session.commit()
+
+    # The consumer is 2 hours behind and handles a heartbeat.
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time - timedelta(hours=2),
+            event="heartbeat",
+            resource={"prefect.resource.id": "some.resource"},
+            id=uuid4(),
+        ).receive()
+    )
+
+    # The process restarts, and its first periodic pass finds a lagging lost follower.
+    lost_follower = Event(
+        occurred=frozen_time - timedelta(hours=2),
+        event="heartbeat",
+        resource={"prefect.resource.id": "some.other-resource"},
+        id=uuid4(),
+    ).receive()
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.get_lost_followers",
+        mock.AsyncMock(return_value=[lost_follower]),
+    )
+
+    await triggers.reset_events_clock()
+    await triggers.periodic_evaluation(frozen_time)
+
+    trigger = triggers.triggers[automation.trigger.id]
+    assert await triggers.read_bucket(automations_session, trigger, ("some.resource",))
+
+
+async def test_proactive_batch_waits_when_the_events_clock_is_reset(
+    cleared_buckets: None,
+    cleared_automations: None,
+    automations_session: AsyncSession,
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+    act: mock.AsyncMock,
+):
+    loaded: list[Automation] = []
+    for index in range(2):
+        automation = await automations.create_automation(
+            automations_session,
+            Automation(
+                name=f"no heartbeat for 10 minutes {index}",
+                trigger=EventTrigger(
+                    match={"prefect.resource.id": "some.*"},
+                    after={"heartbeat"},
+                    expect={"heartbeat"},
+                    for_each={"prefect.resource.id"},
+                    posture=Posture.Proactive,
+                    threshold=1,
+                    within=timedelta(minutes=10),
+                ),
+                actions=[actions.DoNothing()],
+            ),
+        )
+        triggers.load_automation(automation)
+        loaded.append(automation)
+    await automations_session.commit()
+
+    event = Event(
+        occurred=frozen_time - timedelta(hours=2),
+        event="heartbeat",
+        resource={"prefect.resource.id": "some.resource"},
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(event)
+    original_evaluation = triggers.proactive_evaluation
+
+    async def reset_after_first(
+        trigger: EventTrigger, as_of: DateTime, offset: float | None = None
+    ) -> DateTime:
+        run_again_at = await original_evaluation(trigger, as_of, offset)
+        if trigger.id == loaded[0].trigger.id:
+            # Consumer shutdown can reset the clock during a proactive batch.
+            await triggers.reset_events_clock()
+        return run_again_at
+
+    monkeypatch.setattr(triggers, "proactive_evaluation", reset_after_first)
+    await triggers.evaluate_proactive_triggers()
+
+    act.assert_not_awaited()
+    deferred_trigger = triggers.triggers[loaded[1].trigger.id]
+    assert deferred_trigger.id not in triggers.next_proactive_runs
+    assert await triggers.read_bucket(
+        automations_session, deferred_trigger, ("some.resource",)
+    )
+
+    # The skipped trigger remains eligible once the consumer handles another event.
+    monkeypatch.setattr(triggers, "proactive_evaluation", original_evaluation)
+    await triggers.update_events_clock(event)
+    await triggers.evaluate_proactive_triggers()
+
+    act.assert_not_awaited()
+    assert deferred_trigger.id in triggers.next_proactive_runs

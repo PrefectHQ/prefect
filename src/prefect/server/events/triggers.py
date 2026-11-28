@@ -84,6 +84,10 @@ AutomationStateSnapshot: TypeAlias = Tuple[
 
 AUTOMATION_BUCKET_BATCH_SIZE = 500
 
+# How long a process that has not handled any events waits before assuming that it is
+# caught up with the event stream
+EVENTS_CLOCK_IDLE_THRESHOLD = timedelta(seconds=30)
+
 
 async def evaluate(
     session: AsyncSession,
@@ -520,6 +524,8 @@ async def act(firing: Firing) -> None:
 __events_clock_lock: Optional[asyncio.Lock] = None
 _events_clock: Optional[float] = None
 _events_clock_updated: Optional[float] = None
+_events_clock_reset: Optional[float] = None
+_events_clock_paused: bool = False
 
 
 def _events_clock_lock() -> asyncio.Lock:
@@ -564,17 +570,51 @@ async def get_events_clock_offset() -> float:
         if _events_clock is None or _events_clock_updated is None:
             return 0.0
 
-        now: float = prefect.types._datetime.now("UTC").timestamp()
-        offset = (_events_clock - now) + (now - _events_clock_updated)
-
-    return offset
+        return _events_clock - _events_clock_updated
 
 
-async def reset_events_clock() -> None:
-    global _events_clock, _events_clock_updated
+async def get_known_events_clock_offset(
+    now: prefect.types._datetime.DateTime,
+) -> Optional[float]:
+    """The current clock offset, or `None` if the events clock can't be trusted as of
+    `now`.  Until this process has handled an event, it can't tell how far behind the
+    event stream it is, so the clock is only trusted once the process has been idle
+    long enough to assume that it is caught up.  The offset is read under the same
+    lock as the check, so a concurrent reset can't swap in an unknown clock's offset."""
+    global _events_clock_reset
+
+    async with _events_clock_lock():
+        if _events_clock is not None and _events_clock_updated is not None:
+            return _events_clock - _events_clock_updated
+
+        # A consumer that isn't polling yet can't tell whether the stream is idle
+        if _events_clock_paused:
+            return None
+
+        # A new process starts idling when it first needs the clock rather than at
+        # import, since server startup can take a while before any events are consumed
+        if _events_clock_reset is None:
+            _events_clock_reset = now.timestamp()
+
+        idle = now.timestamp() - _events_clock_reset
+        if idle >= EVENTS_CLOCK_IDLE_THRESHOLD.total_seconds():
+            return 0.0
+
+        return None
+
+
+async def reset_events_clock(paused: bool = False) -> None:
+    """Forget the events clock.  If `paused`, the clock stays unknown until it is reset
+    again, otherwise the idle timer starts now."""
+    global _events_clock, _events_clock_updated, _events_clock_reset
+    global _events_clock_paused
     async with _events_clock_lock():
         _events_clock = None
         _events_clock_updated = None
+        _events_clock_paused = paused
+        _events_clock_reset = (
+            None if paused else prefect.types._datetime.now("UTC").timestamp()
+        )
 
 
 async def reactive_evaluation(event: ReceivedEvent, depth: int = 0) -> None:
@@ -716,10 +756,12 @@ async def get_lost_followers() -> List[ReceivedEvent]:
 
 async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     """Periodic tasks that should be run regularly, but not as often as every event"""
-    offset = await get_events_clock_offset()
-    as_of = now + timedelta(seconds=offset)
+    # Until the events clock is known, buckets that look expired by wall time may still
+    # be open in event time.  This is checked before any events are evaluated below so
+    # that the sweep only uses an offset from a known clock.
+    offset = await get_known_events_clock_offset(now)
 
-    logger.debug("Running periodic evaluation as of %s (offset %ss)", as_of, offset)
+    logger.debug("Running periodic evaluation at %s (offset %ss)", now, offset)
 
     # Held events are bounded only by this sweep, so a failure in the steps below
     # must not skip it.
@@ -738,6 +780,11 @@ async def periodic_evaluation(now: prefect.types._datetime.DateTime) -> None:
     for event in await get_lost_followers():
         await reactive_evaluation(event)
 
+    if offset is None:
+        logger.debug("Skipping sweep of closed buckets until the events clock is known")
+        return
+
+    as_of = now + timedelta(seconds=offset)
     async with automations_session() as session:
         await sweep_closed_buckets(
             session,
@@ -1385,6 +1432,11 @@ async def consumer(
     """The `triggers.consumer` processes all Events arriving on the event bus to
     determine if they meet the automation criteria, queuing up a corresponding
     `TriggeredAction` for the `actions` service if the automation criteria is met."""
+    # The clock only describes the stream while this consumer is handling it, and the
+    # consumer may be starting behind the stream, so the clock is unknown until it
+    # handles an event or has been polling an idle stream for a while
+    await reset_events_clock(paused=True)
+
     # Start the automation change listener task
     sync_task = asyncio.create_task(listen_for_automation_changes())
     proactive_task: asyncio.Task[None] | None = None
@@ -1427,6 +1479,10 @@ async def consumer(
     try:
         await reconcile_automations(force=True)
 
+        # Reconciling can be slow, so only start the idle timer once this consumer is
+        # about to start handling events
+        await reset_events_clock()
+
         proactive_task = asyncio.create_task(
             evaluate_periodically(periodic_granularity)
         )
@@ -1439,16 +1495,20 @@ async def consumer(
             task.cancel()
         # Wait for tasks to finish
         await asyncio.gather(*background_tasks, return_exceptions=True)
+        await reset_events_clock(paused=True)
 
 
 async def proactive_evaluation(
-    trigger: EventTrigger, as_of: prefect.types._datetime.DateTime
+    trigger: EventTrigger,
+    as_of: prefect.types._datetime.DateTime,
+    offset: Optional[float] = None,
 ) -> prefect.types._datetime.DateTime:
     """The core proactive evaluation operation for a single Automation"""
     assert isinstance(trigger, EventTrigger), repr(trigger)
     automation = trigger.automation
 
-    offset = await get_events_clock_offset()
+    if offset is None:
+        offset = await get_events_clock_offset()
     as_of += timedelta(seconds=offset)
 
     logger.debug(
@@ -1502,16 +1562,20 @@ async def evaluate_proactive_triggers() -> None:
         if trigger.posture != Posture.Proactive:
             continue
 
-        next_run = next_proactive_runs.get(
-            trigger.id, prefect.types._datetime.now("UTC")
-        )
-        if next_run > prefect.types._datetime.now("UTC"):
+        now = prefect.types._datetime.now("UTC")
+        if next_proactive_runs.get(trigger.id, now) > now:
             continue
 
-        try:
-            run_again_at = await proactive_evaluation(
-                trigger, prefect.types._datetime.now("UTC")
+        # The consumer can reset the clock while a previous trigger is evaluated.
+        offset = await get_known_events_clock_offset(now)
+        if offset is None:
+            logger.debug(
+                "Skipping proactive evaluation until the events clock is known"
             )
+            return
+
+        try:
+            run_again_at = await proactive_evaluation(trigger, now, offset=offset)
             logger.debug(
                 "Automation %s trigger %s will run again at %s",
                 trigger.automation.id,

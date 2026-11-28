@@ -3,6 +3,7 @@ import datetime
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import Callable
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -255,6 +256,80 @@ async def test_loads_automations_at_startup(
         periodic_granularity=timedelta(seconds=0.0001),
     ):
         load_automations.assert_awaited_once_with(open_automations_session)
+
+
+async def test_resets_the_events_clock_at_startup_and_shutdown(
+    effective_automations,
+    frozen_time: DateTime,
+):
+    event = ReceivedEvent(
+        occurred=frozen_time - timedelta(hours=2),
+        event="things.happened",
+        resource={"prefect.resource.id": "something"},
+        id=uuid4(),
+    )
+    await triggers.update_events_clock(event)
+    assert await triggers.get_events_clock() is not None
+
+    async with triggers.consumer(
+        periodic_granularity=timedelta(seconds=0.0001),
+    ):
+        assert await triggers.get_events_clock() is None
+        assert await triggers.get_known_events_clock_offset(frozen_time) is None
+
+        await triggers.update_events_clock(event)
+        assert await triggers.get_known_events_clock_offset(frozen_time) is not None
+
+    assert await triggers.get_events_clock() is None
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
+
+
+async def test_events_clock_idle_timer_starts_after_reconciling(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    reconciled_at: list[DateTime] = []
+
+    async def slow_reconcile(force: bool = False) -> bool:
+        reconciled_at.append(advance_time(triggers.EVENTS_CLOCK_IDLE_THRESHOLD * 2))
+        return False
+
+    monkeypatch.setattr(triggers, "reconcile_automations", slow_reconcile)
+
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        assert await triggers.get_known_events_clock_offset(reconciled_at[0]) is None
+
+
+async def test_events_clock_stays_unknown_while_the_consumer_is_starting(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # Simulate a previous consumer in this process having stopped a while ago
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        pass
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    stopped_for = advance_time(threshold * 2)
+    assert await triggers.get_known_events_clock_offset(stopped_for) is None
+
+    reconciled_at: list[DateTime] = []
+    offsets_while_reconciling: list[float | None] = []
+
+    async def slow_reconcile(force: bool = False) -> bool:
+        reconciled_at.append(advance_time(threshold * 2))
+        offsets_while_reconciling.append(
+            await triggers.get_known_events_clock_offset(reconciled_at[0])
+        )
+        return False
+
+    monkeypatch.setattr(triggers, "reconcile_automations", slow_reconcile)
+
+    async with triggers.consumer(periodic_granularity=timedelta(hours=1)):
+        assert offsets_while_reconciling == [None]
+        ready = reconciled_at[0]
+        assert await triggers.get_known_events_clock_offset(ready) is None
+        idle = ready + threshold + timedelta(seconds=1)
+        assert await triggers.get_known_events_clock_offset(idle) == 0.0
 
 
 async def test_reconcile_automations_skips_reload_when_snapshot_matches(
@@ -607,6 +682,134 @@ async def test_offset_is_resilient_to_low_volume(
     mock_now.return_value = base_time + timedelta(seconds=10)
     assert await triggers.get_events_clock() == event.occurred.timestamp()
     assert await triggers.get_events_clock_offset() == -42.0
+
+
+async def test_events_clock_is_unknown_until_an_event_is_handled(
+    frozen_time: DateTime,
+):
+    await triggers.reset_events_clock()
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
+
+    event = ReceivedEvent(
+        occurred=frozen_time - timedelta(hours=2),
+        event="things.happened",
+        resource={"prefect.resource.id": "something"},
+        id=uuid4(),
+    )
+    await triggers.update_events_clock(event)
+    assert await triggers.get_known_events_clock_offset(frozen_time) is not None
+
+
+async def test_events_clock_is_known_after_being_idle(frozen_time: DateTime):
+    await triggers.reset_events_clock()
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    assert (
+        await triggers.get_known_events_clock_offset(
+            frozen_time + threshold - timedelta(seconds=1)
+        )
+        is None
+    )
+    assert await triggers.get_known_events_clock_offset(frozen_time + threshold) == 0.0
+
+
+async def test_events_clock_starts_idling_when_first_checked(
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # A new process that took a long time to start up hasn't been idle
+    monkeypatch.setattr(triggers, "_events_clock", None)
+    monkeypatch.setattr(triggers, "_events_clock_updated", None)
+    monkeypatch.setattr(triggers, "_events_clock_reset", None)
+
+    threshold = triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    assert await triggers.get_known_events_clock_offset(frozen_time) is None
+    assert (
+        await triggers.get_known_events_clock_offset(
+            frozen_time + threshold - timedelta(seconds=1)
+        )
+        is None
+    )
+    assert await triggers.get_known_events_clock_offset(frozen_time + threshold) == 0.0
+
+
+async def test_proactive_triggers_wait_for_the_events_clock(
+    advance_time: Callable[[timedelta], DateTime],
+    monkeypatch: pytest.MonkeyPatch,
+):
+    proactive_evaluation = mock.AsyncMock(spec=triggers.proactive_evaluation)
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.proactive_evaluation", proactive_evaluation
+    )
+
+    automation = Automation(
+        name="proactive",
+        trigger=EventTrigger(
+            expect={"things.happened"},
+            posture=Posture.Proactive,
+            threshold=1,
+            within=timedelta(minutes=10),
+        ),
+        actions=[actions.DoNothing()],
+    )
+    triggers.load_automation(automation)
+
+    await triggers.reset_events_clock()
+    await triggers.evaluate_proactive_triggers()
+    proactive_evaluation.assert_not_awaited()
+
+    proactive_evaluation.return_value = advance_time(
+        triggers.EVENTS_CLOCK_IDLE_THRESHOLD
+    )
+    await triggers.evaluate_proactive_triggers()
+    proactive_evaluation.assert_awaited_once()
+
+
+async def test_proactive_triggers_use_the_offset_they_checked(
+    frozen_time: DateTime,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    proactive_evaluation = mock.AsyncMock(spec=triggers.proactive_evaluation)
+    proactive_evaluation.return_value = frozen_time + timedelta(minutes=10)
+    monkeypatch.setattr(
+        "prefect.server.events.triggers.proactive_evaluation", proactive_evaluation
+    )
+
+    automation = Automation(
+        name="proactive",
+        trigger=EventTrigger(
+            expect={"things.happened"},
+            posture=Posture.Proactive,
+            threshold=1,
+            within=timedelta(minutes=10),
+        ),
+        actions=[actions.DoNothing()],
+    )
+    triggers.load_automation(automation)
+
+    await triggers.update_events_clock(
+        ReceivedEvent(
+            occurred=frozen_time - timedelta(hours=2),
+            event="things.happened",
+            resource={"prefect.resource.id": "something"},
+            id=uuid4(),
+        )
+    )
+
+    original_get_offset = triggers.get_known_events_clock_offset
+
+    async def reset_after_checking(now: DateTime) -> float | None:
+        offset = await original_get_offset(now)
+        # Consumer shutdown can reset the clock right after the check.
+        await triggers.reset_events_clock()
+        return offset
+
+    monkeypatch.setattr(triggers, "get_known_events_clock_offset", reset_after_checking)
+    await triggers.evaluate_proactive_triggers()
+
+    proactive_evaluation.assert_awaited_once_with(
+        triggers.triggers[automation.trigger.id], frozen_time, offset=-7200.0
+    )
 
 
 async def test_reactive_triggers_service_can_stop_while_loading_automations(
