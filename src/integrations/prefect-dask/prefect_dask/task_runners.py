@@ -74,6 +74,8 @@ Example:
 from __future__ import annotations
 
 import asyncio
+import contextvars
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
 from typing import (
     Any,
@@ -84,17 +86,23 @@ from typing import (
     Set,
     TypeVar,
     Union,
+    cast,
     overload,
 )
+from uuid import UUID
 
 import distributed
 import distributed.deploy
 import distributed.deploy.cluster
 from typing_extensions import ParamSpec
 
+from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import RunInput, State
+from prefect.client.schemas.responses import SetStateStatus
+from prefect.exceptions import ObjectNotFound
 from prefect.futures import PrefectFuture, PrefectFutureList, PrefectWrappedFuture
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, task_run_logger
+from prefect.states import exception_to_crashed_state
 from prefect.task_runners import TaskRunner
 from prefect.tasks import Task
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -108,6 +116,29 @@ P = ParamSpec("P")
 T = TypeVar("T")
 F = TypeVar("F", bound=PrefectFuture[Any])
 R = TypeVar("R")
+
+
+def _report_crash(task_run_id: UUID, exc: BaseException) -> None:
+    """
+    Propose a `Crashed` state for a task run whose Dask future errored.
+
+    Does nothing if the task run doesn't exist or is already in a final state.
+    Errors are logged, not raised.
+    """
+    try:
+        with get_client(sync_client=True) as client:
+            try:
+                task_run = client.read_task_run(task_run_id)
+            except ObjectNotFound:
+                return
+            if task_run.state is not None and task_run.state.is_final():
+                return
+            state = run_coro_as_sync(exception_to_crashed_state(exc))
+            response = client.set_task_run_state(task_run_id, state, force=False)
+        if response.status == SetStateStatus.ACCEPT:
+            task_run_logger(task_run).error(f"Crash detected! {state.message}")
+    except Exception:
+        logger.exception(f"Failed to report crash of task run {task_run_id}")
 
 
 class PrefectDaskFuture(PrefectWrappedFuture[R, distributed.Future]):
@@ -282,6 +313,7 @@ class DaskTaskRunner(TaskRunner):
         # Runtime attributes
         self._client: PrefectDaskClient | None = None
         self._cluster: distributed.deploy.cluster.Cluster | None = cluster
+        self._crash_reporter: ThreadPoolExecutor | None = None
 
         self._exit_stack = ExitStack()
 
@@ -429,7 +461,7 @@ class DaskTaskRunner(TaskRunner):
         wait_for: Iterable[PrefectDaskFuture[R]] | None = None,
         dependencies: dict[str, Set[RunInput]] | None = None,
     ) -> PrefectDaskFuture[R]:
-        if not self._started:
+        if not self._started or self._crash_reporter is None:
             raise RuntimeError(
                 "The task runner must be started before submitting work."
             )
@@ -445,9 +477,19 @@ class DaskTaskRunner(TaskRunner):
             dependencies=dependencies,
             return_type="state",
         )
-        return PrefectDaskFuture[R](
-            wrapped_future=future, task_run_id=future.task_run_id
-        )
+
+        crash_reporter = self._crash_reporter
+        task_run_id: UUID = future.task_run_id
+        context = contextvars.copy_context()
+
+        def report_if_crashed(dask_future: distributed.Future) -> None:
+            # Runs on Dask's shared callback thread, so hand the API calls off
+            if dask_future.status == "error":
+                exc = cast(BaseException, dask_future.exception())
+                crash_reporter.submit(context.run, _report_crash, task_run_id, exc)
+
+        future.add_done_callback(report_if_crashed)
+        return PrefectDaskFuture[R](wrapped_future=future, task_run_id=task_run_id)
 
     @overload
     def map(
@@ -488,9 +530,15 @@ class DaskTaskRunner(TaskRunner):
         """
         super().__enter__()
         self._exit_stack.__enter__()
+        self._crash_reporter = ThreadPoolExecutor(
+            thread_name_prefix="PrefectDaskCrashReporter"
+        )
 
         return self
 
     def __exit__(self, *args: Any) -> None:
         self._exit_stack.__exit__(*args)
+        if self._crash_reporter is not None:
+            self._crash_reporter.shutdown(wait=True)
+            self._crash_reporter = None
         super().__exit__(*args)
