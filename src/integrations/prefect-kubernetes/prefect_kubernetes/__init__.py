@@ -1,5 +1,7 @@
 from . import _version
 from prefect_kubernetes.credentials import (
+    BaseKubernetesCredentials,
+    KubernetesApiKeyCredentials,
     KubernetesCredentials,
     KubernetesClusterConfig,
 )  # noqa F401
