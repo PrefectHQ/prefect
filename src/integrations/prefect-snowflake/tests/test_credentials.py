@@ -522,3 +522,64 @@ def test_snowflake_credentials_encrypted_private_key_parses_correctly():
     # are dummies.
     with pytest.raises(ValueError, match="Unable to load PEM file"):
         creds.resolve_private_key()
+
+
+def test_get_client_from_loaded_block(
+    credentials_params, snowflake_connect_mock: MagicMock
+):
+    SnowflakeCredentials(**credentials_params).save("loaded-creds", overwrite=True)
+    loaded = SnowflakeCredentials.load("loaded-creds")
+
+    loaded.get_client(role=None)
+
+    snowflake_connect_mock.assert_called_once_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        password="password",
+        authenticator="snowflake",
+    )
+
+
+def test_get_client_from_loaded_key_pair_path_block(
+    private_credentials_params, tmp_path, snowflake_connect_mock: MagicMock
+):
+    private_key_path = tmp_path / "private_key.pem"
+    private_key_path.write_bytes(private_credentials_params.pop("private_key"))
+    private_credentials_params["private_key_path"] = private_key_path
+    private_credentials_params["private_key_passphrase"] = (
+        private_credentials_params.pop("password")
+    )
+    SnowflakeCredentials(**private_credentials_params).save(
+        "loaded-keypair-creds", overwrite=True
+    )
+    loaded = SnowflakeCredentials.load("loaded-keypair-creds")
+    expected_der_key = loaded.resolve_private_key()
+
+    loaded.get_client()
+
+    snowflake_connect_mock.assert_called_once_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        authenticator="snowflake",
+        private_key=expected_der_key,
+    )
+
+
+def test_get_client_none_kwarg_clears_saved_param(
+    credentials_params, snowflake_connect_mock: MagicMock
+):
+    SnowflakeCredentials(**credentials_params, role="SYSADMIN").save(
+        "loaded-role-creds", overwrite=True
+    )
+    loaded = SnowflakeCredentials.load("loaded-role-creds")
+
+    loaded.get_client(role=None, password=None, authenticator="externalbrowser")
+
+    snowflake_connect_mock.assert_called_once_with(
+        application="Prefect_Snowflake_Collection",
+        account="account",
+        user="user",
+        authenticator="externalbrowser",
+    )
