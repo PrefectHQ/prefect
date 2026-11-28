@@ -7,6 +7,7 @@ Prefect enforces on a state transition.
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import logging
 import math
@@ -15,8 +16,9 @@ from uuid import UUID, uuid4
 
 import sqlalchemy as sa
 from packaging.version import Version
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, SessionTransaction
 
 from prefect.logging import get_logger
 from prefect.server import models
@@ -58,6 +60,7 @@ from prefect.settings import (
     get_current_settings,
 )
 from prefect.types._datetime import now
+from prefect.utilities.asyncutils import create_task, run_coro_as_sync
 from prefect.utilities.math import clamped_poisson_interval
 
 from .instrumentation_policies import InstrumentFlowRunStateTransitions
@@ -74,6 +77,23 @@ def _has_persisted_result(data: Any) -> bool:
     use the same logic.
     """
     return isinstance(data, dict) and data.get("type") != "unpersisted"
+
+
+def _is_leased_blocking_pause(state: states.State[Any] | None) -> bool:
+    """
+    Whether `state` is a blocking pause of a run that holds a deployment
+    concurrency lease.
+
+    A blocking pause keeps the flow run process alive, and the engine keeps
+    renewing its lease while it waits, so the run keeps its slot until it
+    leaves the pause.
+    """
+    return (
+        state is not None
+        and state.type == states.StateType.PAUSED
+        and not state.state_details.pause_reschedule
+        and state.state_details.deployment_concurrency_lease_id is not None
+    )
 
 
 async def _release_concurrency_lease(
@@ -107,6 +127,79 @@ async def _release_concurrency_lease(
         raise RuntimeError(f"Failed to release concurrency slots for lease {lease_id}")
 
     await lease_storage.revoke_lease(lease_id=lease.id)
+
+
+_PENDING_LEASE_REVOCATIONS = "prefect_pending_concurrency_lease_revocations"
+
+
+async def _release_concurrency_lease_on_commit(
+    session: AsyncSession, lease_id: UUID
+) -> None:
+    """
+    Release the slots of a lease in the session's transaction and revoke the
+    lease once that transaction commits.
+
+    A rollback restores the slots and leaves the lease in place, so a retry can
+    release them through the lease again. Use this where a missing lease must
+    not fall back to decrementing the deployment limit.
+    """
+    sync_session = session.sync_session
+    pending: list[UUID] | None = sync_session.info.get(_PENDING_LEASE_REVOCATIONS)
+    if pending is not None and lease_id in pending:
+        return
+
+    lease = await get_concurrency_lease_storage().read_lease(lease_id=lease_id)
+    if not lease:
+        logger.warning(f"Lease {lease_id} not found during release")
+        return
+
+    slots_released = await concurrency_limits_v2.bulk_decrement_active_slots(
+        session=session,
+        concurrency_limit_ids=lease.resource_ids,
+        slots=lease.metadata.slots if lease.metadata else 1,
+    )
+    if not slots_released:
+        raise RuntimeError(f"Failed to release concurrency slots for lease {lease_id}")
+
+    if pending is None:
+        pending = sync_session.info[_PENDING_LEASE_REVOCATIONS] = []
+        event.listen(sync_session, "after_commit", _revoke_pending_leases)
+        event.listen(sync_session, "after_soft_rollback", _discard_pending_leases)
+    pending.append(lease.id)
+
+
+def _revoke_pending_leases(sync_session: Session) -> None:
+    pending: list[UUID] = sync_session.info.get(_PENDING_LEASE_REVOCATIONS, [])
+    if not pending:
+        return
+    lease_ids = list(pending)
+    pending.clear()
+
+    async def revoke() -> None:
+        lease_storage = get_concurrency_lease_storage()
+        for lease_id in lease_ids:
+            try:
+                await lease_storage.revoke_lease(lease_id=lease_id)
+            except Exception:
+                logger.warning(
+                    f"Failed to revoke lease {lease_id} after commit", exc_info=True
+                )
+
+    # This listener runs inside `session.commit()`, so the revocation is
+    # scheduled on the running loop rather than awaited here.
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        run_coro_as_sync(revoke())
+    else:
+        create_task(revoke())
+
+
+def _discard_pending_leases(
+    sync_session: Session, previous_transaction: SessionTransaction
+) -> None:
+    pending: list[UUID] = sync_session.info.get(_PENDING_LEASE_REVOCATIONS, [])
+    pending.clear()
 
 
 class CoreFlowPolicy(FlowRunOrchestrationPolicy):
@@ -594,6 +687,9 @@ class SecureFlowConcurrencySlots(FlowRunOrchestrationRule):
             or not proposed_state
             or context.client_version
             in WORKER_VERSIONS_THAT_MANAGE_DEPLOYMENT_CONCURRENCY
+            # The run already holds a slot; `HandleResumingPausedFlows`
+            # governs whether it can leave the pause.
+            or _is_leased_blocking_pause(initial_state)
         ):
             return
 
@@ -878,7 +974,8 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
     Releases deployment concurrency slots held by a flow run.
 
     This rule releases a concurrency slot for a deployment when a flow run
-    transitions out of the Running or Cancelling state.
+    transitions out of the Pending, Running or Cancelling state, or out of a
+    blocking pause that holds a deployment concurrency lease.
     """
 
     async def after_transition(
@@ -900,12 +997,15 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         # don't know how to "fizzle" themselves if they encounter a transition that
         # shouldn't apply to them, even if they use FROM_STATES and TO_STATES.
         if not (
-            initial_state_type
-            in {
-                states.StateType.RUNNING,
-                states.StateType.CANCELLING,
-                states.StateType.PENDING,
-            }
+            (
+                initial_state_type
+                in {
+                    states.StateType.RUNNING,
+                    states.StateType.CANCELLING,
+                    states.StateType.PENDING,
+                }
+                or _is_leased_blocking_pause(context.initial_state)
+            )
             and proposed_state_type
             not in {
                 states.StateType.PENDING,
@@ -930,6 +1030,27 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         ):
             return
 
+        # A blocking pause keeps the process alive and the engine keeps
+        # renewing its lease while it waits for the run to resume, so the run
+        # keeps its slot. Revoking the lease here would fail the engine's next
+        # renewal and cancel the paused run. A reschedule-style pause
+        # (`suspend_flow_run`) exits the process, so its slot is released. So
+        # is the slot of a run whose lease is already gone (for example, one
+        # revoked for an old client), so that a paused run holds its slot only
+        # through a live lease.
+        if (
+            proposed_state_type == states.StateType.PAUSED
+            and context.proposed_state
+            and not context.proposed_state.state_details.pause_reschedule
+            and context.initial_state
+            and (
+                lease_id
+                := context.initial_state.state_details.deployment_concurrency_lease_id
+            )
+            and await get_concurrency_lease_storage().read_lease(lease_id=lease_id)
+        ):
+            return
+
         if not context.session or not context.run.deployment_id:
             return
 
@@ -937,6 +1058,15 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
             context.initial_state
             and context.initial_state.state_details.deployment_concurrency_lease_id
         ):
+            # A paused run holds its slot only through a live lease. A missing
+            # lease was released when the run paused or when the lease expired.
+            if _is_leased_blocking_pause(context.initial_state):
+                await _release_concurrency_lease_on_commit(
+                    session=context.session,
+                    lease_id=context.initial_state.state_details.deployment_concurrency_lease_id,
+                )
+                return
+
             fallback_concurrency_limit_ids = None
             deployment = await deployments.read_deployment(
                 session=context.session,
