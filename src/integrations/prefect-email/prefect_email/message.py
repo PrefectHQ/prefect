@@ -44,7 +44,8 @@ async def email_send_message(
         msg: The contents of the email, added as html; can be used in
             combination with msg_plain.
         msg_plain: The contents of the email as plain text,
-            can be used in combination with msg.
+            can be used in combination with msg. When both are given, they are
+            sent as alternatives and email clients show one of them.
         email_to: The email addresses to send the message to, separated by commas.
             If a list is provided, will join the items, separated by commas.
         email_to_cc: Additional email addresses to send the message to as cc,
@@ -99,12 +100,19 @@ async def email_send_message(
             val = ", ".join(val)
         message[key] = val
 
-    # First add the message in plain text, then the HTML version;
-    # email clients try to render the last part first
+    # The plain text and HTML versions are the same content, so they go in a
+    # multipart/alternative part; otherwise email clients show both of them.
+    # Plain text goes first, since email clients render the last part they can
+    if msg_plain and msg:
+        body = MIMEMultipart("alternative")
+        message.attach(body)
+    else:
+        body = message
+
     if msg_plain:
-        message.attach(MIMEText(msg_plain, "plain"))
+        body.attach(MIMEText(msg_plain, "plain"))
     if msg:
-        message.attach(MIMEText(msg, "html"))
+        body.attach(MIMEText(msg, "html"))
 
     for filepath in attachments or []:
         with open(filepath, "rb") as attachment:
