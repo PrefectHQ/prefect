@@ -12,7 +12,7 @@ from fastapi import params as fastapi_params
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict
-from starlette.routing import BaseRoute, request_response
+from starlette.routing import BaseRoute
 
 
 def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
@@ -204,15 +204,9 @@ class PrefectAPIRoute(APIRoute):
 
     _allowed_top_level_body_keys: frozenset[str] | None = None
 
-    def __init__(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
-        self._allowed_top_level_body_keys = None
-        super().__init__(path, endpoint, **kwargs)
-        allowed_keys = configure_strict_body_field(self)
-        if allowed_keys is not None:
-            self._allowed_top_level_body_keys = allowed_keys
-            self.app = request_response(self.get_route_handler())
-
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        if self._allowed_top_level_body_keys is None:
+            self._allowed_top_level_body_keys = configure_strict_body_field(self)
         default_handler = super().get_route_handler()
         allowed_keys = self._allowed_top_level_body_keys
 
