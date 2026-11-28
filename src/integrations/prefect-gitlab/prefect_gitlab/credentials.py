@@ -1,6 +1,5 @@
 """Module used to enable authenticated interactions with GitLab"""
 
-from typing import Optional
 from urllib.parse import urlparse, urlunparse
 
 from gitlab import Gitlab
@@ -29,12 +28,12 @@ class GitLabCredentials(Block):
     _block_type_name = "GitLab Credentials"
     _logo_url = "https://images.ctfassets.net/gm98wzqotmnx/55edIimT4g9gbjhkh5a3Sp/dfdb9391d8f45c2e93e72e3a4d350771/gitlab-logo-500.png?h=250"
 
-    token: Optional[SecretStr] = Field(
+    token: SecretStr | None = Field(
         title="Personal Access Token",
         default=None,
         description="A GitLab Personal Access Token with read_repository scope.",
     )
-    url: Optional[str] = Field(
+    url: str | None = Field(
         default=None, title="URL", description="URL to self-hosted GitLab instances."
     )
 

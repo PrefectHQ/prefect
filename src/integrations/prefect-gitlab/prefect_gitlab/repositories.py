@@ -47,7 +47,6 @@ import subprocess
 import urllib.parse
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Optional, Tuple, Union
 
 from pydantic import Field
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
@@ -84,17 +83,17 @@ class GitLabRepository(ReadableDeploymentStorage):
             "The URL of a GitLab repository to read from, in either HTTP/HTTPS or SSH format."  # noqa
         ),
     )
-    reference: Optional[str] = Field(
+    reference: str | None = Field(
         default=None,
         description="An optional reference to pin to; can be a branch name or tag.",
     )
-    git_depth: Optional[int] = Field(
+    git_depth: int | None = Field(
         default=1,
-        gte=1,
+        ge=1,
         description="The number of commits that Git history is truncated to "
         "during cloning. Set to None to fetch the entire history.",
     )
-    credentials: Optional[GitLabCredentials] = Field(
+    credentials: GitLabCredentials | None = Field(
         default=None,
         description="An optional GitLab Credentials block for authenticating with "
         "private GitLab repos.",
@@ -125,8 +124,8 @@ class GitLabRepository(ReadableDeploymentStorage):
 
     @staticmethod
     def _get_paths(
-        dst_dir: Union[str, None], src_dir: str, sub_directory: Optional[str]
-    ) -> Tuple[str, str]:
+        dst_dir: str | None, src_dir: str, sub_directory: str | None
+    ) -> tuple[str, str]:
         """Returns the fully formed paths for GitLabRepository contents in the form
         (content_source, content_destination).
         """
@@ -153,7 +152,7 @@ class GitLabRepository(ReadableDeploymentStorage):
         reraise=True,
     )
     async def aget_directory(
-        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+        self, from_path: str | None = None, local_path: str | None = None
     ) -> None:
         """
         Clones a GitLab project specified in `from_path` to the provided `local_path`;
@@ -207,7 +206,7 @@ class GitLabRepository(ReadableDeploymentStorage):
     )
     @async_dispatch(aget_directory)
     def get_directory(
-        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+        self, from_path: str | None = None, local_path: str | None = None
     ) -> None:
         """
         Clones a GitLab project specified in `from_path` to the provided `local_path`;

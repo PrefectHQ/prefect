@@ -1,7 +1,7 @@
 import os
+from collections.abc import Coroutine
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Coroutine, Set, Tuple
 from unittest.mock import AsyncMock
 
 import prefect_gitlab
@@ -14,7 +14,7 @@ from pydantic import SecretStr
 class TestGitLab:
     def setup_test_directory(
         self, tmp_src: str, sub_dir: str = "puppy"
-    ) -> Tuple[Set[str], Set[str]]:
+    ) -> tuple[set[str], set[str]]:
         """Add files and directories to a temporary directory. Returns a tuple with the
         expected parent-level contents and the expected child-level contents.
         """
@@ -189,6 +189,13 @@ class TestGitLab:
             repo,
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
+
+    @pytest.mark.parametrize("depth", [0, -1])
+    def test_git_depth_must_be_at_least_one(self, depth):
+        with pytest.raises(ValueError, match="greater than or equal to 1"):
+            GitLabRepository(
+                repository="git@gitlab.com:PrefectHQ/prefect.git", git_depth=depth
+            )
 
     async def test_dir_contents_copied_correctly_with_get_directory(self, monkeypatch):  # noqa
         """Check that `get_directory` is able to correctly copy contents from src->dst"""  # noqa
