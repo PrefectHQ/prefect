@@ -17,9 +17,12 @@ from prefect._internal.attempt_control import (
     StateOwnershipDelegation,
 )
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
+from prefect.flows import flow as flow_decorator
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
-from prefect.states import Crashed, Running, State
+from prefect.runner._state_proposer import StateProposer
+from prefect.states import Completed, Crashed, Running, State
+from prefect.tasks import task as task_decorator
 
 pytestmark = pytest.mark.clear_db
 
@@ -49,6 +52,7 @@ def _make_executor(
     propose_submitting: bool = True,
     attempt_conclusion=None,
     get_attempt_conclusion=None,
+    state_proposer=None,
 ):
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
@@ -74,12 +78,14 @@ def _make_executor(
 
     mock_starter.start = AsyncMock(side_effect=_fake_start)
 
-    state_proposer = MagicMock()
-    state_proposer.propose_submitting = AsyncMock(
-        return_value=propose_submitting_result
-    )
-    state_proposer.propose_crashed = AsyncMock()
-    state_proposer.propose_cancelled = AsyncMock()
+    if state_proposer is None:
+        state_proposer = MagicMock()
+        state_proposer.propose_submitting = AsyncMock(
+            return_value=propose_submitting_result
+        )
+        state_proposer.propose_crashed = AsyncMock()
+        state_proposer.propose_cancelled = AsyncMock()
+        state_proposer.crash_in_process_descendants = AsyncMock()
 
     hook_runner = MagicMock()
     hook_runner.run_crashed_hooks = AsyncMock()
@@ -685,7 +691,7 @@ class TestFlowRunExecutorSubmit:
 
 class TestCancellationObserverFailure:
     def test_cancellation_observer_failure_logs_warning_when_crash_disabled(
-        self, caplog: pytest.LogCaptureFixture
+        self, caplog: "pytest.LogCaptureFixture"
     ):
         """Default setting: logs a warning and does not kill processes."""
         from prefect.runner._flow_run_executor import FlowRunExecutorContext
@@ -705,7 +711,7 @@ class TestCancellationObserverFailure:
         ctx._cancellation_task_group.start_soon.assert_not_called()
 
     def test_cancellation_observer_failure_kills_processes_when_crash_enabled(
-        self, caplog: pytest.LogCaptureFixture
+        self, caplog: "pytest.LogCaptureFixture"
     ):
         """When crash_on_cancellation_failure is enabled, kills all in-flight runs."""
         from prefect.runner._flow_run_executor import FlowRunExecutorContext
@@ -734,3 +740,59 @@ class TestCancellationObserverFailure:
             for call in ctx._cancellation_task_group.start_soon.call_args_list
         }
         assert killed_ids == flow_run_ids
+
+
+class TestCrashedProcessDescendants:
+    async def test_process_crash_crashes_in_process_descendants_only(
+        self, prefect_client, deployment
+    ):
+        """Non-terminal subflow and task runs from the dead process are Crashed;
+        runs submitted as separate deployments and finished runs are untouched."""
+
+        @flow_decorator
+        def child():
+            pass
+
+        @task_decorator
+        def work():
+            pass
+
+        parent = await prefect_client.create_flow_run(child, state=Running())
+
+        async def make_task_run(flow_run_id, key, state):
+            return await prefect_client.create_task_run(
+                task=work,
+                flow_run_id=flow_run_id,
+                dynamic_key=key,
+                state=state,
+            )
+
+        running_task = await make_task_run(parent.id, "running", Running())
+        done_task = await make_task_run(parent.id, "done", Completed())
+        subflow_task = await make_task_run(parent.id, "subflow", Running())
+        subflow = await prefect_client.create_flow_run(
+            child, state=Running(), parent_task_run_id=subflow_task.id
+        )
+        nested_task = await make_task_run(subflow.id, "nested", Running())
+        deployed = await prefect_client.create_flow_run_from_deployment(
+            deployment.id, state=Running(), parent_task_run_id=subflow_task.id
+        )
+
+        executor, _ = _make_executor(
+            flow_run=parent,
+            handle_returncode=1,
+            propose_submitting=False,
+            state_proposer=StateProposer(client=prefect_client),
+        )
+        await executor.submit()
+
+        async def state_type(read, run):
+            return (await read(run.id)).state.type.value
+
+        assert await state_type(prefect_client.read_flow_run, parent) == "CRASHED"
+        assert await state_type(prefect_client.read_flow_run, subflow) == "CRASHED"
+        assert await state_type(prefect_client.read_task_run, running_task) == "CRASHED"
+        assert await state_type(prefect_client.read_task_run, subflow_task) == "CRASHED"
+        assert await state_type(prefect_client.read_task_run, nested_task) == "CRASHED"
+        assert await state_type(prefect_client.read_task_run, done_task) == "COMPLETED"
+        assert await state_type(prefect_client.read_flow_run, deployed) == "RUNNING"

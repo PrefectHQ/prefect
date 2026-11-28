@@ -224,6 +224,10 @@ class FlowRunExecutor:
         crashed_state = await self._state_proposer.propose_crashed(
             self._flow_run, message=msg
         )
+        if crashed_state is not None and crashed_state.is_crashed():
+            await self._state_proposer.crash_in_process_descendants(
+                self._flow_run, message=msg
+            )
         # Step 8: run crashed hooks
         if crashed_state is not None:
             await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)

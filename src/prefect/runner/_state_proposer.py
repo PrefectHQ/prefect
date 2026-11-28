@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterDeploymentId,
+    FlowRunFilterId,
+    FlowRunFilterParentFlowRunId,
+    TaskRunFilter,
+    TaskRunFilterState,
+    TaskRunFilterStateType,
+)
+from prefect.client.schemas.objects import TERMINAL_STATES, StateType
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging import get_logger
 from prefect.states import (
@@ -133,6 +142,51 @@ class StateProposer:
                     "Reported flow run '%s' as crashed: %s", flow_run.id, message
                 )
         return state
+
+    async def crash_in_process_descendants(
+        self, flow_run: FlowRun, message: str
+    ) -> None:
+        """Force non-terminal subflow and task runs of a dead process to Crashed.
+
+        Subflows with a deployment ran in their own infrastructure and are left
+        alone, along with everything beneath them. Best effort: failures are
+        logged so the parent's crash handling is never affected.
+        """
+        open_types = [t for t in StateType if t not in TERMINAL_STATES]
+        parent_ids = [flow_run.id]
+        try:
+            # shortcut: one server page (default 200) per level, upgrade if runs exceed it
+            while parent_ids:
+                task_runs = await self._client.read_task_runs(
+                    flow_run_filter=FlowRunFilter(id=FlowRunFilterId(any_=parent_ids)),
+                    task_run_filter=TaskRunFilter(
+                        state=TaskRunFilterState(
+                            type=TaskRunFilterStateType(any_=open_types)
+                        )
+                    ),
+                )
+                for task_run in task_runs:
+                    await self._client.set_task_run_state(
+                        task_run.id, Crashed(message=message), force=True
+                    )
+                subflow_runs = await self._client.read_flow_runs(
+                    flow_run_filter=FlowRunFilter(
+                        parent_flow_run_id=FlowRunFilterParentFlowRunId(
+                            any_=parent_ids
+                        ),
+                        deployment_id=FlowRunFilterDeploymentId(is_null_=True),
+                    )
+                )
+                parent_ids = [r.id for r in subflow_runs]
+                for subflow_run in subflow_runs:
+                    if subflow_run.state and not subflow_run.state.is_final():
+                        await self._client.set_flow_run_state(
+                            subflow_run.id, Crashed(message=message), force=True
+                        )
+        except Exception:
+            self._logger.exception(
+                "Failed to crash in-process descendants of flow run '%s'", flow_run.id
+            )
 
     async def propose_failed(self, flow_run: FlowRun, exc: Exception) -> None:
         """Propose Failed state. Abort is swallowed (already failed). Logs other errors."""
