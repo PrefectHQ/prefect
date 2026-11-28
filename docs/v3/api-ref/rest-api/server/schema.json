@@ -6741,9 +6741,6 @@
                     }
                 },
                 "responses": {
-                    "204": {
-                        "description": "Successful Response"
-                    },
                     "200": {
                         "description": "The worker ID when requested.",
                         "content": {
@@ -6754,6 +6751,9 @@
                                 }
                             }
                         }
+                    },
+                    "204": {
+                        "description": "Successful Response"
                     },
                     "422": {
                         "description": "Validation Error",
@@ -10009,7 +10009,7 @@
                         "type": "number",
                         "title": "Request Timeout",
                         "description": "The default timeout for requests to the API",
-                        "default": 60.0,
+                        "default": 60,
                         "supported_environment_variables": [
                             "PREFECT_API_REQUEST_TIMEOUT"
                         ]
@@ -12906,7 +12906,7 @@
                 "properties": {
                     "slots": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Slots"
                     },
                     "names": {
@@ -12921,7 +12921,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -12972,8 +12972,8 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 50.0,
-                        "minimum": 1.0,
+                        "maximum": 50,
+                        "minimum": 1,
                         "title": "Limit",
                         "description": "Maximum number of deployments to delete. Defaults to 50.",
                         "default": 50
@@ -12997,8 +12997,8 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 50.0,
-                        "minimum": 1.0,
+                        "maximum": 50,
+                        "minimum": 1,
                         "title": "Limit",
                         "description": "Maximum number of flow runs to delete. Defaults to 50.",
                         "default": 50
@@ -13022,8 +13022,8 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 50.0,
-                        "minimum": 1.0,
+                        "maximum": 50,
+                        "minimum": 1,
                         "title": "Limit",
                         "description": "Maximum number of flows to delete. Defaults to 50.",
                         "default": 50
@@ -13036,7 +13036,7 @@
                 "properties": {
                     "slots": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Slots"
                     },
                     "names": {
@@ -13080,7 +13080,7 @@
                 "properties": {
                     "slots": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Slots"
                     },
                     "names": {
@@ -13102,8 +13102,8 @@
                     },
                     "lease_duration": {
                         "type": "number",
-                        "maximum": 86400.0,
-                        "minimum": 60.0,
+                        "maximum": 86400,
+                        "minimum": 60,
                         "title": "Lease Duration",
                         "description": "The duration of the lease in seconds.",
                         "default": 300
@@ -13152,8 +13152,8 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 50.0,
-                        "minimum": 1.0,
+                        "maximum": 50,
+                        "minimum": 1,
                         "title": "Limit",
                         "description": "Maximum number of flow runs to update. Defaults to 50.",
                         "default": 50
@@ -13178,14 +13178,15 @@
                         "type": "number",
                         "minimum": 0.01,
                         "title": "Time Interval",
-                        "default": 1.0
+                        "default": 1
                     }
                 },
                 "type": "object",
                 "required": [
                     "filter"
                 ],
-                "title": "Body_count_account_events"
+                "title": "Body_count_account_events",
+                "additionalProperties": false
             },
             "Body_count_artifacts": {
                 "properties": {
@@ -13206,7 +13207,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_artifacts"
+                "title": "Body_count_artifacts",
+                "additionalProperties": false
             },
             "Body_count_automations": {
                 "properties": {
@@ -13222,7 +13224,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_automations"
+                "title": "Body_count_automations",
+                "additionalProperties": false
             },
             "Body_count_block_documents": {
                 "properties": {
@@ -13258,7 +13261,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_block_documents"
+                "title": "Body_count_block_documents",
+                "additionalProperties": false
             },
             "Body_count_deployments": {
                 "properties": {
@@ -13324,7 +13328,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_deployments"
+                "title": "Body_count_deployments",
+                "additionalProperties": false
             },
             "Body_count_deployments_by_flow": {
                 "properties": {
@@ -13408,7 +13413,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_flow_runs"
+                "title": "Body_count_flow_runs",
+                "additionalProperties": false
             },
             "Body_count_flows": {
                 "properties": {
@@ -13426,10 +13432,21 @@
                     },
                     "work_pools": {
                         "$ref": "#/components/schemas/WorkPoolFilter"
+                    },
+                    "work_queues": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
-                "title": "Body_count_flows"
+                "title": "Body_count_flows",
+                "additionalProperties": false
             },
             "Body_count_latest_artifacts": {
                 "properties": {
@@ -13450,7 +13467,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_latest_artifacts"
+                "title": "Body_count_latest_artifacts",
+                "additionalProperties": false
             },
             "Body_count_task_runs": {
                 "properties": {
@@ -13468,7 +13486,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_task_runs"
+                "title": "Body_count_task_runs",
+                "additionalProperties": false
             },
             "Body_count_task_runs_by_flow_run": {
                 "properties": {
@@ -13502,7 +13521,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_variables"
+                "title": "Body_count_variables",
+                "additionalProperties": false
             },
             "Body_count_work_pools": {
                 "properties": {
@@ -13518,7 +13538,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_count_work_pools"
+                "title": "Body_count_work_pools",
+                "additionalProperties": false
             },
             "Body_create_flow_run_input": {
                 "properties": {
@@ -13604,7 +13625,8 @@
                 "required": [
                     "prefix"
                 ],
-                "title": "Body_filter_flow_run_input"
+                "title": "Body_filter_flow_run_input",
+                "additionalProperties": false
             },
             "Body_flow_run_history": {
                 "properties": {
@@ -13801,7 +13823,7 @@
                 "properties": {
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
@@ -13876,7 +13898,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_deployments"
+                "title": "Body_paginate_deployments",
+                "additionalProperties": false
             },
             "Body_paginate_flow_runs": {
                 "properties": {
@@ -13886,7 +13909,7 @@
                     },
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
@@ -13957,13 +13980,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_flow_runs"
+                "title": "Body_paginate_flow_runs",
+                "additionalProperties": false
             },
             "Body_paginate_flows": {
                 "properties": {
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
@@ -14025,10 +14049,21 @@
                         "type": "integer",
                         "title": "Limit",
                         "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
+                    },
+                    "work_queues": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_flows"
+                "title": "Body_paginate_flows",
+                "additionalProperties": false
             },
             "Body_paginate_task_runs": {
                 "properties": {
@@ -14038,7 +14073,7 @@
                     },
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
@@ -14089,13 +14124,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_paginate_task_runs"
+                "title": "Body_paginate_task_runs",
+                "additionalProperties": false
             },
             "Body_read_all_concurrency_limits_v2": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14106,7 +14142,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_all_concurrency_limits_v2"
+                "title": "Body_read_all_concurrency_limits_v2",
+                "additionalProperties": false
             },
             "Body_read_artifacts": {
                 "properties": {
@@ -14116,7 +14153,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14142,7 +14179,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_artifacts"
+                "title": "Body_read_artifacts",
+                "additionalProperties": false
             },
             "Body_read_automations": {
                 "properties": {
@@ -14152,7 +14190,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14173,7 +14211,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_automations"
+                "title": "Body_read_automations",
+                "additionalProperties": false
             },
             "Body_read_block_documents": {
                 "properties": {
@@ -14226,7 +14265,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14234,10 +14273,23 @@
                         "type": "integer",
                         "title": "Limit",
                         "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
+                    },
+                    "block_schema_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Block Schema Type",
+                        "description": "Deprecated legacy block schema type parameter sent by Prefect clients."
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_documents"
+                "title": "Body_read_block_documents",
+                "additionalProperties": false
             },
             "Body_read_block_schemas": {
                 "properties": {
@@ -14253,7 +14305,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14264,7 +14316,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_schemas"
+                "title": "Body_read_block_schemas",
+                "additionalProperties": false
             },
             "Body_read_block_types": {
                 "properties": {
@@ -14290,7 +14343,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14301,13 +14354,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_block_types"
+                "title": "Body_read_block_types",
+                "additionalProperties": false
             },
             "Body_read_concurrency_limits": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14318,7 +14372,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_concurrency_limits"
+                "title": "Body_read_concurrency_limits",
+                "additionalProperties": false
             },
             "Body_read_dashboard_task_run_counts": {
                 "properties": {
@@ -14386,7 +14441,7 @@
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14461,7 +14516,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_deployments"
+                "title": "Body_read_deployments",
+                "additionalProperties": false
             },
             "Body_read_events": {
                 "properties": {
@@ -14478,15 +14534,16 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 50.0,
-                        "minimum": 0.0,
+                        "maximum": 50,
+                        "minimum": 0,
                         "title": "Limit",
                         "description": "The number of events to return with each page",
                         "default": 50
                     }
                 },
                 "type": "object",
-                "title": "Body_read_events"
+                "title": "Body_read_events",
+                "additionalProperties": false
             },
             "Body_read_flow_run_history": {
                 "properties": {
@@ -14496,13 +14553,13 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "maximum": 1000.0,
+                        "maximum": 1000,
                         "title": "Limit",
                         "default": 1000
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14533,7 +14590,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14604,13 +14661,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flow_runs"
+                "title": "Body_read_flow_runs",
+                "additionalProperties": false
             },
             "Body_read_flows": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14637,10 +14695,21 @@
                         "type": "integer",
                         "title": "Limit",
                         "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
+                    },
+                    "work_queues": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/WorkQueueFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
                     }
                 },
                 "type": "object",
-                "title": "Body_read_flows"
+                "title": "Body_read_flows",
+                "additionalProperties": false
             },
             "Body_read_latest_artifacts": {
                 "properties": {
@@ -14650,7 +14719,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14676,13 +14745,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_latest_artifacts"
+                "title": "Body_read_latest_artifacts",
+                "additionalProperties": false
             },
             "Body_read_logs": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14707,13 +14777,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_logs"
+                "title": "Body_read_logs",
+                "additionalProperties": false
             },
             "Body_read_saved_searches": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14724,7 +14795,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_saved_searches"
+                "title": "Body_read_saved_searches",
+                "additionalProperties": false
             },
             "Body_read_task_run_counts_by_state": {
                 "properties": {
@@ -14780,7 +14852,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14831,7 +14903,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_task_runs"
+                "title": "Body_read_task_runs",
+                "additionalProperties": false
             },
             "Body_read_task_workers": {
                 "properties": {
@@ -14848,13 +14921,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_task_workers"
+                "title": "Body_read_task_workers",
+                "additionalProperties": false
             },
             "Body_read_variables": {
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14879,20 +14953,21 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_variables"
+                "title": "Body_read_variables",
+                "additionalProperties": false
             },
             "Body_read_work_pool_concurrency_status": {
                 "properties": {
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
                     "flow_run_limit": {
                         "type": "integer",
-                        "maximum": 200.0,
-                        "minimum": 0.0,
+                        "maximum": 200,
+                        "minimum": 0,
                         "title": "Flow Run Limit",
                         "description": "Max flow runs per queue",
                         "default": 10
@@ -14913,7 +14988,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14924,7 +14999,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_pool_queues"
+                "title": "Body_read_work_pool_queues",
+                "additionalProperties": false
             },
             "Body_read_work_pools": {
                 "properties": {
@@ -14940,7 +15016,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -14951,13 +15027,14 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_pools"
+                "title": "Body_read_work_pools",
+                "additionalProperties": false
             },
             "Body_read_work_queue_concurrency_status": {
                 "properties": {
                     "page": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Page",
                         "default": 1
                     },
@@ -14991,7 +15068,7 @@
                 "properties": {
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -15012,7 +15089,8 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_work_queues"
+                "title": "Body_read_work_queues",
+                "additionalProperties": false
             },
             "Body_read_workers": {
                 "properties": {
@@ -15028,7 +15106,7 @@
                     },
                     "offset": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Offset",
                         "default": 0
                     },
@@ -15039,14 +15117,15 @@
                     }
                 },
                 "type": "object",
-                "title": "Body_read_workers"
+                "title": "Body_read_workers",
+                "additionalProperties": false
             },
             "Body_renew_concurrency_lease": {
                 "properties": {
                     "lease_duration": {
                         "type": "number",
-                        "maximum": 86400.0,
-                        "minimum": 60.0,
+                        "maximum": 86400,
+                        "minimum": 60,
                         "title": "Lease Duration",
                         "description": "The duration of the lease in seconds.",
                         "default": 300
@@ -15421,7 +15500,7 @@
                 "properties": {
                     "max_retries": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Max Retries",
                         "description": "\n        The maximum number of retries to perform on failed HTTP requests.\n        Defaults to 5. Set to 0 to disable retries.\n        See `PREFECT_CLIENT_RETRY_EXTRA_CODES` for details on which HTTP status codes are\n        retried.\n        ",
                         "default": 5,
@@ -15431,7 +15510,7 @@
                     },
                     "retry_jitter_factor": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Retry Jitter Factor",
                         "description": "\n        A value greater than or equal to zero to control the amount of jitter added to retried\n        client requests. Higher values introduce larger amounts of jitter.\n        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter\n        can affect retry lengths.\n        ",
                         "default": 0.2,
@@ -15446,14 +15525,14 @@
                             },
                             {
                                 "type": "integer",
-                                "maximum": 599.0,
-                                "minimum": 100.0
+                                "maximum": 599,
+                                "minimum": 100
                             },
                             {
                                 "items": {
                                     "type": "integer",
-                                    "maximum": 599.0,
-                                    "minimum": 100.0
+                                    "maximum": 599,
+                                    "minimum": 100
                                 },
                                 "type": "array",
                                 "uniqueItems": true
@@ -15807,7 +15886,7 @@
                     },
                     "concurrency_limit": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Concurrency Limit",
                         "description": "The concurrency limit."
                     }
@@ -15900,7 +15979,7 @@
                         "type": "number",
                         "title": "Avg Slot Occupancy Seconds",
                         "description": "The average amount of time a slot is occupied.",
-                        "default": 2.0
+                        "default": 2
                     }
                 },
                 "type": "object",
@@ -15930,27 +16009,27 @@
                     },
                     "limit": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Limit",
                         "description": "The concurrency limit."
                     },
                     "active_slots": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Active Slots",
                         "description": "The number of active slots.",
                         "default": 0
                     },
                     "denied_slots": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Denied Slots",
                         "description": "The number of denied slots.",
                         "default": 0
                     },
                     "slot_decay_per_second": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Slot Decay Per Second",
                         "description": "The decay rate for active slots when used as a rate limit.",
                         "default": 0
@@ -15994,7 +16073,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -16006,7 +16085,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -16018,7 +16097,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -16030,7 +16109,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -16075,8 +16154,8 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "maximum": 86400.0,
-                                "minimum": 60.0
+                                "maximum": 86400,
+                                "minimum": 60
                             },
                             {
                                 "type": "null"
@@ -16482,7 +16561,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -17695,7 +17774,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -17759,7 +17838,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -17842,7 +17921,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -17948,7 +18027,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -18916,7 +18995,7 @@
                                 "format": "duration"
                             }
                         ],
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Within",
                         "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
                         "default": "PT0S"
@@ -19063,10 +19142,10 @@
                     },
                     "within": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Within",
                         "description": "The time period over which the events must occur.  For Reactive triggers, this may be as low as 0 seconds, but must be at least 10 seconds for Proactive triggers",
-                        "default": 0.0
+                        "default": 0
                     }
                 },
                 "type": "object",
@@ -19080,7 +19159,7 @@
                 "properties": {
                     "worker_max_queue_size": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Worker Max Queue Size",
                         "description": "\n        Maximum number of events that can be queued for delivery to the\n        Prefect server. When the queue is full, new events are dropped with\n        a warning. Set to 0 for unbounded (the default).\n\n        Warning: setting this value too low may result in data loss as events\n        will be silently dropped when the queue is full.\n        ",
                         "default": 0,
@@ -19840,19 +19919,19 @@
                         "type": "number",
                         "title": "Total Run Time",
                         "description": "Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_run_time": {
                         "type": "number",
                         "title": "Estimated Run Time",
                         "description": "A real-time estimate of the total run time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_start_time_delta": {
                         "type": "number",
                         "title": "Estimated Start Time Delta",
                         "description": "The difference between actual and expected start time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "auto_scheduled": {
                         "type": "boolean",
@@ -21647,19 +21726,19 @@
                         "type": "number",
                         "title": "Total Run Time",
                         "description": "Total run time. If the flow run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_run_time": {
                         "type": "number",
                         "title": "Estimated Run Time",
                         "description": "A real-time estimate of the total run time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_start_time_delta": {
                         "type": "number",
                         "title": "Estimated Start Time Delta",
                         "description": "The difference between actual and expected start time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "auto_scheduled": {
                         "type": "boolean",
@@ -21984,7 +22063,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 30.0
+                                "minimum": 30
                             },
                             {
                                 "type": "null"
@@ -22000,7 +22079,7 @@
                     },
                     "default_retries": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Default Retries",
                         "description": "This value sets the default number of retries for all flows.",
                         "default": 0,
@@ -22093,7 +22172,7 @@
                         "type": "number",
                         "title": "Slot Decay Per Second",
                         "description": "The decay rate for active slots when used as a rate limit.",
-                        "default": 2.0
+                        "default": 2
                     }
                 },
                 "type": "object",
@@ -22386,7 +22465,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "string"
@@ -22970,7 +23049,7 @@
                         "type": "number",
                         "title": "Batch Interval",
                         "description": "The number of seconds between batched writes of logs to the API.",
-                        "default": 2.0,
+                        "default": 2,
                         "supported_environment_variables": [
                             "PREFECT_LOGGING_TO_API_BATCH_INTERVAL"
                         ]
@@ -23434,7 +23513,7 @@
                         "type": "number",
                         "title": "Setup Timeout Seconds",
                         "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
-                        "default": 20.0,
+                        "default": 20,
                         "supported_environment_variables": [
                             "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
                             "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
@@ -23903,7 +23982,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "string",
@@ -23977,7 +24056,7 @@
                     },
                     "schedule_after": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Schedule After",
                         "description": "The amount of time to wait before running the deployment. Defaults to running the deployment immediately."
                     }
@@ -24201,7 +24280,7 @@
                         ],
                         "title": "Pool Timeout",
                         "description": "Number of seconds to wait before giving up on getting a connection from the pool. Defaults to 30 seconds.",
-                        "default": 30.0,
+                        "default": 30,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_DATABASE_SQLALCHEMY_POOL_TIMEOUT"
                         ]
@@ -24769,7 +24848,7 @@
                         "type": "number",
                         "title": "Websocket Ping Interval",
                         "description": "WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
-                        "default": 20.0,
+                        "default": 20,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL"
                         ]
@@ -24778,14 +24857,14 @@
                         "type": "number",
                         "title": "Websocket Ping Timeout",
                         "description": "WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
-                        "default": 20.0,
+                        "default": 20,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT"
                         ]
                     },
                     "max_parameter_size": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Max Parameter Size",
                         "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
                         "default": 524288,
@@ -24811,18 +24890,18 @@
                     },
                     "initial_deployment_lease_duration": {
                         "type": "number",
-                        "maximum": 3600.0,
-                        "minimum": 30.0,
+                        "maximum": 3600,
+                        "minimum": 30,
                         "title": "Initial Deployment Lease Duration",
                         "description": "Initial duration for deployment concurrency lease in seconds.",
-                        "default": 300.0,
+                        "default": 300,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_CONCURRENCY_INITIAL_DEPLOYMENT_LEASE_DURATION"
                         ]
                     },
                     "maximum_concurrency_slot_wait_seconds": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Maximum Concurrency Slot Wait Seconds",
                         "description": "The maximum number of seconds to wait before retrying when a concurrency slot cannot be acquired.",
                         "default": 30,
@@ -24992,7 +25071,7 @@
                         ],
                         "title": "Timeout",
                         "description": "A statement timeout, in seconds, applied to all database interactions made by the Prefect backend. Defaults to 10 seconds.",
-                        "default": 10.0,
+                        "default": 10,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_DATABASE_TIMEOUT",
                             "PREFECT_API_DATABASE_TIMEOUT"
@@ -25009,7 +25088,7 @@
                         ],
                         "title": "Connection Timeout",
                         "description": "A connection timeout, in seconds, applied to database connections. Defaults to `5`.",
-                        "default": 5.0,
+                        "default": 5,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT",
                             "PREFECT_API_DATABASE_CONNECTION_TIMEOUT"
@@ -25019,7 +25098,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -25076,10 +25155,10 @@
                 "properties": {
                     "concurrency_slot_wait_seconds": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Concurrency Slot Wait Seconds",
                         "description": "The number of seconds to wait before retrying when a deployment flow run cannot secure a concurrency slot from the server.",
-                        "default": 30.0,
+                        "default": 30,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_DEPLOYMENTS_CONCURRENCY_SLOT_WAIT_SECONDS",
                             "PREFECT_DEPLOYMENT_CONCURRENCY_SLOT_WAIT_SECONDS"
@@ -25239,7 +25318,7 @@
                     },
                     "websocket_backfill_page_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Websocket Backfill Page Size",
                         "description": "The page size for the queries to backfill events for websocket subscribers.",
                         "default": 250,
@@ -25279,7 +25358,7 @@
                     },
                     "maximum_event_name_length": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Maximum Event Name Length",
                         "description": "The maximum length of an event name.",
                         "default": 1024,
@@ -25368,7 +25447,7 @@
                     },
                     "cancelling_timeout_seconds": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Cancelling Timeout Seconds",
                         "description": "The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.",
                         "default": 300,
@@ -25394,7 +25473,7 @@
                     },
                     "loop_seconds": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Loop Seconds",
                         "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
                         "default": 5,
@@ -25404,7 +25483,7 @@
                     },
                     "batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Batch Size",
                         "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
                         "default": 100,
@@ -25446,7 +25525,7 @@
                     },
                     "loop_seconds": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Loop Seconds",
                         "description": "The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
                         "default": 3600,
@@ -25456,7 +25535,7 @@
                     },
                     "orphan_cleanup_loop_seconds": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Orphan Cleanup Loop Seconds",
                         "description": "The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).",
                         "default": 86400,
@@ -25476,7 +25555,7 @@
                     },
                     "batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Batch Size",
                         "description": "The number of records to delete per database transaction. Defaults to `200`.",
                         "default": 200,
@@ -25535,7 +25614,7 @@
                     },
                     "batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Batch Size",
                         "description": "The number of events the event persister will attempt to insert in one batch.",
                         "default": 20,
@@ -25546,7 +25625,7 @@
                     },
                     "read_batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Read Batch Size",
                         "description": "The number of events the event persister will attempt to read from the message broker in one batch.",
                         "default": 1,
@@ -25557,7 +25636,7 @@
                     },
                     "flush_interval": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Flush Interval",
                         "description": "The maximum number of seconds between flushes of the event persister.",
                         "default": 5,
@@ -25568,7 +25647,7 @@
                     },
                     "queue_max_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Queue Max Size",
                         "description": "The maximum number of events that can be queued in memory for persistence. When the queue is full, new events will be dropped.",
                         "default": 50000,
@@ -25578,7 +25657,7 @@
                     },
                     "max_flush_retries": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Max Flush Retries",
                         "description": "The maximum number of consecutive flush failures before events are dropped instead of being re-queued.",
                         "default": 5,
@@ -25916,7 +25995,7 @@
                     },
                     "read_batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Read Batch Size",
                         "description": "The number of task runs the task run recorder will attempt to read from the message broker in one batch.",
                         "default": 1,
@@ -25926,7 +26005,7 @@
                     },
                     "batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Batch Size",
                         "description": "The number of task runs the task run recorder will attempt to insert in one batch.",
                         "default": 1,
@@ -25936,7 +26015,7 @@
                     },
                     "flush_interval": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Flush Interval",
                         "description": "The maximum number of seconds between flushes of the task run recorder.",
                         "default": 5,
@@ -25963,7 +26042,7 @@
                     },
                     "read_batch_size": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Read Batch Size",
                         "description": "The number of events the triggers service will attempt to read from the message broker in one batch.",
                         "default": 1,
@@ -26191,7 +26270,7 @@
                 "properties": {
                     "tag_concurrency_slot_wait_seconds": {
                         "type": "number",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Tag Concurrency Slot Wait Seconds",
                         "description": "The number of seconds to wait before retrying when a task run cannot secure a concurrency slot from the server.",
                         "default": 10,
@@ -26308,17 +26387,17 @@
                     },
                     "cleanup_lease_seconds": {
                         "type": "number",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Cleanup Lease Seconds",
                         "description": "The default cleanup message reservation lease duration in seconds.",
-                        "default": 30.0,
+                        "default": 30,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS"
                         ]
                     },
                     "cleanup_max_delivery_attempts": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Cleanup Max Delivery Attempts",
                         "description": "The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.",
                         "default": 3,
@@ -26330,7 +26409,7 @@
                         "anyOf": [
                             {
                                 "type": "number",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -27307,19 +27386,19 @@
                         "type": "number",
                         "title": "Total Run Time",
                         "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_run_time": {
                         "type": "number",
                         "title": "Estimated Run Time",
                         "description": "A real-time estimate of total run time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_start_time_delta": {
                         "type": "number",
                         "title": "Estimated Start Time Delta",
                         "description": "The difference between actual and expected start time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "state": {
                         "anyOf": [
@@ -28299,19 +28378,19 @@
                         "type": "number",
                         "title": "Total Run Time",
                         "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_run_time": {
                         "type": "number",
                         "title": "Estimated Run Time",
                         "description": "A real-time estimate of the total run time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_start_time_delta": {
                         "type": "number",
                         "title": "Estimated Start Time Delta",
                         "description": "The difference between actual and expected start time.",
-                        "default": 0.0
+                        "default": 0
                     }
                 },
                 "type": "object",
@@ -28424,7 +28503,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -28441,7 +28520,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -28520,7 +28599,7 @@
                     },
                     "default_retries": {
                         "type": "integer",
-                        "minimum": 0.0,
+                        "minimum": 0,
                         "title": "Default Retries",
                         "description": "This value sets the default number of retries for all tasks.",
                         "default": 0,
@@ -28600,7 +28679,7 @@
                     },
                     "resource_metrics_interval_seconds": {
                         "type": "integer",
-                        "minimum": 1.0,
+                        "minimum": 1,
                         "title": "Resource Metrics Interval Seconds",
                         "description": "Interval in seconds between resource metric collections.",
                         "default": 10,
@@ -28952,19 +29031,19 @@
                         "type": "number",
                         "title": "Total Run Time",
                         "description": "Total run time. If the task run was executed multiple times, the time of each run will be summed.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_run_time": {
                         "type": "number",
                         "title": "Estimated Run Time",
                         "description": "A real-time estimate of total run time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "estimated_start_time_delta": {
                         "type": "number",
                         "title": "Estimated Start Time Delta",
                         "description": "The difference between actual and expected start time.",
-                        "default": 0.0
+                        "default": 0
                     },
                     "state": {
                         "anyOf": [
@@ -29608,7 +29687,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -29816,7 +29895,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -29973,7 +30052,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -30058,7 +30137,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -30069,7 +30148,7 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Priority",
                         "description": "The queue's priority. Lower values are higher priority (1 is the highest).",
                         "default": 1
@@ -30265,7 +30344,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -30278,7 +30357,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"
@@ -30509,7 +30588,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -30520,7 +30599,7 @@
                     },
                     "priority": {
                         "type": "integer",
-                        "exclusiveMinimum": 0.0,
+                        "exclusiveMinimum": 0,
                         "title": "Priority",
                         "description": "The queue's priority. Lower values are higher priority (1 is the highest).",
                         "default": 1
@@ -30690,7 +30769,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "minimum": 0.0
+                                "minimum": 0
                             },
                             {
                                 "type": "null"
@@ -30702,7 +30781,7 @@
                         "anyOf": [
                             {
                                 "type": "integer",
-                                "exclusiveMinimum": 0.0
+                                "exclusiveMinimum": 0
                             },
                             {
                                 "type": "null"

@@ -149,3 +149,13 @@ async def test_filter_and_count_openapi_body_schemas_forbid_additional_propertie
             f"{schema_name} missing additionalProperties: False: "
             f"{openapi_schemas[schema_name]}"
         )
+
+
+async def test_count_endpoints_tolerate_shared_pagination_keys_from_ui_filters(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/artifacts/count",
+        json={"offset": 0, "limit": 10, "sort": "ID_DESC"},
+    )
+    assert response.status_code == 200, response.text

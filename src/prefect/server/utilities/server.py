@@ -134,10 +134,15 @@ def configure_strict_body_field(route_like: Any) -> frozenset[str] | None:
     if hasattr(body_field, "__post_init__"):
         body_field.__post_init__()
 
-    return frozenset(
+    allowed = set(body_model.model_fields.keys()) | {
         (field_info.alias or name)
         for name, field_info in body_model.model_fields.items()
-    ) | frozenset(body_model.model_fields.keys())
+    }
+    if path.rstrip("/").endswith("/count"):
+        # The UI reuses shared `Body_read_*` filter objects (which include
+        # `limit`, `offset`, and `sort`) when calling `POST .../count`.
+        allowed.update(("limit", "offset", "sort"))
+    return frozenset(allowed)
 
 
 def enforce_strict_body_fields_on_routes(routes: Sequence[BaseRoute]) -> None:
