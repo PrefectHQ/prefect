@@ -4,6 +4,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
+import { fetchAllPages } from "@/api/fetch-all-pages";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 
@@ -36,11 +37,19 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
 		queryFn: async () => {
-			const res = await (await getQueryService()).POST(
-				"/v2/concurrency_limits/filter",
-				{ body: filter },
-			);
-			return res.data ?? [];
+			const service = await getQueryService();
+			if (filter.limit !== undefined) {
+				const res = await service.POST("/v2/concurrency_limits/filter", {
+					body: filter,
+				});
+				return res.data ?? [];
+			}
+			return fetchAllPages(async (offset) => {
+				const res = await service.POST("/v2/concurrency_limits/filter", {
+					body: { ...filter, offset },
+				});
+				return res.data;
+			}, filter.offset);
 		},
 		refetchInterval: 30_000,
 	});
